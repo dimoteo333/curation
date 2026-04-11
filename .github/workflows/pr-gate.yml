@@ -1,0 +1,61 @@
+name: pr-gate
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install ruff mypy pytest
+      - name: Ruff
+        run: python -m ruff check backend/app backend/tests
+      - name: Mypy
+        run: python -m mypy backend/app
+      - name: Pytest
+        run: python -m pytest backend/tests -q
+
+  mobile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Flutter pub get
+        working-directory: mobile
+        run: flutter pub get
+      - name: Analyze
+        working-directory: mobile
+        run: flutter analyze
+      - name: Unit tests
+        working-directory: mobile
+        run: flutter test
+
+  contracts-and-docs:
+    runs-on: ubuntu-latest
+    needs: [backend, mobile]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install minimal deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+      - name: Export OpenAPI
+        run: bash scripts/export-openapi.sh
+      - name: Validate docs
+        run: bash scripts/validate-docs.sh
+      - name: Ensure no uncommitted contract drift
+        run: git diff --exit-code

@@ -1,0 +1,44 @@
+repos:
+  - repo: local
+    hooks:
+      - id: flutter-format
+        name: flutter-format
+        entry: bash -lc 'cd mobile && dart format --set-exit-if-changed lib test integration_test'
+        language: system
+        pass_filenames: false
+
+      - id: flutter-analyze
+        name: flutter-analyze
+        entry: bash -lc 'cd mobile && flutter analyze'
+        language: system
+        pass_filenames: false
+
+      - id: backend-ruff
+        name: backend-ruff
+        entry: python -m ruff check backend/app backend/tests
+        language: system
+        pass_filenames: false
+
+      - id: backend-mypy
+        name: backend-mypy
+        entry: python -m mypy backend/app
+        language: system
+        pass_filenames: false
+
+      - id: backend-pytest
+        name: backend-pytest
+        entry: python -m pytest backend/tests -q
+        language: system
+        pass_filenames: false
+
+      - id: openapi-export
+        name: openapi-export
+        entry: bash scripts/export-openapi.sh
+        language: system
+        pass_filenames: false
+
+      - id: docs-validate
+        name: docs-validate
+        entry: bash scripts/validate-docs.sh
+        language: system
+        pass_filenames: false
