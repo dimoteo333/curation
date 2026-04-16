@@ -20,6 +20,7 @@
 - The initial slice uses a seeded in-memory repository rather than persistent storage.
 - Repository isolation is still preserved so seeded data can be replaced with real storage later.
 - Curation behavior is deterministic and rule-based for the harness slice; no external model calls are made.
+- Mobile no longer depends on this backend by default; the backend stays as a contract-preserving development and demo harness.
 
 ## Router boundary
 

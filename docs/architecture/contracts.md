@@ -38,5 +38,6 @@
 
 ## Sync expectations
 
-- Mobile DTOs in `mobile/lib/src/data/dto/curated_response_dto.dart` are manually synced to the current OpenAPI contract.
+- Mobile DTOs in `mobile/lib/src/data/dto/curated_response_dto.dart` remain manually synced to the current OpenAPI contract for remote harness mode.
+- The default mobile runtime now maps local on-device retrieval and generation results into the same domain response shape used by the UI.
 - Any additive response change must update `backend/openapi.json`, mobile DTOs, and backend/mobile tests in the same change.
