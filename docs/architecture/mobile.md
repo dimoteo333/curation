@@ -34,7 +34,8 @@ Rules
 ## On-device flow
 
 - Seeded or imported records are indexed into a local SQLite vector store.
-- Query embeddings run on device through a native bridge when available, or a deterministic local fallback in test environments.
+- Query embeddings run on device through a native bridge when available, or through a pure Dart semantic embedding fallback tuned for Korean personal records.
+- The local vector store keeps normalized embedding and repeated-query caches so small datasets stay responsive without changing the retrieval contract.
 - The curation answer is generated from Korean prompt templates and retrieved local context.
 - Large model artifacts are staged outside the repository and passed by `LLM_MODEL_PATH` and `EMBEDDER_MODEL_PATH`.
 

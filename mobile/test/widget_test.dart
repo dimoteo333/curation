@@ -30,6 +30,8 @@ void main() {
 
     expect(find.text('네이티브 LLM 사용 가능'), findsOneWidget);
     expect(find.text('온디바이스 네이티브'), findsOneWidget);
+    expect(find.text('LLM: 네이티브'), findsOneWidget);
+    expect(find.text('임베딩: 네이티브'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('runtimeDeveloperPanel')));
     await tester.pumpAndSettle();
@@ -72,7 +74,8 @@ void main() {
     );
 
     expect(find.text('템플릿 폴백 사용 중'), findsOneWidget);
-    expect(find.textContaining('기기 안에서 계속 처리합니다'), findsOneWidget);
+    expect(find.textContaining('의미 임베딩 폴백'), findsWidgets);
+    expect(find.textContaining('검색은 한국어 의미 임베딩'), findsWidgets);
   });
 }
 

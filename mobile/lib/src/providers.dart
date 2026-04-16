@@ -7,9 +7,9 @@ import 'core/config/app_config.dart';
 import 'core/network/api_client.dart';
 import 'data/local/seed_records.dart';
 import 'data/local/vector_db.dart';
-import 'data/ondevice/keyword_hash_embedding_service.dart';
 import 'data/ondevice/litert_method_channel_bridge.dart';
 import 'data/ondevice/litert_text_embedding_service.dart';
+import 'data/ondevice/semantic_embedding_service.dart';
 import 'data/repositories/curation_repository_impl.dart';
 import 'data/repositories/on_device_curation_repository.dart';
 import 'data/sources/curation_remote_data_source.dart';
@@ -58,7 +58,7 @@ final onDeviceRuntimeStatusProvider = FutureProvider<OnDeviceRuntimeStatus>((
 final fallbackTextEmbeddingServiceProvider = Provider<TextEmbeddingService>((
   ref,
 ) {
-  return const KeywordHashEmbeddingService();
+  return const SemanticEmbeddingService();
 });
 
 final textEmbeddingServiceProvider = Provider<TextEmbeddingService>((ref) {

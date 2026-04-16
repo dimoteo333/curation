@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:curator_mobile/src/data/local/seed_records.dart';
 import 'package:curator_mobile/src/data/local/vector_db.dart';
-import 'package:curator_mobile/src/data/ondevice/keyword_hash_embedding_service.dart';
 import 'package:curator_mobile/src/data/ondevice/litert_method_channel_bridge.dart';
+import 'package:curator_mobile/src/data/ondevice/semantic_embedding_service.dart';
 import 'package:curator_mobile/src/data/repositories/on_device_curation_repository.dart';
 import 'package:curator_mobile/src/domain/services/llm_engine.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -35,11 +35,14 @@ void main() {
       databasePathResolver: () async =>
           path.join(tempDirectory.path, 'curator.db'),
     );
-    final embeddingService = const KeywordHashEmbeddingService();
+    final embeddingService = const SemanticEmbeddingService();
     final repository = OnDeviceCurationRepository(
       vectorDb: vectorDb,
       embeddingService: embeddingService,
-      llmEngine: const LlmEngine(bridge: MethodChannelOnDeviceLlmBridge()),
+      llmEngine: LlmEngine(
+        bridge: const MethodChannelOnDeviceLlmBridge(),
+        nowProvider: () => DateTime(2026, 4, 17),
+      ),
       seedRecords: seededLifeRecords,
     );
 
@@ -47,6 +50,8 @@ void main() {
 
     expect(response.supportingRecords, isNotEmpty);
     expect(response.summary, contains('로컬 검색'));
-    expect(response.answer, contains('기기 안에서 처리'));
+    expect(response.answer, anyOf(contains('2년 전'), contains('작년')));
+    expect(response.answer, contains('온디바이스 검색 결과'));
+    expect(response.runtimeInfo?.label, '템플릿 폴백 사용 중');
   });
 }

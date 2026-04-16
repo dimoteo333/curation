@@ -93,9 +93,9 @@ class OnDeviceCurationRepository implements CurationRepository {
   }
 
   String _buildRelevanceReason(VectorSearchMatch match) {
-    final dominantTag = match.record.tags.isEmpty
-        ? '기록'
-        : match.record.tags.first;
-    return '로컬 벡터 검색 점수 ${match.score.toStringAsFixed(2)}로 상위에 연결된 기록이며, "$dominantTag" 맥락이 현재 질문과 가깝습니다.';
+    final tagSummary = match.record.tags.isEmpty
+        ? '기록 맥락'
+        : match.record.tags.take(2).join(', ');
+    return '로컬 벡터 검색 점수 ${match.score.toStringAsFixed(2)}로 상위에 연결된 기록이며, "$tagSummary" 흐름이 현재 질문과 가깝습니다.';
   }
 }

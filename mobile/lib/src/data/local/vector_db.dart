@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../domain/entities/life_record.dart';
@@ -21,7 +22,15 @@ class VectorDb {
   final DatabaseFactory databaseFactory;
   final DatabasePathResolver databasePathResolver;
 
+  static const int _queryNormalizationCacheLimit = 48;
+  static const int _searchResultCacheLimit = 24;
+
   Database? _database;
+  List<_IndexedDocument>? _indexedDocumentsCache;
+  final Map<String, List<double>> _normalizedQueryCache =
+      <String, List<double>>{};
+  final Map<String, List<VectorSearchMatch>> _searchResultCache =
+      <String, List<VectorSearchMatch>>{};
 
   Future<void> initialize() async {
     await _open();
@@ -38,6 +47,7 @@ class VectorDb {
     TextEmbeddingService embeddingService,
   ) async {
     final db = await _open();
+    _invalidateCaches();
 
     await db.transaction((txn) async {
       await txn.delete('embeddings');
@@ -61,35 +71,27 @@ class VectorDb {
         }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
     });
+
+    _invalidateCaches();
   }
 
   Future<List<VectorSearchMatch>> search(
     List<double> queryVector, {
     int topK = 3,
   }) async {
-    final normalizedQuery = _normalize(queryVector);
-    final db = await _open();
-    final rows = await db.rawQuery('''
-      SELECT
-        documents.id,
-        documents.source,
-        documents.title,
-        documents.content,
-        documents.created_at,
-        documents.tags_json,
-        embeddings.vector_json
-      FROM documents
-      INNER JOIN embeddings ON documents.id = embeddings.doc_id
-    ''');
+    final normalizedQuery = _normalizeQuery(queryVector);
+    final cacheKey = '${_vectorKey(normalizedQuery)}::$topK';
+    final cachedResult = _searchResultCache[cacheKey];
+    if (cachedResult != null) {
+      return List<VectorSearchMatch>.from(cachedResult, growable: false);
+    }
 
+    final indexedDocuments = await _loadIndexedDocuments();
     final matches = <VectorSearchMatch>[
-      for (final row in rows)
+      for (final indexedDocument in indexedDocuments)
         VectorSearchMatch(
-          record: _recordFromRow(row),
-          score: _cosineSimilarity(
-            normalizedQuery,
-            _vectorFromJson(row['vector_json']! as String),
-          ),
+          record: indexedDocument.record,
+          score: _cosineSimilarity(normalizedQuery, indexedDocument.vector),
         ),
     ];
 
@@ -101,8 +103,19 @@ class VectorDb {
       return right.record.createdAt.compareTo(left.record.createdAt);
     });
 
-    return matches.take(topK).toList(growable: false);
+    final result = matches.take(topK).toList(growable: false);
+    _setSearchResultCache(cacheKey, result);
+    return result;
   }
+
+  @visibleForTesting
+  int get debugCachedQueryCount => _normalizedQueryCache.length;
+
+  @visibleForTesting
+  int get debugSearchResultCacheCount => _searchResultCache.length;
+
+  @visibleForTesting
+  int get debugIndexedDocumentCount => _indexedDocumentsCache?.length ?? 0;
 
   Future<Database> _open() async {
     final existing = _database;
@@ -162,6 +175,75 @@ class VectorDb {
     return values.map((dynamic value) => (value as num).toDouble()).toList();
   }
 
+  Future<List<_IndexedDocument>> _loadIndexedDocuments() async {
+    final cached = _indexedDocumentsCache;
+    if (cached != null) {
+      return cached;
+    }
+
+    final db = await _open();
+    final rows = await db.rawQuery('''
+      SELECT
+        documents.id,
+        documents.source,
+        documents.title,
+        documents.content,
+        documents.created_at,
+        documents.tags_json,
+        embeddings.vector_json
+      FROM documents
+      INNER JOIN embeddings ON documents.id = embeddings.doc_id
+    ''');
+
+    final indexedDocuments = <_IndexedDocument>[
+      for (final row in rows)
+        _IndexedDocument(
+          record: _recordFromRow(row),
+          vector: _normalize(_vectorFromJson(row['vector_json']! as String)),
+        ),
+    ];
+
+    _indexedDocumentsCache = indexedDocuments;
+    return indexedDocuments;
+  }
+
+  List<double> _normalizeQuery(List<double> queryVector) {
+    final key = _vectorKey(queryVector);
+    final cached = _normalizedQueryCache[key];
+    if (cached != null) {
+      return cached;
+    }
+
+    final normalized = _normalize(queryVector);
+    _normalizedQueryCache[key] = normalized;
+    _trimCache(_normalizedQueryCache, _queryNormalizationCacheLimit);
+    return normalized;
+  }
+
+  void _setSearchResultCache(String key, List<VectorSearchMatch> matches) {
+    _searchResultCache[key] = List<VectorSearchMatch>.from(
+      matches,
+      growable: false,
+    );
+    _trimCache(_searchResultCache, _searchResultCacheLimit);
+  }
+
+  void _trimCache<T>(Map<String, T> cache, int maxSize) {
+    while (cache.length > maxSize) {
+      cache.remove(cache.keys.first);
+    }
+  }
+
+  String _vectorKey(List<double> vector) {
+    return vector.map((double value) => value.toStringAsFixed(5)).join(',');
+  }
+
+  void _invalidateCaches() {
+    _indexedDocumentsCache = null;
+    _normalizedQueryCache.clear();
+    _searchResultCache.clear();
+  }
+
   List<double> _normalize(List<double> vector) {
     final magnitude = math.sqrt(
       vector.fold<double>(0, (double sum, double value) => sum + value * value),
@@ -185,4 +267,11 @@ class VectorDb {
     }
     return sum;
   }
+}
+
+class _IndexedDocument {
+  const _IndexedDocument({required this.record, required this.vector});
+
+  final LifeRecord record;
+  final List<double> vector;
 }

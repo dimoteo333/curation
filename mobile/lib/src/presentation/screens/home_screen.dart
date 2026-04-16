@@ -339,9 +339,9 @@ class _QuestionPanel extends StatelessWidget {
       return '현재 네이티브 LLM과 임베더가 모두 준비되어 있습니다.';
     }
     if (status.usingNativeLlm) {
-      return '현재 LLM은 네이티브지만 검색 일부는 폴백일 수 있습니다.';
+      return '현재 LLM은 네이티브지만, 검색은 한국어 의미 임베딩 폴백으로 동작할 수 있습니다.';
     }
-    return '현재는 템플릿 폴백으로 응답하며, 검색과 기록 조합은 기기 안에서 계속 처리합니다.';
+    return '현재는 폴백 생성 경로를 사용하며, 검색은 한국어 의미 임베딩으로 계속 기기 안에서 처리합니다.';
   }
 }
 
@@ -362,6 +362,7 @@ class _RuntimeStatusCard extends StatelessWidget {
     final title = _titleFor(status);
     final message = status?.message ?? '네이티브 런타임 준비 상태를 확인하고 있습니다.';
     final accentColor = _accentFor(theme, status);
+    final fallbackNotice = status == null ? null : _fallbackNotice(status);
 
     return Container(
       key: const Key('runtimeStatusCard'),
@@ -421,6 +422,20 @@ class _RuntimeStatusCard extends StatelessWidget {
               ),
               if (status != null)
                 _RuntimePill(
+                  label: _llmStateLabel(status),
+                  color: status.usingNativeLlm
+                      ? Colors.teal.shade700
+                      : Colors.orange.shade700,
+                ),
+              if (status != null)
+                _RuntimePill(
+                  label: _embeddingStateLabel(status),
+                  color: status.usingNativeEmbedder
+                      ? Colors.teal.shade700
+                      : Colors.orange.shade700,
+                ),
+              if (status != null)
+                _RuntimePill(
                   label: '플랫폼 ${status.platform}',
                   color: palette.accentStrong,
                 ),
@@ -431,6 +446,26 @@ class _RuntimeStatusCard extends StatelessWidget {
                 ),
             ],
           ),
+          if (fallbackNotice != null) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: Colors.orange.withValues(alpha: 0.25),
+                ),
+              ),
+              child: Text(
+                fallbackNotice,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: palette.label,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           Theme(
             data: theme.copyWith(dividerColor: Colors.transparent),
@@ -463,6 +498,12 @@ class _RuntimeStatusCard extends StatelessWidget {
                     available: status?.embedderModelAvailable ?? false,
                     ready: status?.embedderReady ?? false,
                   ),
+                ),
+                _RuntimeFact(
+                  label: '임베딩 경로',
+                  value: status?.usingNativeEmbedder ?? false
+                      ? '네이티브 임베딩'
+                      : '의미 임베딩 폴백',
                 ),
                 _RuntimeFact(
                   label: '런타임 코드',
@@ -514,6 +555,14 @@ class _RuntimeStatusCard extends StatelessWidget {
     return '온디바이스 폴백';
   }
 
+  static String _llmStateLabel(OnDeviceRuntimeStatus status) {
+    return status.usingNativeLlm ? 'LLM: 네이티브' : 'LLM: 폴백';
+  }
+
+  static String _embeddingStateLabel(OnDeviceRuntimeStatus status) {
+    return status.usingNativeEmbedder ? '임베딩: 네이티브' : '임베딩: 의미 폴백';
+  }
+
   static IconData _iconFor(OnDeviceRuntimeStatus? status) {
     if (status == null) {
       return Icons.hourglass_top_rounded;
@@ -561,6 +610,22 @@ class _RuntimeStatusCard extends StatelessWidget {
       return '경로 설정됨, 초기화 대기';
     }
     return '미설정';
+  }
+
+  static String? _fallbackNotice(OnDeviceRuntimeStatus status) {
+    if (status.runtime == 'remote-harness') {
+      return null;
+    }
+    if (!status.usingNativeLlm && !status.usingNativeEmbedder) {
+      return '현재 생성은 템플릿 폴백, 검색은 한국어 의미 임베딩 폴백으로 동작합니다.';
+    }
+    if (!status.usingNativeEmbedder) {
+      return '임베딩 모델이 준비되지 않아 검색은 한국어 의미 임베딩 폴백으로 처리합니다.';
+    }
+    if (!status.usingNativeLlm) {
+      return 'LLM이 준비되지 않아 응답 생성은 폴백 경로를 사용하지만, 임베딩 검색은 계속 온디바이스로 수행합니다.';
+    }
+    return null;
   }
 }
 
