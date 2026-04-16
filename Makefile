@@ -1,3 +1,5 @@
+PYTHON ?= python3
+
 bootstrap:
 	bash scripts/bootstrap.sh
 
@@ -8,11 +10,11 @@ mobile-test:
 	cd mobile && flutter test
 
 backend-lint:
-	python -m ruff check backend/app backend/tests
-	python -m mypy backend/app
+	$(PYTHON) -m ruff check backend/app backend/tests
+	$(PYTHON) -m mypy backend/app
 
 backend-test:
-	python -m pytest backend/tests -q
+	$(PYTHON) -m pytest backend/tests -q
 
 openapi:
 	bash scripts/export-openapi.sh
