@@ -1,8 +1,8 @@
 import '../../domain/entities/curated_response.dart';
-import '../../domain/entities/life_record.dart';
 import '../../domain/repositories/curation_repository.dart';
 import '../../domain/services/llm_engine.dart';
 import '../../domain/services/text_embedding_service.dart';
+import '../local/life_record_store.dart';
 import '../local/vector_db.dart';
 
 class OnDeviceCurationRepository implements CurationRepository {
@@ -10,19 +10,17 @@ class OnDeviceCurationRepository implements CurationRepository {
     required this.vectorDb,
     required this.embeddingService,
     required this.llmEngine,
-    required this.seedRecords,
+    required this.recordStore,
   });
 
   final VectorDb vectorDb;
   final TextEmbeddingService embeddingService;
   final LlmEngine llmEngine;
-  final List<LifeRecord> seedRecords;
-
-  bool _hasSeeded = false;
+  final LifeRecordStore recordStore;
 
   @override
   Future<CuratedResponse> curateQuestion(String question) async {
-    await _ensureSeeded();
+    await recordStore.initialize();
 
     final queryVector = await embeddingService.embed(question);
     final matches = await vectorDb.search(queryVector, topK: 3);
@@ -71,18 +69,6 @@ class OnDeviceCurationRepository implements CurationRepository {
         message: generation.runtimeMessage,
       ),
     );
-  }
-
-  Future<void> _ensureSeeded() async {
-    if (_hasSeeded) {
-      return;
-    }
-
-    await vectorDb.initialize();
-    if (await vectorDb.documentCount() == 0) {
-      await vectorDb.replaceAllRecords(seedRecords, embeddingService);
-    }
-    _hasSeeded = true;
   }
 
   String _buildExcerpt(String content) {

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -24,8 +25,10 @@ class VectorDb {
 
   static const int _queryNormalizationCacheLimit = 48;
   static const int _searchResultCacheLimit = 24;
+  static const int schemaVersion = 2;
 
   Database? _database;
+  String? _resolvedDatabasePath;
   List<_IndexedDocument>? _indexedDocumentsCache;
   final Map<String, List<double>> _normalizedQueryCache =
       <String, List<double>>{};
@@ -52,27 +55,53 @@ class VectorDb {
     await db.transaction((txn) async {
       await txn.delete('embeddings');
       await txn.delete('documents');
-
-      for (final record in records) {
-        await txn.insert('documents', <String, Object?>{
-          'id': record.id,
-          'source': record.source,
-          'title': record.title,
-          'content': record.content,
-          'created_at': record.createdAt.millisecondsSinceEpoch,
-          'tags_json': jsonEncode(record.tags),
-        }, conflictAlgorithm: ConflictAlgorithm.replace);
-
-        final embedding = await embeddingService.embed(record.searchableText);
-        await txn.insert('embeddings', <String, Object?>{
-          'doc_id': record.id,
-          'dim': embedding.length,
-          'vector_json': jsonEncode(_normalize(embedding)),
-        }, conflictAlgorithm: ConflictAlgorithm.replace);
-      }
+      await _upsertRecords(txn, records, embeddingService);
     });
 
     _invalidateCaches();
+  }
+
+  Future<void> upsertRecords(
+    List<LifeRecord> records,
+    TextEmbeddingService embeddingService,
+  ) async {
+    if (records.isEmpty) {
+      return;
+    }
+
+    final db = await _open();
+    _invalidateCaches();
+
+    await db.transaction((txn) async {
+      await _upsertRecords(txn, records, embeddingService);
+    });
+
+    _invalidateCaches();
+  }
+
+  Future<void> clearAllRecords() async {
+    final db = await _open();
+    _invalidateCaches();
+
+    await db.transaction((txn) async {
+      await txn.delete('embeddings');
+      await txn.delete('documents');
+    });
+
+    _invalidateCaches();
+  }
+
+  Future<int> databaseSizeBytes() async {
+    await _open();
+    final path = _resolvedDatabasePath;
+    if (path == null) {
+      return 0;
+    }
+    final file = File(path);
+    if (!await file.exists()) {
+      return 0;
+    }
+    return file.length();
   }
 
   Future<List<VectorSearchMatch>> search(
@@ -124,29 +153,34 @@ class VectorDb {
     }
 
     final path = await databasePathResolver();
+    _resolvedDatabasePath = path;
     final database = await databaseFactory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 1,
+        version: schemaVersion,
         onCreate: (Database db, int version) async {
-          await db.execute('''
-            CREATE TABLE documents (
-              id TEXT PRIMARY KEY,
-              source TEXT NOT NULL,
-              title TEXT NOT NULL,
-              content TEXT NOT NULL,
-              created_at INTEGER NOT NULL,
-              tags_json TEXT NOT NULL
-            )
-          ''');
-          await db.execute('''
-            CREATE TABLE embeddings (
-              doc_id TEXT PRIMARY KEY,
-              dim INTEGER NOT NULL,
-              vector_json TEXT NOT NULL,
-              FOREIGN KEY(doc_id) REFERENCES documents(id) ON DELETE CASCADE
-            )
-          ''');
+          await _createSchema(db);
+        },
+        onUpgrade: (Database db, int oldVersion, int newVersion) async {
+          if (oldVersion < 2) {
+            await db.execute('''
+              ALTER TABLE documents
+              ADD COLUMN import_source TEXT NOT NULL DEFAULT 'note'
+            ''');
+            await db.execute('''
+              ALTER TABLE documents
+              ADD COLUMN metadata_json TEXT NOT NULL DEFAULT '{}'
+            ''');
+            await db.execute('''
+              UPDATE documents
+              SET import_source = CASE source
+                WHEN '일기' THEN 'diary'
+                WHEN '캘린더' THEN 'calendar'
+                WHEN '메모' THEN 'note'
+                ELSE 'note'
+              END
+            ''');
+          }
         },
       ),
     );
@@ -163,10 +197,14 @@ class VectorDb {
     return LifeRecord(
       id: row['id']! as String,
       source: row['source']! as String,
+      importSource: row['import_source']! as String,
       title: row['title']! as String,
       content: row['content']! as String,
       createdAt: DateTime.fromMillisecondsSinceEpoch(row['created_at']! as int),
       tags: tags,
+      metadata: Map<String, dynamic>.from(
+        jsonDecode(row['metadata_json']! as String) as Map<dynamic, dynamic>,
+      ),
     );
   }
 
@@ -186,10 +224,12 @@ class VectorDb {
       SELECT
         documents.id,
         documents.source,
+        documents.import_source,
         documents.title,
         documents.content,
         documents.created_at,
         documents.tags_json,
+        documents.metadata_json,
         embeddings.vector_json
       FROM documents
       INNER JOIN embeddings ON documents.id = embeddings.doc_id
@@ -242,6 +282,55 @@ class VectorDb {
     _indexedDocumentsCache = null;
     _normalizedQueryCache.clear();
     _searchResultCache.clear();
+  }
+
+  Future<void> _createSchema(Database db) async {
+    await db.execute('''
+      CREATE TABLE documents (
+        id TEXT PRIMARY KEY,
+        source TEXT NOT NULL,
+        import_source TEXT NOT NULL,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        tags_json TEXT NOT NULL,
+        metadata_json TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE embeddings (
+        doc_id TEXT PRIMARY KEY,
+        dim INTEGER NOT NULL,
+        vector_json TEXT NOT NULL,
+        FOREIGN KEY(doc_id) REFERENCES documents(id) ON DELETE CASCADE
+      )
+    ''');
+  }
+
+  Future<void> _upsertRecords(
+    Transaction txn,
+    List<LifeRecord> records,
+    TextEmbeddingService embeddingService,
+  ) async {
+    for (final record in records) {
+      await txn.insert('documents', <String, Object?>{
+        'id': record.id,
+        'source': record.source,
+        'import_source': record.importSource,
+        'title': record.title,
+        'content': record.content,
+        'created_at': record.createdAt.millisecondsSinceEpoch,
+        'tags_json': jsonEncode(record.tags),
+        'metadata_json': jsonEncode(record.metadata),
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+      final embedding = await embeddingService.embed(record.searchableText);
+      await txn.insert('embeddings', <String, Object?>{
+        'doc_id': record.id,
+        'dim': embedding.length,
+        'vector_json': jsonEncode(_normalize(embedding)),
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    }
   }
 
   List<double> _normalize(List<double> vector) {

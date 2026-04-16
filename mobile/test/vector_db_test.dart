@@ -100,4 +100,61 @@ void main() {
     expect(vectorDb.debugCachedQueryCount, 1);
     expect(vectorDb.debugSearchResultCacheCount, 1);
   });
+
+  test('v1 스키마는 v2로 마이그레이션되며 import_source와 metadata를 채운다', () async {
+    final databasePath = path.join(tempDirectory.path, 'migration.db');
+    final legacyDb = await databaseFactoryFfi.openDatabase(
+      databasePath,
+      options: OpenDatabaseOptions(
+        version: 1,
+        onCreate: (db, version) async {
+          await db.execute('''
+            CREATE TABLE documents (
+              id TEXT PRIMARY KEY,
+              source TEXT NOT NULL,
+              title TEXT NOT NULL,
+              content TEXT NOT NULL,
+              created_at INTEGER NOT NULL,
+              tags_json TEXT NOT NULL
+            )
+          ''');
+          await db.execute('''
+            CREATE TABLE embeddings (
+              doc_id TEXT PRIMARY KEY,
+              dim INTEGER NOT NULL,
+              vector_json TEXT NOT NULL,
+              FOREIGN KEY(doc_id) REFERENCES documents(id) ON DELETE CASCADE
+            )
+          ''');
+        },
+      ),
+    );
+
+    await legacyDb.insert('documents', <String, Object?>{
+      'id': 'legacy-record',
+      'source': '메모',
+      'title': '예전 메모',
+      'content': '예전 버전 DB에서 온 문장입니다.',
+      'created_at': DateTime(2024, 4, 1, 9).millisecondsSinceEpoch,
+      'tags_json': '["회고"]',
+    });
+    await legacyDb.insert('embeddings', <String, Object?>{
+      'doc_id': 'legacy-record',
+      'dim': 3,
+      'vector_json': '[0.1, 0.2, 0.3]',
+    });
+    await legacyDb.close();
+
+    final vectorDb = VectorDb(
+      databaseFactory: databaseFactoryFfi,
+      databasePathResolver: () async => databasePath,
+    );
+    await vectorDb.initialize();
+
+    final queryVector = await const SemanticEmbeddingService().embed('예전 메모');
+    final matches = await vectorDb.search(queryVector, topK: 1);
+
+    expect(matches.first.record.importSource, 'note');
+    expect(matches.first.record.metadata, isEmpty);
+  });
 }

@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/ondevice/litert_method_channel_bridge.dart';
-import '../../providers.dart';
 import '../../domain/entities/curated_response.dart';
+import '../../providers.dart';
 import '../../state/curation_controller.dart';
 import '../../theme/curator_theme.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -84,7 +85,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
                     children: [
-                      _HeroHeader(palette: palette),
+                      _HeroHeader(
+                        palette: palette,
+                        onOpenSettings: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const SettingsScreen(),
+                            ),
+                          );
+                        },
+                      ),
                       const SizedBox(height: 22),
                       _RuntimeStatusCard(
                         runtimeStatus: runtimeStatus,
@@ -121,9 +131,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 }
 
 class _HeroHeader extends StatelessWidget {
-  const _HeroHeader({required this.palette});
+  const _HeroHeader({required this.palette, required this.onOpenSettings});
 
   final CuratorPalette palette;
+  final VoidCallback onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -189,6 +200,13 @@ class _HeroHeader extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(width: 12),
+              IconButton.filledTonal(
+                key: const Key('openSettingsButton'),
+                onPressed: onOpenSettings,
+                tooltip: '설정 열기',
+                icon: const Icon(Icons.tune_rounded),
+              ),
             ],
           ),
           const SizedBox(height: 22),
@@ -216,6 +234,11 @@ class _HeroHeader extends StatelessWidget {
               '완성된 문장보다 망설이는 질문에 더 잘 반응하도록 설계했습니다. 짧은 감정, 메모 한 줄, 애매한 불안도 그대로 적어 보세요.',
               style: theme.textTheme.bodyMedium?.copyWith(color: palette.label),
             ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '파일 가져오기와 프라이버시 설정은 오른쪽 위 설정에서 관리합니다.',
+            style: theme.textTheme.bodySmall,
           ),
         ],
       ),

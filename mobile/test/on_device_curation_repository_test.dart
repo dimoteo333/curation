@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:curator_mobile/src/data/local/life_record_store.dart';
 import 'package:curator_mobile/src/data/local/seed_records.dart';
 import 'package:curator_mobile/src/data/local/vector_db.dart';
 import 'package:curator_mobile/src/data/ondevice/litert_method_channel_bridge.dart';
@@ -8,6 +9,7 @@ import 'package:curator_mobile/src/data/repositories/on_device_curation_reposito
 import 'package:curator_mobile/src/domain/services/llm_engine.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as path;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -30,12 +32,20 @@ void main() {
   });
 
   test('온디바이스 저장소는 네이티브 브릿지가 없어도 로컬 RAG 응답을 만든다', () async {
+    SharedPreferences.setMockInitialValues(const <String, Object>{});
+    final preferences = await SharedPreferences.getInstance();
     final vectorDb = VectorDb(
       databaseFactory: databaseFactoryFfi,
       databasePathResolver: () async =>
           path.join(tempDirectory.path, 'curator.db'),
     );
     final embeddingService = const SemanticEmbeddingService();
+    final recordStore = LifeRecordStore(
+      vectorDb: vectorDb,
+      embeddingService: embeddingService,
+      seedRecords: seededLifeRecords,
+      sharedPreferences: preferences,
+    );
     final repository = OnDeviceCurationRepository(
       vectorDb: vectorDb,
       embeddingService: embeddingService,
@@ -43,7 +53,7 @@ void main() {
         bridge: const MethodChannelOnDeviceLlmBridge(),
         nowProvider: () => DateTime(2026, 4, 17),
       ),
-      seedRecords: seededLifeRecords,
+      recordStore: recordStore,
     );
 
     final response = await repository.curateQuestion('나 요즘 왜 이렇게 무기력하지?');

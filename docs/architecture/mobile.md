@@ -15,8 +15,13 @@ Rules
 ## Current implementation slice
 
 - App root: `mobile/lib/main.dart` -> `ProviderScope` -> `CuratorApp`
-- Presentation: `mobile/lib/src/presentation/screens/home_screen.dart`
-- State: `mobile/lib/src/state/curation_controller.dart`
+- Presentation:
+  - `mobile/lib/src/presentation/screens/onboarding_screen.dart`
+  - `mobile/lib/src/presentation/screens/home_screen.dart`
+  - `mobile/lib/src/presentation/screens/settings_screen.dart`
+- State:
+  - `mobile/lib/src/state/app_settings_controller.dart`
+  - `mobile/lib/src/state/curation_controller.dart`
 - Domain: `mobile/lib/src/domain/**`
 - Data: `mobile/lib/src/data/**`
 - Provider wiring: `mobile/lib/src/providers.dart`
@@ -33,14 +38,22 @@ Rules
 
 ## On-device flow
 
+- On first launch, a minimal onboarding screen explains the service, file import entry point, and privacy posture. Completion is persisted with SharedPreferences.
+- Runtime mode and developer model paths are stored as local settings and can override compile-time defaults without changing the API contract.
 - Seeded or imported records are indexed into a local SQLite vector store.
+- `.txt` and `.md` files can be imported through the settings screen, parsed into `LifeRecord` v2 records, and embedded into the local vector DB.
 - Query embeddings run on device through a native bridge when available, or through a pure Dart semantic embedding fallback tuned for Korean personal records.
 - The local vector store keeps normalized embedding and repeated-query caches so small datasets stay responsive without changing the retrieval contract.
+- `LifeRecord` now carries `source` for Korean UI display, `importSource` for extensible source typing, and `metadata` for source-specific details.
 - The curation answer is generated from Korean prompt templates and retrieved local context.
 - Large model artifacts are staged outside the repository and passed by `LLM_MODEL_PATH` and `EMBEDDER_MODEL_PATH`.
 
 ## Tests
 
 - Widget test uses a fake repository override to validate presentation without network access.
-- Mobile unit tests cover the local vector store and the on-device repository path without network access.
+- Mobile unit tests cover:
+  - local vector store search and v1 -> v2 schema migration
+  - file import parsing and local persistence
+  - on-device repository path without network access
+  - onboarding and settings widgets
 - Integration test now validates the default on-device rendering path on a supported simulator/device.

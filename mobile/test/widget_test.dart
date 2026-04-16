@@ -4,6 +4,7 @@ import 'package:curator_mobile/src/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fakes/fake_curation_repository.dart';
 
@@ -77,12 +78,42 @@ void main() {
     expect(find.textContaining('의미 임베딩 폴백'), findsWidgets);
     expect(find.textContaining('검색은 한국어 의미 임베딩'), findsWidgets);
   });
+
+  testWidgets('홈 화면에서 설정 화면으로 이동할 수 있다', (WidgetTester tester) async {
+    await _pumpApp(
+      tester,
+      bridge: const FakeOnDeviceLlmBridge(
+        runtimeStatus: OnDeviceRuntimeStatus(
+          llmReady: false,
+          embedderReady: false,
+          runtime: 'template-fallback',
+          message: '모델 경로가 없어 템플릿 폴백을 사용합니다.',
+          platform: 'flutter-test',
+          llmModelConfigured: false,
+          embedderModelConfigured: false,
+          llmModelAvailable: false,
+          embedderModelAvailable: false,
+          fallbackActive: true,
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('openSettingsButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('설정'), findsOneWidget);
+    expect(find.text('런타임 모드'), findsOneWidget);
+  });
 }
 
 Future<void> _pumpApp(
   WidgetTester tester, {
   required OnDeviceLlmBridge bridge,
 }) async {
+  SharedPreferences.setMockInitialValues(const <String, Object>{
+    'app.onboarding_completed': true,
+  });
+  final preferences = await SharedPreferences.getInstance();
   tester.view.physicalSize = const Size(1400, 2800);
   tester.view.devicePixelRatio = 2;
   addTearDown(tester.view.resetPhysicalSize);
@@ -91,6 +122,7 @@ Future<void> _pumpApp(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        sharedPreferencesProvider.overrideWithValue(preferences),
         curationRepositoryProvider.overrideWithValue(FakeCurationRepository()),
         onDeviceLlmBridgeProvider.overrideWithValue(bridge),
       ],
