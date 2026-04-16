@@ -1,0 +1,239 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Curator API",
+    "description": "Development harness API for the Curator Korean curation slice.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/curation/query": {
+      "post": {
+        "tags": [
+          "curation"
+        ],
+        "summary": "Curate",
+        "operationId": "curate_api_v1_curation_query_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CurationQueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurationQueryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CurationQueryRequest": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "maxLength": 280,
+            "minLength": 2,
+            "title": "Question",
+            "description": "Korean user question"
+          },
+          "top_k": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Top K",
+            "description": "Maximum number of supporting records",
+            "default": 3
+          }
+        },
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "title": "CurationQueryRequest"
+      },
+      "CurationQueryResponse": {
+        "properties": {
+          "insight_title": {
+            "type": "string",
+            "title": "Insight Title"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "supporting_records": {
+            "items": {
+              "$ref": "#/components/schemas/SupportingRecordResponse"
+            },
+            "type": "array",
+            "title": "Supporting Records"
+          },
+          "suggested_follow_up": {
+            "type": "string",
+            "title": "Suggested Follow Up"
+          }
+        },
+        "type": "object",
+        "required": [
+          "insight_title",
+          "summary",
+          "answer",
+          "supporting_records",
+          "suggested_follow_up"
+        ],
+        "title": "CurationQueryResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "record_count": {
+            "type": "integer",
+            "title": "Record Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "record_count"
+        ],
+        "title": "HealthResponse"
+      },
+      "SupportingRecordResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "excerpt": {
+            "type": "string",
+            "title": "Excerpt"
+          },
+          "relevance_reason": {
+            "type": "string",
+            "title": "Relevance Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "title",
+          "created_at",
+          "excerpt",
+          "relevance_reason"
+        ],
+        "title": "SupportingRecordResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

@@ -1,0 +1,1 @@
+"""Curator backend application package."""
