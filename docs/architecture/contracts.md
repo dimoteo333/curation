@@ -4,3 +4,39 @@
 - Every endpoint change must update OpenAPI export
 - Mobile DTOs must be generated or manually synced from OpenAPI
 - If response shape changes, update integration tests first
+
+## Current endpoints
+
+### `GET /health`
+
+- Purpose: confirm API liveness and seeded record availability
+- Response shape:
+  - `status`: string
+  - `record_count`: integer
+
+### `POST /api/v1/curation/query`
+
+- Purpose: return a Korean curation response for a user question
+- Request shape:
+  - `question`: string, required, 2..280 chars
+  - `top_k`: integer, optional, 1..5
+- Response shape:
+  - `insight_title`: string
+  - `summary`: string
+  - `answer`: string
+  - `supporting_records`: array
+  - `suggested_follow_up`: string
+
+### `supporting_records[]`
+
+- `id`: string
+- `source`: string
+- `title`: string
+- `created_at`: ISO-8601 datetime string
+- `excerpt`: string
+- `relevance_reason`: string
+
+## Sync expectations
+
+- Mobile DTOs in `mobile/lib/src/data/dto/curated_response_dto.dart` are manually synced to the current OpenAPI contract.
+- Any additive response change must update `backend/openapi.json`, mobile DTOs, and backend/mobile tests in the same change.
