@@ -1,0 +1,197 @@
+name: docs-guard
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'AGENTS.md'
+      - 'docs/**'
+      - 'backend/openapi.json'
+      - 'backend/app/**'
+      - 'backend/tests/**'
+      - 'mobile/lib/src/data/local/seed_records.dart'
+      - 'mobile/android/**'
+      - 'mobile/ios/**'
+      - '.pre-commit-config.yaml'
+      - '.github/workflows/docs-guard.yml'
+      - 'scripts/**'
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      docs_changed: ${{ steps.filter.outputs.docs_changed }}
+      contract_changed: ${{ steps.filter.outputs.contract_changed }}
+      architecture_changed: ${{ steps.filter.outputs.architecture_changed }}
+      review_targets_changed: ${{ steps.filter.outputs.review_targets_changed }}
+      backend_changed: ${{ steps.filter.outputs.backend_changed }}
+      seeds_changed: ${{ steps.filter.outputs.seeds_changed }}
+      native_build_changed: ${{ steps.filter.outputs.native_build_changed }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            docs_changed:
+              - 'docs/**'
+              - 'AGENTS.md'
+            contract_changed:
+              - 'backend/openapi.json'
+              - 'docs/architecture/contracts.md'
+            architecture_changed:
+              - 'docs/architecture/**'
+            review_targets_changed:
+              - 'AGENTS.md'
+              - 'docs/**'
+              - 'backend/openapi.json'
+              - 'backend/app/**'
+              - 'mobile/lib/src/data/local/seed_records.dart'
+              - 'backend/app/db/seed_records.py'
+              - 'scripts/**'
+            backend_changed:
+              - 'backend/app/**'
+              - 'backend/tests/**'
+            seeds_changed:
+              - 'mobile/lib/src/data/local/seed_records.dart'
+              - 'backend/app/db/seed_records.py'
+            native_build_changed:
+              - 'mobile/android/**'
+              - 'mobile/ios/**'
+              - 'scripts/check-native-dependency-pins.sh'
+              - 'scripts/check-release-signing.sh'
+
+  reviewer-alert:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.review_targets_changed == 'true'
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Comment review notice
+        uses: actions/github-script@v7
+        env:
+          DOCS_CHANGED: ${{ needs.changes.outputs.docs_changed }}
+          CONTRACT_CHANGED: ${{ needs.changes.outputs.contract_changed }}
+          ARCH_CHANGED: ${{ needs.changes.outputs.architecture_changed }}
+          DOCS_GUARD_REVIEWERS: ${{ vars.DOCS_GUARD_REVIEWERS }}
+        with:
+          script: |
+            const marker = '<!-- docs-guard-review-alert -->';
+            const sections = [];
+            if (process.env.DOCS_CHANGED === 'true') {
+              sections.push('- 문서 변경: `docs/contributing.md`, `docs/runbooks/guardrails.md`, 아키텍처 문서 기준으로 서술/체크리스트를 확인하세요.');
+            }
+            if (process.env.CONTRACT_CHANGED === 'true') {
+              sections.push('- 계약 변경: `backend/openapi.json` 과 `docs/architecture/contracts.md` 동기화를 확인하세요.');
+            }
+            if (process.env.ARCH_CHANGED === 'true') {
+              sections.push('- 아키텍처 변경: `docs/architecture/mobile.md`, `docs/architecture/backend.md`, `docs/architecture/mobile-ondevice-llm.md`와 실제 코드가 같은지 확인하세요.');
+            }
+            const body = [
+              marker,
+              '## docs-guard review alert',
+              '이 PR은 문서/계약/아키텍처 가드 대상 파일을 변경했습니다.',
+              '',
+              ...sections,
+              '',
+              '- 수동 리뷰 기준: `docs/contributing.md`',
+              '- 우회 방지 전략: `docs/runbooks/guardrails.md`',
+            ].join('\n');
+
+            const {owner, repo} = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+            const existing = comments.find((comment) => comment.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              });
+            }
+
+            const reviewers = (process.env.DOCS_GUARD_REVIEWERS || '')
+              .split(',')
+              .map((item) => item.trim())
+              .filter(Boolean);
+            if (reviewers.length > 0) {
+              try {
+                await github.rest.pulls.requestReviewers({
+                  owner,
+                  repo,
+                  pull_number: issue_number,
+                  reviewers,
+                });
+              } catch (error) {
+                core.warning(`Unable to request reviewers automatically: ${error.message}`);
+              }
+            }
+
+  openapi-drift:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.backend_changed == 'true' || needs.changes.outputs.contract_changed == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install backend deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+      - name: Check OpenAPI drift
+        run: bash scripts/check-openapi-drift.sh
+
+  docs-validation:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.docs_changed == 'true' || needs.changes.outputs.contract_changed == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate docs
+        run: bash scripts/validate-docs.sh
+
+  source-consistency:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.seeds_changed == 'true' || needs.changes.outputs.backend_changed == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check mobile/backend seed source consistency
+        run: python scripts/check_seed_source_consistency.py
+
+  native-guardrails:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.native_build_changed == 'true' || needs.changes.outputs.docs_changed == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check pinned native dependencies
+        run: bash scripts/check-native-dependency-pins.sh --strict
+      - name: Check release signing
+        run: bash scripts/check-release-signing.sh

@@ -34,6 +34,11 @@ class OnDeviceCurationRepository implements CurationRepository {
             '로컬 기록만 기준으로 다시 찾았지만 아직 연결할 만한 기록이 부족합니다. 감정이나 상황을 조금 더 구체적으로 적어 주시면 다음 검색이 더 정확해집니다.',
         supportingRecords: <SupportingRecord>[],
         suggestedFollowUp: '최근 일주일 동안 반복된 감정이나 일정 변화를 한 줄씩 적어 보시겠어요?',
+        runtimeInfo: CurationRuntimeInfo(
+          path: CurationRuntimePath.onDeviceFallback,
+          label: '템플릿 폴백 사용 중',
+          message: '연결된 기록이 부족해 안전한 온디바이스 폴백 흐름으로 안내했습니다.',
+        ),
       );
     }
 
@@ -58,6 +63,13 @@ class OnDeviceCurationRepository implements CurationRepository {
           )
           .toList(growable: false),
       suggestedFollowUp: generation.suggestedFollowUp,
+      runtimeInfo: CurationRuntimeInfo(
+        path: generation.usedNativeRuntime
+            ? CurationRuntimePath.onDeviceNative
+            : CurationRuntimePath.onDeviceFallback,
+        label: generation.usedNativeRuntime ? '네이티브 LLM 사용 중' : '템플릿 폴백 사용 중',
+        message: generation.runtimeMessage,
+      ),
     );
   }
 

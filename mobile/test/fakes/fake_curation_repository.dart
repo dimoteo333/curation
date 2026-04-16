@@ -19,6 +19,11 @@ class FakeCurationRepository implements CurationRepository {
         ),
       ],
       suggestedFollowUp: '다음 질문을 이어서 적어 보세요.',
+      runtimeInfo: const CurationRuntimeInfo(
+        path: CurationRuntimePath.onDeviceFallback,
+        label: '템플릿 폴백 사용 중',
+        message: '테스트 환경에서는 안전한 폴백 경로를 사용합니다.',
+      ),
     );
   }
 }

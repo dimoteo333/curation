@@ -79,6 +79,11 @@ class CuratedResponseDto {
           .map((record) => record.toDomain())
           .toList(),
       suggestedFollowUp: suggestedFollowUp,
+      runtimeInfo: const CurationRuntimeInfo(
+        path: CurationRuntimePath.remoteHarness,
+        label: '원격 API 하네스 사용 중',
+        message: 'FastAPI 개발 하네스를 통해 응답을 생성했습니다.',
+      ),
     );
   }
 }

@@ -54,6 +54,7 @@ class CurationController extends Notifier<CurationViewState> {
     try {
       final useCase = ref.read(requestCurationUseCaseProvider);
       final response = await useCase(normalizedQuestion);
+      ref.invalidate(onDeviceRuntimeStatusProvider);
       state = state.copyWith(
         isLoading: false,
         response: response,
@@ -61,6 +62,7 @@ class CurationController extends Notifier<CurationViewState> {
         lastQuestion: normalizedQuestion,
       );
     } catch (error) {
+      ref.invalidate(onDeviceRuntimeStatusProvider);
       state = state.copyWith(
         isLoading: false,
         errorMessage: error.toString(),

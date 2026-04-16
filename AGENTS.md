@@ -9,6 +9,7 @@
 2. Read docs/architecture/backend.md
 3. Read docs/architecture/contracts.md
 4. If the task spans more than one layer, create docs/plans/<date>-<task>.md first.
+5. For manual guardrails and release checks, read docs/contributing.md and docs/runbooks/guardrails.md.
 
 ## Change boundaries
 - Mobile UI/state changes: mobile/lib/**

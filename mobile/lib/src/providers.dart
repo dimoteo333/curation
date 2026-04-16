@@ -39,6 +39,22 @@ final onDeviceLlmBridgeProvider = Provider<OnDeviceLlmBridge>((ref) {
   return const MethodChannelOnDeviceLlmBridge();
 });
 
+final onDeviceRuntimeStatusProvider = FutureProvider<OnDeviceRuntimeStatus>((
+  ref,
+) async {
+  final config = ref.watch(appConfigProvider);
+  if (config.curationMode == CurationRuntimeMode.remote) {
+    return OnDeviceRuntimeStatus.remoteHarness();
+  }
+
+  return ref
+      .watch(onDeviceLlmBridgeProvider)
+      .prepare(
+        llmModelPath: config.llmModelPath,
+        embedderModelPath: config.embedderModelPath,
+      );
+});
+
 final fallbackTextEmbeddingServiceProvider = Provider<TextEmbeddingService>((
   ref,
 ) {

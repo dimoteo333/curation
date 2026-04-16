@@ -1,3 +1,19 @@
+enum CurationRuntimePath { onDeviceNative, onDeviceFallback, remoteHarness }
+
+class CurationRuntimeInfo {
+  const CurationRuntimeInfo({
+    required this.path,
+    required this.label,
+    required this.message,
+  });
+
+  final CurationRuntimePath path;
+  final String label;
+  final String message;
+
+  bool get isFallback => path == CurationRuntimePath.onDeviceFallback;
+}
+
 class SupportingRecord {
   const SupportingRecord({
     required this.id,
@@ -23,6 +39,7 @@ class CuratedResponse {
     required this.answer,
     required this.supportingRecords,
     required this.suggestedFollowUp,
+    this.runtimeInfo,
   });
 
   final String insightTitle;
@@ -30,4 +47,5 @@ class CuratedResponse {
   final String answer;
   final List<SupportingRecord> supportingRecords;
   final String suggestedFollowUp;
+  final CurationRuntimeInfo? runtimeInfo;
 }

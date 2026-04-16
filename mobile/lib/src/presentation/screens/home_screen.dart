@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/ondevice/litert_method_channel_bridge.dart';
+import '../../providers.dart';
 import '../../domain/entities/curated_response.dart';
 import '../../state/curation_controller.dart';
 import '../../theme/curator_theme.dart';
@@ -31,6 +33,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(curationControllerProvider);
     final controller = ref.read(curationControllerProvider.notifier);
+    final runtimeStatus = ref.watch(onDeviceRuntimeStatusProvider);
     final theme = Theme.of(context);
     final palette = theme.extension<CuratorPalette>()!;
 
@@ -83,10 +86,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     children: [
                       _HeroHeader(palette: palette),
                       const SizedBox(height: 22),
+                      _RuntimeStatusCard(
+                        runtimeStatus: runtimeStatus,
+                        onRefresh: () =>
+                            ref.invalidate(onDeviceRuntimeStatusProvider),
+                      ),
+                      const SizedBox(height: 18),
                       _QuestionPanel(
                         controller: _controller,
                         isLoading: state.isLoading,
                         errorMessage: state.errorMessage,
+                        runtimeStatus: runtimeStatus,
                         onSubmit: () =>
                             controller.submitQuestion(_controller.text),
                       ),
@@ -218,18 +228,22 @@ class _QuestionPanel extends StatelessWidget {
     required this.controller,
     required this.isLoading,
     required this.errorMessage,
+    required this.runtimeStatus,
     required this.onSubmit,
   });
 
   final TextEditingController controller;
   final bool isLoading;
   final String? errorMessage;
+  final AsyncValue<OnDeviceRuntimeStatus> runtimeStatus;
   final VoidCallback onSubmit;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final palette = theme.extension<CuratorPalette>()!;
+    final runtimeLabel = _runtimeLabel();
+    final runtimeHint = _runtimeHint();
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -266,9 +280,11 @@ class _QuestionPanel extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
+          Text(runtimeHint, style: theme.textTheme.bodySmall),
+          const SizedBox(height: 10),
           Text(
             '예시: 일이 밀릴수록 더 멍해지고, 쉬는 시간도 죄책감이 들어요.',
-            style: theme.textTheme.bodySmall,
+            style: theme.textTheme.bodySmall?.copyWith(color: palette.label),
           ),
           if (errorMessage != null) ...[
             const SizedBox(height: 14),
@@ -286,10 +302,316 @@ class _QuestionPanel extends StatelessWidget {
             icon: Icon(
               isLoading
                   ? Icons.hourglass_top_rounded
+                  : runtimeLabel.contains('네이티브')
+                  ? Icons.memory_rounded
                   : Icons.travel_explore_rounded,
             ),
-            label: Text(isLoading ? '기록을 찾는 중...' : '기록 연결하기'),
+            label: Text(isLoading ? '기록을 찾는 중...' : runtimeLabel),
           ),
+        ],
+      ),
+    );
+  }
+
+  String _runtimeLabel() {
+    final status = runtimeStatus.asData?.value;
+    if (status == null) {
+      return '런타임 확인 후 기록 연결하기';
+    }
+    if (status.runtime == 'remote-harness') {
+      return '원격 하네스로 기록 연결하기';
+    }
+    if (status.usingNativeLlm) {
+      return '네이티브로 기록 연결하기';
+    }
+    return '템플릿으로 기록 연결하기';
+  }
+
+  String _runtimeHint() {
+    final status = runtimeStatus.asData?.value;
+    if (status == null) {
+      return '런타임 준비 상태를 확인하는 중입니다. 확인 전에도 기본 폴백 경로로 질문을 보낼 수 있습니다.';
+    }
+    if (status.runtime == 'remote-harness') {
+      return '현재는 FastAPI 개발 하네스를 사용합니다.';
+    }
+    if (status.usingNativeLlm && status.usingNativeEmbedder) {
+      return '현재 네이티브 LLM과 임베더가 모두 준비되어 있습니다.';
+    }
+    if (status.usingNativeLlm) {
+      return '현재 LLM은 네이티브지만 검색 일부는 폴백일 수 있습니다.';
+    }
+    return '현재는 템플릿 폴백으로 응답하며, 검색과 기록 조합은 기기 안에서 계속 처리합니다.';
+  }
+}
+
+class _RuntimeStatusCard extends StatelessWidget {
+  const _RuntimeStatusCard({
+    required this.runtimeStatus,
+    required this.onRefresh,
+  });
+
+  final AsyncValue<OnDeviceRuntimeStatus> runtimeStatus;
+  final VoidCallback onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
+    final status = runtimeStatus.asData?.value;
+    final title = _titleFor(status);
+    final message = status?.message ?? '네이티브 런타임 준비 상태를 확인하고 있습니다.';
+    final accentColor = _accentFor(theme, status);
+
+    return Container(
+      key: const Key('runtimeStatusCard'),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: palette.surfaceStrong.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: palette.outline.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(_iconFor(status), color: accentColor),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: theme.textTheme.titleLarge),
+                    const SizedBox(height: 6),
+                    Text(
+                      message,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: palette.label,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                key: const Key('runtimeRefreshButton'),
+                onPressed: onRefresh,
+                tooltip: '런타임 상태 다시 확인',
+                icon: const Icon(Icons.refresh_rounded),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _RuntimePill(
+                label: status == null ? '확인 중' : _runtimeKind(status),
+                color: accentColor,
+              ),
+              if (status != null)
+                _RuntimePill(
+                  label: '플랫폼 ${status.platform}',
+                  color: palette.accentStrong,
+                ),
+              if (status?.lastPrepareDurationMs != null)
+                _RuntimePill(
+                  label: '초기화 ${status!.lastPrepareDurationMs}ms',
+                  color: palette.label,
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Theme(
+            data: theme.copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              key: const Key('runtimeDeveloperPanel'),
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(bottom: 4),
+              title: Text('개발자 정보', style: theme.textTheme.titleMedium),
+              subtitle: Text(
+                status?.lastError == null
+                    ? '모델 준비 상태와 마지막 오류를 확인합니다.'
+                    : '마지막 오류: ${status!.lastError}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: palette.label,
+                ),
+              ),
+              children: [
+                _RuntimeFact(
+                  label: 'LLM 모델',
+                  value: _modelState(
+                    configured: status?.llmModelConfigured ?? false,
+                    available: status?.llmModelAvailable ?? false,
+                    ready: status?.llmReady ?? false,
+                  ),
+                ),
+                _RuntimeFact(
+                  label: '임베더 모델',
+                  value: _modelState(
+                    configured: status?.embedderModelConfigured ?? false,
+                    available: status?.embedderModelAvailable ?? false,
+                    ready: status?.embedderReady ?? false,
+                  ),
+                ),
+                _RuntimeFact(
+                  label: '런타임 코드',
+                  value: status?.runtime ?? 'loading',
+                ),
+                _RuntimeFact(
+                  label: '폴백 활성화',
+                  value: status == null
+                      ? '확인 중'
+                      : status.fallbackActive
+                      ? '예'
+                      : '아니오',
+                ),
+                _RuntimeFact(label: '마지막 오류', value: status?.lastError ?? '없음'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _titleFor(OnDeviceRuntimeStatus? status) {
+    if (status == null) {
+      return '런타임 상태 확인 중';
+    }
+    if (status.runtime == 'remote-harness') {
+      return '원격 API 하네스 사용 중';
+    }
+    if (status.usingNativeLlm && status.usingNativeEmbedder) {
+      return '네이티브 LLM 사용 가능';
+    }
+    if (status.usingNativeLlm) {
+      return '네이티브 LLM 부분 준비';
+    }
+    return '템플릿 폴백 사용 중';
+  }
+
+  static String _runtimeKind(OnDeviceRuntimeStatus status) {
+    if (status.runtime == 'remote-harness') {
+      return '원격 하네스';
+    }
+    if (status.usingNativeLlm && status.usingNativeEmbedder) {
+      return '온디바이스 네이티브';
+    }
+    if (status.usingNativeLlm) {
+      return '온디바이스 부분 준비';
+    }
+    return '온디바이스 폴백';
+  }
+
+  static IconData _iconFor(OnDeviceRuntimeStatus? status) {
+    if (status == null) {
+      return Icons.hourglass_top_rounded;
+    }
+    if (status.runtime == 'remote-harness') {
+      return Icons.cloud_sync_rounded;
+    }
+    if (status.usingNativeLlm && status.usingNativeEmbedder) {
+      return Icons.memory_rounded;
+    }
+    if (status.lastError != null) {
+      return Icons.warning_amber_rounded;
+    }
+    return Icons.layers_clear_rounded;
+  }
+
+  static Color _accentFor(ThemeData theme, OnDeviceRuntimeStatus? status) {
+    if (status == null) {
+      return theme.colorScheme.primary;
+    }
+    if (status.runtime == 'remote-harness') {
+      return theme.colorScheme.secondary;
+    }
+    if (status.usingNativeLlm && status.usingNativeEmbedder) {
+      return Colors.teal.shade700;
+    }
+    if (status.lastError != null) {
+      return theme.colorScheme.error;
+    }
+    return Colors.orange.shade700;
+  }
+
+  static String _modelState({
+    required bool configured,
+    required bool available,
+    required bool ready,
+  }) {
+    if (ready) {
+      return '준비 완료';
+    }
+    if (configured && !available) {
+      return '경로 설정됨, 파일 없음';
+    }
+    if (configured) {
+      return '경로 설정됨, 초기화 대기';
+    }
+    return '미설정';
+  }
+}
+
+class _RuntimePill extends StatelessWidget {
+  const _RuntimePill({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelLarge?.copyWith(color: color),
+      ),
+    );
+  }
+}
+
+class _RuntimeFact extends StatelessWidget {
+  const _RuntimeFact({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 96,
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(color: palette.label),
+            ),
+          ),
+          Expanded(child: Text(value, style: theme.textTheme.bodyMedium)),
         ],
       ),
     );
@@ -438,6 +760,35 @@ class _ResultSection extends StatelessWidget {
                   Text('오늘의 큐레이션', style: theme.textTheme.titleLarge),
                 ],
               ),
+              if (response.runtimeInfo != null) ...[
+                const SizedBox(height: 14),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: response.runtimeInfo!.isFallback
+                        ? Colors.orange.withValues(alpha: 0.12)
+                        : Colors.teal.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '이번 응답: ${response.runtimeInfo!.label}',
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        response.runtimeInfo!.message,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: palette.label,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 22),
               Text(
                 '질문',

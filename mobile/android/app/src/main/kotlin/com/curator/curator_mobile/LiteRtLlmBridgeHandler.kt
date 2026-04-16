@@ -1,6 +1,7 @@
 package com.curator.curator_mobile
 
 import android.content.Context
+import android.os.SystemClock
 import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import com.google.mediapipe.tasks.text.textembedder.TextEmbedder
@@ -15,6 +16,8 @@ class LiteRtLlmBridgeHandler(
     private var embedderModelPath: String? = null
     private var llmInference: LlmInference? = null
     private var textEmbedder: TextEmbedder? = null
+    private var lastErrorMessage: String? = null
+    private var lastPrepareDurationMs: Long? = null
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
@@ -31,13 +34,15 @@ class LiteRtLlmBridgeHandler(
     }
 
     private fun prepareRuntime(result: MethodChannel.Result) {
-        try {
-            llmInference = initializeLlm(llmModelPath)
-            textEmbedder = initializeEmbedder(embedderModelPath)
-            result.success(buildStatus())
-        } catch (error: Exception) {
-            result.error("prepare_failed", error.message, null)
-        }
+        val startedAt = SystemClock.elapsedRealtime()
+        val errors = mutableListOf<String>()
+
+        llmInference = initializeLlm(llmModelPath, errors)
+        textEmbedder = initializeEmbedder(embedderModelPath, errors)
+
+        lastPrepareDurationMs = SystemClock.elapsedRealtime() - startedAt
+        lastErrorMessage = errors.firstOrNull()
+        result.success(buildStatus())
     }
 
     private fun handleGenerate(call: MethodCall, result: MethodChannel.Result) {
@@ -50,13 +55,16 @@ class LiteRtLlmBridgeHandler(
         try {
             val inference = llmInference ?: initializeLlm(llmModelPath)
             if (inference == null) {
+                lastErrorMessage = "LLM 모델 경로가 없거나 파일을 찾을 수 없습니다."
                 result.error("llm_unavailable", "LiteRT LLM 모델 경로가 준비되지 않았습니다.", null)
                 return
             }
 
             val response = inference.generateResponse(prompt)
+            lastErrorMessage = null
             result.success(response)
         } catch (error: Exception) {
+            lastErrorMessage = error.message
             result.error("generate_failed", error.message, null)
         }
     }
@@ -71,6 +79,7 @@ class LiteRtLlmBridgeHandler(
         try {
             val embedder = textEmbedder ?: initializeEmbedder(embedderModelPath)
             if (embedder == null) {
+                lastErrorMessage = "임베더 모델 경로가 없거나 파일을 찾을 수 없습니다."
                 result.error("embedder_unavailable", "텍스트 임베딩 모델 경로가 준비되지 않았습니다.", null)
                 return
             }
@@ -82,65 +91,111 @@ class LiteRtLlmBridgeHandler(
                 ?.map { value -> value.toDouble() }
                 ?: emptyList()
 
+            lastErrorMessage = null
             result.success(embedding)
         } catch (error: Exception) {
+            lastErrorMessage = error.message
             result.error("embed_failed", error.message, null)
         }
     }
 
-    private fun initializeLlm(modelPath: String?): LlmInference? {
-        if (modelPath.isNullOrBlank() || !File(modelPath).exists()) {
+    private fun initializeLlm(
+        modelPath: String?,
+        errors: MutableList<String> = mutableListOf(),
+    ): LlmInference? {
+        if (modelPath.isNullOrBlank()) {
+            return null
+        }
+        if (!File(modelPath).exists()) {
+            errors.add("LLM 모델 파일을 찾지 못했습니다.")
             return null
         }
 
         return llmInference ?: run {
-            val options = LlmInference.LlmInferenceOptions.builder()
-                .setModelPath(modelPath)
-                .setMaxTokens(512)
-                .setTopK(32)
-                .setTemperature(0.3f)
-                .setRandomSeed(17)
-                .build()
-            LlmInference.createFromOptions(context, options)
+            try {
+                val options = LlmInference.LlmInferenceOptions.builder()
+                    .setModelPath(modelPath)
+                    .setMaxTokens(512)
+                    .setTopK(32)
+                    .setTemperature(0.3f)
+                    .setRandomSeed(17)
+                    .build()
+                LlmInference.createFromOptions(context, options)
+            } catch (error: Exception) {
+                errors.add(error.message ?: "LLM 초기화에 실패했습니다.")
+                null
+            }
         }
     }
 
-    private fun initializeEmbedder(modelPath: String?): TextEmbedder? {
-        if (modelPath.isNullOrBlank() || !File(modelPath).exists()) {
+    private fun initializeEmbedder(
+        modelPath: String?,
+        errors: MutableList<String> = mutableListOf(),
+    ): TextEmbedder? {
+        if (modelPath.isNullOrBlank()) {
+            return null
+        }
+        if (!File(modelPath).exists()) {
+            errors.add("임베더 모델 파일을 찾지 못했습니다.")
             return null
         }
 
         return textEmbedder ?: run {
-            val baseOptions = BaseOptions.builder()
-                .setModelAssetPath(modelPath)
-                .build()
-            val options = TextEmbedder.TextEmbedderOptions.builder()
-                .setBaseOptions(baseOptions)
-                .build()
-            TextEmbedder.createFromOptions(context, options)
+            try {
+                val baseOptions = BaseOptions.builder()
+                    .setModelAssetPath(modelPath)
+                    .build()
+                val options = TextEmbedder.TextEmbedderOptions.builder()
+                    .setBaseOptions(baseOptions)
+                    .build()
+                TextEmbedder.createFromOptions(context, options)
+            } catch (error: Exception) {
+                errors.add(error.message ?: "임베더 초기화에 실패했습니다.")
+                null
+            }
         }
     }
 
     private fun buildStatus(): Map<String, Any> {
         val llmPath = llmModelPath
         val embedPath = embedderModelPath
-        val llmReady = llmInference != null && !llmPath.isNullOrBlank()
-        val embedderReady = textEmbedder != null && !embedPath.isNullOrBlank()
+        val llmConfigured = !llmPath.isNullOrBlank()
+        val embedConfigured = !embedPath.isNullOrBlank()
+        val llmAvailable = llmConfigured && File(llmPath!!).exists()
+        val embedAvailable = embedConfigured && File(embedPath!!).exists()
+        val llmReady = llmInference != null && llmAvailable
+        val embedderReady = textEmbedder != null && embedAvailable
+        val fallbackActive = !llmReady || !embedderReady
+        val runtime = when {
+            llmReady && embedderReady -> "native-ready"
+            lastErrorMessage != null -> "native-error"
+            llmReady || embedderReady -> "native-partial"
+            else -> "template-fallback"
+        }
 
         val message = when {
             llmReady && embedderReady -> "LiteRT LLM 및 텍스트 임베더가 준비되었습니다."
-            llmReady -> "LiteRT LLM은 준비되었지만 임베더 모델은 아직 없습니다."
-            embedderReady -> "텍스트 임베더는 준비되었지만 LLM 모델은 아직 없습니다."
-            !llmPath.isNullOrBlank() || !embedPath.isNullOrBlank() ->
-                "모델 경로가 전달되었지만 네이티브 런타임 초기화가 완료되지 않았습니다."
+            llmConfigured && !llmAvailable -> "LLM 모델 경로가 설정되었지만 파일을 찾지 못해 템플릿 폴백을 사용합니다."
+            embedConfigured && !embedAvailable -> "임베더 모델 경로가 설정되었지만 파일을 찾지 못해 해시 임베딩 폴백을 사용합니다."
+            llmReady -> "LLM은 네이티브지만 임베더가 준비되지 않아 검색은 폴백 경로를 사용합니다."
+            embedderReady -> "임베더는 네이티브지만 LLM이 준비되지 않아 응답은 템플릿 폴백으로 생성합니다."
+            lastErrorMessage != null -> "네이티브 초기화에 실패해 온디바이스 폴백을 사용합니다."
             else -> "모델 경로가 없어 Dart 로컬 폴백을 사용합니다."
         }
 
         return mapOf(
             "llmReady" to llmReady,
             "embedderReady" to embedderReady,
-            "runtime" to "android-native",
+            "runtime" to runtime,
             "message" to message,
+            "platform" to "android",
+            "llmModelConfigured" to llmConfigured,
+            "embedderModelConfigured" to embedConfigured,
+            "llmModelAvailable" to llmAvailable,
+            "embedderModelAvailable" to embedAvailable,
+            "fallbackActive" to fallbackActive,
+            "lastError" to lastErrorMessage,
+            "lastPrepareDurationMs" to lastPrepareDurationMs,
         )
     }
 }

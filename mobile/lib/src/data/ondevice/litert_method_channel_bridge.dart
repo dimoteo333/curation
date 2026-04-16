@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/services.dart';
 
 class OnDeviceRuntimeException implements Exception {
@@ -15,12 +18,31 @@ class OnDeviceRuntimeStatus {
     required this.embedderReady,
     required this.runtime,
     required this.message,
+    required this.platform,
+    required this.llmModelConfigured,
+    required this.embedderModelConfigured,
+    required this.llmModelAvailable,
+    required this.embedderModelAvailable,
+    required this.fallbackActive,
+    this.lastError,
+    this.lastPrepareDurationMs,
   });
 
   final bool llmReady;
   final bool embedderReady;
   final String runtime;
   final String message;
+  final String platform;
+  final bool llmModelConfigured;
+  final bool embedderModelConfigured;
+  final bool llmModelAvailable;
+  final bool embedderModelAvailable;
+  final bool fallbackActive;
+  final String? lastError;
+  final int? lastPrepareDurationMs;
+
+  bool get usingNativeLlm => llmReady;
+  bool get usingNativeEmbedder => embedderReady;
 
   factory OnDeviceRuntimeStatus.fromJson(Map<Object?, Object?> json) {
     return OnDeviceRuntimeStatus(
@@ -28,7 +50,101 @@ class OnDeviceRuntimeStatus {
       embedderReady: json['embedderReady'] as bool? ?? false,
       runtime: json['runtime'] as String? ?? 'unavailable',
       message: json['message'] as String? ?? '온디바이스 런타임이 준비되지 않았습니다.',
+      platform: json['platform'] as String? ?? 'unknown',
+      llmModelConfigured: json['llmModelConfigured'] as bool? ?? false,
+      embedderModelConfigured:
+          json['embedderModelConfigured'] as bool? ?? false,
+      llmModelAvailable: json['llmModelAvailable'] as bool? ?? false,
+      embedderModelAvailable: json['embedderModelAvailable'] as bool? ?? false,
+      fallbackActive: json['fallbackActive'] as bool? ?? true,
+      lastError: json['lastError'] as String?,
+      lastPrepareDurationMs: (json['lastPrepareDurationMs'] as num?)?.toInt(),
     );
+  }
+
+  factory OnDeviceRuntimeStatus.remoteHarness() {
+    return const OnDeviceRuntimeStatus(
+      llmReady: false,
+      embedderReady: false,
+      runtime: 'remote-harness',
+      message: '현재는 FastAPI 개발 하네스를 사용합니다.',
+      platform: 'remote',
+      llmModelConfigured: false,
+      embedderModelConfigured: false,
+      llmModelAvailable: false,
+      embedderModelAvailable: false,
+      fallbackActive: false,
+    );
+  }
+
+  factory OnDeviceRuntimeStatus.missingPlugin({
+    String? llmModelPath,
+    String? embedderModelPath,
+    String message = 'Flutter 테스트 환경에서는 네이티브 LiteRT 브릿지가 연결되지 않습니다.',
+  }) {
+    return OnDeviceRuntimeStatus(
+      llmReady: false,
+      embedderReady: false,
+      runtime: 'template-fallback',
+      message: message,
+      platform: 'flutter-test',
+      llmModelConfigured: _isConfigured(llmModelPath),
+      embedderModelConfigured: _isConfigured(embedderModelPath),
+      llmModelAvailable: _pathExists(llmModelPath),
+      embedderModelAvailable: _pathExists(embedderModelPath),
+      fallbackActive: true,
+    );
+  }
+
+  factory OnDeviceRuntimeStatus.timeout({
+    String? llmModelPath,
+    String? embedderModelPath,
+    Duration timeout = MethodChannelOnDeviceLlmBridge.prepareTimeout,
+  }) {
+    return OnDeviceRuntimeStatus(
+      llmReady: false,
+      embedderReady: false,
+      runtime: 'timeout-fallback',
+      message: '네이티브 런타임 초기화가 ${timeout.inSeconds}초 안에 끝나지 않아 템플릿 폴백으로 전환했습니다.',
+      platform: 'unknown',
+      llmModelConfigured: _isConfigured(llmModelPath),
+      embedderModelConfigured: _isConfigured(embedderModelPath),
+      llmModelAvailable: _pathExists(llmModelPath),
+      embedderModelAvailable: _pathExists(embedderModelPath),
+      fallbackActive: true,
+      lastError: 'bridge-timeout',
+      lastPrepareDurationMs: timeout.inMilliseconds,
+    );
+  }
+
+  factory OnDeviceRuntimeStatus.nativeError({
+    required String message,
+    String? llmModelPath,
+    String? embedderModelPath,
+  }) {
+    return OnDeviceRuntimeStatus(
+      llmReady: false,
+      embedderReady: false,
+      runtime: 'native-error',
+      message: message,
+      platform: 'unknown',
+      llmModelConfigured: _isConfigured(llmModelPath),
+      embedderModelConfigured: _isConfigured(embedderModelPath),
+      llmModelAvailable: _pathExists(llmModelPath),
+      embedderModelAvailable: _pathExists(embedderModelPath),
+      fallbackActive: true,
+      lastError: message,
+    );
+  }
+
+  static bool _isConfigured(String? path) =>
+      path != null && path.trim().isNotEmpty;
+
+  static bool _pathExists(String? path) {
+    if (!_isConfigured(path)) {
+      return false;
+    }
+    return File(path!).existsSync();
   }
 }
 
@@ -54,6 +170,8 @@ abstract class OnDeviceLlmBridge {
 class MethodChannelOnDeviceLlmBridge implements OnDeviceLlmBridge {
   const MethodChannelOnDeviceLlmBridge();
 
+  static const Duration prepareTimeout = Duration(seconds: 4);
+
   static const MethodChannel _channel = MethodChannel(
     'com.curator.curator_mobile/litert_lm',
   );
@@ -64,29 +182,30 @@ class MethodChannelOnDeviceLlmBridge implements OnDeviceLlmBridge {
     String? embedderModelPath,
   }) async {
     try {
-      final response = await _channel.invokeMapMethod<Object?, Object?>(
-        'prepare',
-        <String, Object?>{
-          'llmModelPath': llmModelPath,
-          'embedderModelPath': embedderModelPath,
-        },
-      );
+      final response = await _channel
+          .invokeMapMethod<Object?, Object?>('prepare', <String, Object?>{
+            'llmModelPath': llmModelPath,
+            'embedderModelPath': embedderModelPath,
+          })
+          .timeout(prepareTimeout);
       return OnDeviceRuntimeStatus.fromJson(
         response ?? const <Object?, Object?>{},
       );
+    } on TimeoutException {
+      return OnDeviceRuntimeStatus.timeout(
+        llmModelPath: llmModelPath,
+        embedderModelPath: embedderModelPath,
+      );
     } on MissingPluginException {
-      return const OnDeviceRuntimeStatus(
-        llmReady: false,
-        embedderReady: false,
-        runtime: 'template-fallback',
-        message: 'Flutter 테스트 환경에서는 네이티브 LiteRT 브릿지가 연결되지 않습니다.',
+      return OnDeviceRuntimeStatus.missingPlugin(
+        llmModelPath: llmModelPath,
+        embedderModelPath: embedderModelPath,
       );
     } on PlatformException catch (error) {
-      return OnDeviceRuntimeStatus(
-        llmReady: false,
-        embedderReady: false,
-        runtime: 'native-error',
+      return OnDeviceRuntimeStatus.nativeError(
         message: error.message ?? '온디바이스 런타임 준비에 실패했습니다.',
+        llmModelPath: llmModelPath,
+        embedderModelPath: embedderModelPath,
       );
     }
   }
@@ -94,24 +213,20 @@ class MethodChannelOnDeviceLlmBridge implements OnDeviceLlmBridge {
   @override
   Future<OnDeviceRuntimeStatus> status() async {
     try {
-      final response = await _channel.invokeMapMethod<Object?, Object?>(
-        'status',
-      );
+      final response = await _channel
+          .invokeMapMethod<Object?, Object?>('status')
+          .timeout(prepareTimeout);
       return OnDeviceRuntimeStatus.fromJson(
         response ?? const <Object?, Object?>{},
       );
+    } on TimeoutException {
+      return OnDeviceRuntimeStatus.timeout();
     } on MissingPluginException {
-      return const OnDeviceRuntimeStatus(
-        llmReady: false,
-        embedderReady: false,
-        runtime: 'template-fallback',
+      return OnDeviceRuntimeStatus.missingPlugin(
         message: '네이티브 브릿지가 아직 연결되지 않아 로컬 템플릿 엔진을 사용합니다.',
       );
     } on PlatformException catch (error) {
-      return OnDeviceRuntimeStatus(
-        llmReady: false,
-        embedderReady: false,
-        runtime: 'native-error',
+      return OnDeviceRuntimeStatus.nativeError(
         message: error.message ?? '온디바이스 런타임 상태 확인에 실패했습니다.',
       );
     }

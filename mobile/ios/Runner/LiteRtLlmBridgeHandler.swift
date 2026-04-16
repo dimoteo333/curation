@@ -8,6 +8,8 @@ final class LiteRtLlmBridgeHandler {
   private var embedderModelPath: String?
   private var llmInference: LlmInference?
   private var textEmbedder: TextEmbedder?
+  private var lastErrorMessage: String?
+  private var lastPrepareDurationMs: Int?
 
   func handle(call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
@@ -29,19 +31,13 @@ final class LiteRtLlmBridgeHandler {
     llmModelPath = arguments?["llmModelPath"] as? String
     embedderModelPath = arguments?["embedderModelPath"] as? String
 
-    do {
-      llmInference = try initializeLlm(modelPath: llmModelPath)
-      textEmbedder = try initializeEmbedder(modelPath: embedderModelPath)
-      result(buildStatus())
-    } catch {
-      result(
-        FlutterError(
-          code: "prepare_failed",
-          message: error.localizedDescription,
-          details: nil
-        )
-      )
-    }
+    let startedAt = Date()
+    var errors: [String] = []
+    llmInference = initializeLlm(modelPath: llmModelPath, errors: &errors)
+    textEmbedder = initializeEmbedder(modelPath: embedderModelPath, errors: &errors)
+    lastPrepareDurationMs = Int(Date().timeIntervalSince(startedAt) * 1000)
+    lastErrorMessage = errors.first
+    result(buildStatus())
   }
 
   private func generate(call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -57,7 +53,8 @@ final class LiteRtLlmBridgeHandler {
     }
 
     do {
-      guard let inference = try initializeLlm(modelPath: llmModelPath) else {
+      guard let inference = initializeLlm(modelPath: llmModelPath) else {
+        lastErrorMessage = "LLM 모델 경로가 없거나 파일을 찾을 수 없습니다."
         result(
           FlutterError(code: "llm_unavailable", message: "LLM 모델 경로가 준비되지 않았습니다.", details: nil)
         )
@@ -65,8 +62,10 @@ final class LiteRtLlmBridgeHandler {
       }
 
       let response = try inference.generateResponse(inputText: prompt)
+      lastErrorMessage = nil
       result(response)
     } catch {
+      lastErrorMessage = error.localizedDescription
       result(
         FlutterError(code: "generate_failed", message: error.localizedDescription, details: nil)
       )
@@ -86,7 +85,8 @@ final class LiteRtLlmBridgeHandler {
     }
 
     do {
-      guard let embedder = try initializeEmbedder(modelPath: embedderModelPath) else {
+      guard let embedder = initializeEmbedder(modelPath: embedderModelPath) else {
+        lastErrorMessage = "임베더 모델 경로가 없거나 파일을 찾을 수 없습니다."
         result(
           FlutterError(
             code: "embedder_unavailable",
@@ -99,20 +99,35 @@ final class LiteRtLlmBridgeHandler {
 
       let embedding = try embedder.embed(text: text)
       let values = embedding.embeddings.first?.floatEmbedding?.map { Double($0) } ?? []
+      lastErrorMessage = nil
       result(values)
     } catch {
+      lastErrorMessage = error.localizedDescription
       result(
         FlutterError(code: "embed_failed", message: error.localizedDescription, details: nil)
       )
     }
   }
 
-  private func initializeLlm(modelPath: String?) throws -> LlmInference? {
+  private func initializeLlm(
+    modelPath: String?
+  ) -> LlmInference? {
+    var ignoredErrors: [String] = []
+    return initializeLlm(modelPath: modelPath, errors: &ignoredErrors)
+  }
+
+  private func initializeLlm(
+    modelPath: String?,
+    errors: inout [String]
+  ) -> LlmInference? {
     guard
       let modelPath,
-      !modelPath.isEmpty,
-      FileManager.default.fileExists(atPath: modelPath)
+      !modelPath.isEmpty
     else {
+      return nil
+    }
+    guard FileManager.default.fileExists(atPath: modelPath) else {
+      errors.append("LLM 모델 파일을 찾지 못했습니다.")
       return nil
     }
 
@@ -120,24 +135,42 @@ final class LiteRtLlmBridgeHandler {
       return llmInference
     }
 
-    let options = LlmInferenceOptions()
-    options.baseOptions.modelPath = modelPath
-    options.maxTokens = 512
-    options.topk = 32
-    options.temperature = 0.3
-    options.randomSeed = 17
+    do {
+      let options = LlmInferenceOptions()
+      options.baseOptions.modelPath = modelPath
+      options.maxTokens = 512
+      options.topk = 32
+      options.temperature = 0.3
+      options.randomSeed = 17
 
-    let runtime = try LlmInference(options: options)
-    llmInference = runtime
-    return runtime
+      let runtime = try LlmInference(options: options)
+      llmInference = runtime
+      return runtime
+    } catch {
+      errors.append(error.localizedDescription)
+      return nil
+    }
   }
 
-  private func initializeEmbedder(modelPath: String?) throws -> TextEmbedder? {
+  private func initializeEmbedder(
+    modelPath: String?
+  ) -> TextEmbedder? {
+    var ignoredErrors: [String] = []
+    return initializeEmbedder(modelPath: modelPath, errors: &ignoredErrors)
+  }
+
+  private func initializeEmbedder(
+    modelPath: String?,
+    errors: inout [String]
+  ) -> TextEmbedder? {
     guard
       let modelPath,
-      !modelPath.isEmpty,
-      FileManager.default.fileExists(atPath: modelPath)
+      !modelPath.isEmpty
     else {
+      return nil
+    }
+    guard FileManager.default.fileExists(atPath: modelPath) else {
+      errors.append("임베더 모델 파일을 찾지 못했습니다.")
       return nil
     }
 
@@ -145,27 +178,51 @@ final class LiteRtLlmBridgeHandler {
       return textEmbedder
     }
 
-    let options = TextEmbedderOptions()
-    options.baseOptions.modelAssetPath = modelPath
+    do {
+      let options = TextEmbedderOptions()
+      options.baseOptions.modelAssetPath = modelPath
 
-    let runtime = try TextEmbedder(options: options)
-    textEmbedder = runtime
-    return runtime
+      let runtime = try TextEmbedder(options: options)
+      textEmbedder = runtime
+      return runtime
+    } catch {
+      errors.append(error.localizedDescription)
+      return nil
+    }
   }
 
   private func buildStatus() -> [String: Any] {
-    let llmReady = llmInference != nil
-    let embedderReady = textEmbedder != nil
+    let llmConfigured = !(llmModelPath ?? "").isEmpty
+    let embedConfigured = !(embedderModelPath ?? "").isEmpty
+    let llmAvailable = llmConfigured && FileManager.default.fileExists(atPath: llmModelPath!)
+    let embedAvailable = embedConfigured && FileManager.default.fileExists(atPath: embedderModelPath!)
+    let llmReady = llmInference != nil && llmAvailable
+    let embedderReady = textEmbedder != nil && embedAvailable
+    let fallbackActive = !llmReady || !embedderReady
+    let runtime: String
+    if llmReady && embedderReady {
+      runtime = "native-ready"
+    } else if lastErrorMessage != nil {
+      runtime = "native-error"
+    } else if llmReady || embedderReady {
+      runtime = "native-partial"
+    } else {
+      runtime = "template-fallback"
+    }
 
     let message: String
     if llmReady && embedderReady {
       message = "LiteRT LLM 및 텍스트 임베더가 준비되었습니다."
+    } else if llmConfigured && !llmAvailable {
+      message = "LLM 모델 경로가 설정되었지만 파일을 찾지 못해 템플릿 폴백을 사용합니다."
+    } else if embedConfigured && !embedAvailable {
+      message = "임베더 모델 경로가 설정되었지만 파일을 찾지 못해 해시 임베딩 폴백을 사용합니다."
     } else if llmReady {
-      message = "LiteRT LLM은 준비되었지만 임베더 모델은 아직 없습니다."
+      message = "LLM은 네이티브지만 임베더가 준비되지 않아 검색은 폴백 경로를 사용합니다."
     } else if embedderReady {
-      message = "텍스트 임베더는 준비되었지만 LLM 모델은 아직 없습니다."
-    } else if llmModelPath != nil || embedderModelPath != nil {
-      message = "모델 경로가 전달되었지만 iOS 네이티브 초기화가 완료되지 않았습니다."
+      message = "임베더는 네이티브지만 LLM이 준비되지 않아 응답은 템플릿 폴백으로 생성합니다."
+    } else if lastErrorMessage != nil {
+      message = "네이티브 초기화에 실패해 온디바이스 폴백을 사용합니다."
     } else {
       message = "모델 경로가 없어 Dart 로컬 폴백을 사용합니다."
     }
@@ -173,8 +230,16 @@ final class LiteRtLlmBridgeHandler {
     return [
       "llmReady": llmReady,
       "embedderReady": embedderReady,
-      "runtime": "ios-native",
+      "runtime": runtime,
       "message": message,
+      "platform": "ios",
+      "llmModelConfigured": llmConfigured,
+      "embedderModelConfigured": embedConfigured,
+      "llmModelAvailable": llmAvailable,
+      "embedderModelAvailable": embedAvailable,
+      "fallbackActive": fallbackActive,
+      "lastError": lastErrorMessage as Any,
+      "lastPrepareDurationMs": lastPrepareDurationMs as Any,
     ]
   }
 }

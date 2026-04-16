@@ -1,44 +1,79 @@
 repos:
   - repo: local
     hooks:
-      - id: flutter-format
-        name: flutter-format
-        entry: bash -lc 'cd mobile && dart format --set-exit-if-changed lib test integration_test'
+      - id: flutter-pub-get
+        name: flutter-pub-get
+        entry: bash -lc 'cd mobile && flutter pub get'
         language: system
         pass_filenames: false
+        always_run: true
 
       - id: flutter-analyze
         name: flutter-analyze
         entry: bash -lc 'cd mobile && flutter analyze'
         language: system
         pass_filenames: false
+        always_run: true
+
+      - id: flutter-test
+        name: flutter-test
+        entry: bash -lc 'cd mobile && flutter test'
+        language: system
+        pass_filenames: false
+        always_run: true
 
       - id: backend-ruff
         name: backend-ruff
-        entry: python -m ruff check backend/app backend/tests
+        entry: python3 -m ruff check backend/app backend/tests
         language: system
         pass_filenames: false
+        always_run: true
 
       - id: backend-mypy
         name: backend-mypy
-        entry: python -m mypy backend/app
+        entry: python3 -m mypy backend/app
         language: system
         pass_filenames: false
+        always_run: true
 
       - id: backend-pytest
         name: backend-pytest
-        entry: python -m pytest backend/tests -q
+        entry: python3 -m pytest backend/tests -q
         language: system
         pass_filenames: false
+        always_run: true
 
-      - id: openapi-export
-        name: openapi-export
-        entry: bash scripts/export-openapi.sh
+      - id: openapi-drift
+        name: openapi-drift
+        entry: bash scripts/check-openapi-drift.sh
         language: system
         pass_filenames: false
+        always_run: true
 
       - id: docs-validate
         name: docs-validate
         entry: bash scripts/validate-docs.sh
         language: system
         pass_filenames: false
+        always_run: true
+
+      - id: seed-source-consistency
+        name: seed-source-consistency
+        entry: python3 scripts/check_seed_source_consistency.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: native-dependency-pins
+        name: native-dependency-pins
+        entry: bash scripts/check-native-dependency-pins.sh --strict
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: release-signing-guard
+        name: release-signing-guard
+        entry: bash scripts/check-release-signing.sh
+        language: system
+        pass_filenames: false
+        always_run: true

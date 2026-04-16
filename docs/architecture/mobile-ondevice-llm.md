@@ -24,6 +24,10 @@ Move the primary mobile curation path from backend-backed lookup to an on-device
   - Builds the Korean system prompt and RAG template from `README.md`.
   - Prefers the native LiteRT bridge when an LLM model is staged locally.
   - Falls back to a deterministic local template generator so the repository stays runnable in CI.
+- `onDeviceRuntimeStatusProvider`
+  - Calls bridge `prepare` with both model paths at app startup.
+  - Feeds the home screen runtime badge and developer panel.
+  - Surfaces partial-ready, timeout, missing-file, and fallback states in Korean UI text.
 
 ### Native bridge
 
@@ -34,12 +38,12 @@ Move the primary mobile curation path from backend-backed lookup to an on-device
   - `embed`
   - `generate`
 - Android target:
-  - `com.google.mediapipe:tasks-genai`
-  - `com.google.mediapipe:tasks-text`
+  - `com.google.mediapipe:tasks-genai:0.10.21`
+  - `com.google.mediapipe:tasks-text:0.10.21`
 - iOS target:
-  - `MediaPipeTasksGenAI`
-  - `MediaPipeTasksGenAIC`
-  - `MediaPipeTasksText`
+  - `MediaPipeTasksGenAI 0.10.21`
+  - `MediaPipeTasksGenAIC 0.10.21`
+  - `MediaPipeTasksText 0.10.21`
 
 ## Model staging strategy
 
@@ -51,6 +55,7 @@ Move the primary mobile curation path from backend-backed lookup to an on-device
   - LiteRT-LM style bundles such as `.litertlm`
   - MediaPipe `.task` packages
   - iOS-compatible `.bin` bundles where required by the native runtime
+- Bridge initialization is capped with a Dart-side timeout so the UI can fail closed into a visible fallback state rather than hanging indefinitely.
 
 ## Retrieval pipeline
 
@@ -67,3 +72,7 @@ Move the primary mobile curation path from backend-backed lookup to an on-device
 
 - The repository includes a deterministic local fallback for embedding and generation so `flutter test` and `flutter analyze` remain stable without shipping a multi-GB model artifact.
 - When native model paths are configured on a real device, the same orchestration path can switch to the native LiteRT / MediaPipe runtime without changing the Flutter UI layer.
+- The home screen now exposes:
+  - current runtime status
+  - actual response path for the last answer
+  - developer diagnostics for model readiness, fallback activation, and last runtime error

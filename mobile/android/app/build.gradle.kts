@@ -32,16 +32,15 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Release signing is supplied outside the repository.
+            // Keep the project unsigned here so guardrails can block debug signing drift.
         }
     }
 }
 
 dependencies {
-    implementation("com.google.mediapipe:tasks-genai:latest.release")
-    implementation("com.google.mediapipe:tasks-text:latest.release")
+    implementation("com.google.mediapipe:tasks-genai:0.10.21")
+    implementation("com.google.mediapipe:tasks-text:0.10.21")
 }
 
 flutter {
