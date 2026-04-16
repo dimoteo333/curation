@@ -24,7 +24,7 @@ android {
         applicationId = "com.curator.curator_mobile"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        minSdk = maxOf(flutter.minSdkVersion, 24)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -37,6 +37,11 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+}
+
+dependencies {
+    implementation("com.google.mediapipe:tasks-genai:latest.release")
+    implementation("com.google.mediapipe:tasks-text:latest.release")
 }
 
 flutter {

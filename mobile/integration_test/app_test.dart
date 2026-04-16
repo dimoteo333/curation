@@ -7,7 +7,7 @@ import 'package:integration_test/integration_test.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('실제 백엔드에 질문을 보내고 결과를 렌더링한다', (WidgetTester tester) async {
+  testWidgets('온디바이스 큐레이션 결과를 렌더링한다', (WidgetTester tester) async {
     await tester.pumpWidget(const ProviderScope(child: CuratorApp()));
 
     await tester.tap(find.byKey(const Key('submitQuestionButton')));
@@ -15,7 +15,7 @@ void main() {
 
     await _pumpUntilFound(tester, find.byKey(const Key('responseSection')));
 
-    expect(find.text('최근 기록에서 반복된 흐름'), findsOneWidget);
+    expect(find.textContaining('흐름'), findsWidgets);
     expect(find.textContaining('무기력'), findsWidgets);
   });
 }
