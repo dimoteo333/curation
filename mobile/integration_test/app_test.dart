@@ -10,6 +10,7 @@ void main() {
   testWidgets('온디바이스 큐레이션 결과를 렌더링한다', (WidgetTester tester) async {
     await tester.pumpWidget(const ProviderScope(child: CuratorApp()));
 
+    await tester.ensureVisible(find.byKey(const Key('submitQuestionButton')));
     await tester.tap(find.byKey(const Key('submitQuestionButton')));
     await tester.pump();
 

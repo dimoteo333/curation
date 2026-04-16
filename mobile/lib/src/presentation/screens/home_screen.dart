@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/curated_response.dart';
 import '../../state/curation_controller.dart';
+import '../../theme/curator_theme.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -31,100 +32,359 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final state = ref.watch(curationControllerProvider);
     final controller = ref.read(curationControllerProvider.notifier);
     final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
 
     return Scaffold(
       body: DecoratedBox(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: <Color>[
-              Color(0xFFF7F2E9),
-              Color(0xFFE6F1EC),
-              Color(0xFFF3E8D5),
+              palette.backdropTop,
+              palette.backdropAccent,
+              palette.backdropBottom,
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
         ),
-        child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-            children: [
-              Text(
-                '큐레이터',
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF163333),
-                ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: -110,
+              left: -20,
+              child: _AmbientGlow(
+                color: palette.ambientGlow.withValues(alpha: 0.26),
+                diameter: 300,
               ),
-              const SizedBox(height: 8),
-              Text(
-                '기록 속 패턴을 다시 읽어 지금의 질문과 연결합니다.',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: const Color(0xFF345454),
-                ),
+            ),
+            Positioned(
+              top: 180,
+              right: -80,
+              child: _AmbientGlow(
+                color: palette.accent.withValues(alpha: 0.16),
+                diameter: 260,
               ),
-              const SizedBox(height: 24),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            ),
+            Positioned(
+              bottom: -100,
+              left: 40,
+              child: _AmbientGlow(
+                color: palette.accentSoft.withValues(alpha: 0.18),
+                diameter: 240,
+              ),
+            ),
+            SafeArea(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 760),
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
                     children: [
-                      Text(
-                        '오늘의 질문',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        key: const Key('questionTextField'),
+                      _HeroHeader(palette: palette),
+                      const SizedBox(height: 22),
+                      _QuestionPanel(
                         controller: _controller,
-                        minLines: 3,
-                        maxLines: 5,
-                        decoration: const InputDecoration(
-                          hintText: '요즘 떠오르는 고민이나 감정을 적어 주세요.',
-                        ),
+                        isLoading: state.isLoading,
+                        errorMessage: state.errorMessage,
+                        onSubmit: () =>
+                            controller.submitQuestion(_controller.text),
                       ),
-                      const SizedBox(height: 16),
-                      FilledButton(
-                        key: const Key('submitQuestionButton'),
-                        onPressed: state.isLoading
-                            ? null
-                            : () => controller.submitQuestion(_controller.text),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF0B5D5E),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
+                      const SizedBox(height: 18),
+                      if (state.response == null)
+                        const _PreviewPanel()
+                      else
+                        _ResultSection(
+                          response: state.response!,
+                          lastQuestion: state.lastQuestion,
                         ),
-                        child: Text(
-                          state.isLoading ? '기록을 찾는 중...' : '기록 연결하기',
-                        ),
-                      ),
-                      if (state.errorMessage != null) ...[
-                        const SizedBox(height: 12),
-                        Text(
-                          state.errorMessage!,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.error,
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ),
               ),
-              const SizedBox(height: 18),
-              if (state.response != null)
-                _ResultSection(
-                  response: state.response!,
-                  lastQuestion: state.lastQuestion,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroHeader extends StatelessWidget {
+  const _HeroHeader({required this.palette});
+
+  final CuratorPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: <Color>[
+            theme.cardTheme.color ?? palette.surfaceStrong,
+            palette.surface.withValues(alpha: 0.84),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(34),
+        border: Border.all(color: palette.outline.withValues(alpha: 0.55)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 34,
+            offset: const Offset(0, 18),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 82,
+                height: 82,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: palette.surfaceStrong,
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(
+                      color: palette.ambientGlow.withValues(alpha: 0.28),
+                      blurRadius: 30,
+                      spreadRadius: 4,
+                    ),
+                  ],
                 ),
+                child: Image.asset('assets/branding/curator_mark.png'),
+              ),
+              const SizedBox(width: 18),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('큐레이터', style: theme.textTheme.headlineMedium),
+                    const SizedBox(height: 8),
+                    Text(
+                      '흩어진 한국어 기록을 감정의 결로 다시 읽는 개인 큐레이션.',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: palette.label,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
-        ),
+          const SizedBox(height: 22),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: const [
+              _SignalChip(icon: Icons.auto_awesome_rounded, label: '감정 흐름 추적'),
+              _SignalChip(icon: Icons.import_contacts_rounded, label: '기록 재배열'),
+              _SignalChip(icon: Icons.nightlight_round, label: '사적인 아카이브'),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: palette.surfaceStrong.withValues(alpha: 0.66),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: palette.outline.withValues(alpha: 0.35),
+              ),
+            ),
+            child: Text(
+              '완성된 문장보다 망설이는 질문에 더 잘 반응하도록 설계했습니다. 짧은 감정, 메모 한 줄, 애매한 불안도 그대로 적어 보세요.',
+              style: theme.textTheme.bodyMedium?.copyWith(color: palette.label),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuestionPanel extends StatelessWidget {
+  const _QuestionPanel({
+    required this.controller,
+    required this.isLoading,
+    required this.errorMessage,
+    required this.onSubmit,
+  });
+
+  final TextEditingController controller;
+  final bool isLoading;
+  final String? errorMessage;
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: theme.cardTheme.color ?? palette.surfaceStrong,
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: palette.outline.withValues(alpha: 0.55)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.07),
+            blurRadius: 24,
+            offset: const Offset(0, 16),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('오늘의 질문', style: theme.textTheme.titleLarge),
+          const SizedBox(height: 8),
+          Text(
+            '지금 붙잡히는 감정과 문장을 적으면 기록 속 맥락을 다시 엮어 드립니다.',
+            style: theme.textTheme.bodyMedium?.copyWith(color: palette.label),
+          ),
+          const SizedBox(height: 18),
+          TextField(
+            key: const Key('questionTextField'),
+            controller: controller,
+            minLines: 4,
+            maxLines: 6,
+            textInputAction: TextInputAction.done,
+            decoration: const InputDecoration(
+              hintText: '요즘 떠오르는 고민이나 감정을 적어 주세요.',
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            '예시: 일이 밀릴수록 더 멍해지고, 쉬는 시간도 죄책감이 들어요.',
+            style: theme.textTheme.bodySmall,
+          ),
+          if (errorMessage != null) ...[
+            const SizedBox(height: 14),
+            Text(
+              errorMessage!,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
+          ],
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            key: const Key('submitQuestionButton'),
+            onPressed: isLoading ? null : onSubmit,
+            icon: Icon(
+              isLoading
+                  ? Icons.hourglass_top_rounded
+                  : Icons.travel_explore_rounded,
+            ),
+            label: Text(isLoading ? '기록을 찾는 중...' : '기록 연결하기'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PreviewPanel extends StatelessWidget {
+  const _PreviewPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
+
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: palette.surfaceStrong.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: palette.outline.withValues(alpha: 0.45)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('이런 방식으로 엮습니다', style: theme.textTheme.titleLarge),
+          const SizedBox(height: 16),
+          const _PreviewStep(
+            index: '01',
+            title: '표현의 반복을 읽습니다',
+            description: '기분, 행동, 회피 패턴처럼 자주 되돌아오는 문장을 먼저 찾아냅니다.',
+          ),
+          const _PreviewStep(
+            index: '02',
+            title: '기록 사이의 간격을 연결합니다',
+            description: '한 번의 메모가 아니라 시간에 따라 어떻게 감정이 이동했는지 보여줍니다.',
+          ),
+          const _PreviewStep(
+            index: '03',
+            title: '지금 필요한 질문을 남깁니다',
+            description: '답을 단정하기보다 다음 기록을 위한 후속 질문을 건네는 방식입니다.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PreviewStep extends StatelessWidget {
+  const _PreviewStep({
+    required this.index,
+    required this.title,
+    required this.description,
+  });
+
+  final String index;
+  final String title;
+  final String description;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: palette.surfaceMuted,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Text(index, style: theme.textTheme.labelLarge),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: theme.textTheme.titleMedium),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: palette.label,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -139,72 +399,104 @@ class _ResultSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
 
     return Column(
       key: const Key('responseSection'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '질문',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: const Color(0xFF6A7B7B),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  lastQuestion,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  response.insightTitle,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF0B5D5E),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(response.summary, style: theme.textTheme.bodyLarge),
-                const SizedBox(height: 16),
-                Text(
-                  response.answer,
-                  style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1E5D0),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Text(
-                    response.suggestedFollowUp,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF6A4B17),
-                    ),
-                  ),
-                ),
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: <Color>[
+                palette.surfaceStrong.withValues(alpha: 0.94),
+                palette.surface.withValues(alpha: 0.9),
               ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
+            borderRadius: BorderRadius.circular(32),
+            border: Border.all(color: palette.outline.withValues(alpha: 0.55)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: palette.surfaceMuted,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Image.asset('assets/branding/curator_mark.png'),
+                  ),
+                  const SizedBox(width: 12),
+                  Text('오늘의 큐레이션', style: theme.textTheme.titleLarge),
+                ],
+              ),
+              const SizedBox(height: 22),
+              Text(
+                '질문',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: palette.label,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(lastQuestion, style: theme.textTheme.headlineSmall),
+              const SizedBox(height: 22),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: palette.surfaceStrong.withValues(alpha: 0.72),
+                  borderRadius: BorderRadius.circular(26),
+                  border: Border.all(
+                    color: palette.outline.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      response.insightTitle,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(response.summary, style: theme.textTheme.bodyLarge),
+                    const SizedBox(height: 16),
+                    Text(
+                      response.answer,
+                      style: theme.textTheme.bodyLarge?.copyWith(height: 1.65),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: palette.accentSoft.withValues(alpha: 0.32),
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: Text(
+                  response.suggestedFollowUp,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: palette.accentStrong,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 18),
-        Text(
-          '연결된 기록',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF163333),
-          ),
-        ),
+        Text('연결된 기록', style: theme.textTheme.titleLarge),
         const SizedBox(height: 12),
         for (final record in response.supportingRecords) ...[
           _SupportingRecordCard(record: record),
@@ -223,59 +515,56 @@ class _SupportingRecordCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE5F0EE),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    record.source,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: const Color(0xFF0B5D5E),
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: theme.cardTheme.color ?? palette.surfaceStrong,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: palette.outline.withValues(alpha: 0.45)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 7,
                 ),
-                const Spacer(),
-                Text(
-                  _formatDate(record.createdAt),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF6A7B7B),
-                  ),
+                decoration: BoxDecoration(
+                  color: palette.surfaceMuted,
+                  borderRadius: BorderRadius.circular(999),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              record.title,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
+                child: Text(record.source, style: theme.textTheme.labelLarge),
               ),
+              const Spacer(),
+              Text(
+                _formatDate(record.createdAt),
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(record.title, style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(record.excerpt, style: theme.textTheme.bodyMedium),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: palette.surfaceMuted.withValues(alpha: 0.68),
+              borderRadius: BorderRadius.circular(18),
             ),
-            const SizedBox(height: 8),
-            Text(record.excerpt, style: theme.textTheme.bodyMedium),
-            const SizedBox(height: 10),
-            Text(
+            child: Text(
               record.relevanceReason,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: const Color(0xFF5B4A25),
-              ),
+              style: theme.textTheme.bodySmall?.copyWith(color: palette.label),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -284,5 +573,57 @@ class _SupportingRecordCard extends StatelessWidget {
     final month = value.month.toString().padLeft(2, '0');
     final day = value.day.toString().padLeft(2, '0');
     return '${value.year}-$month-$day';
+  }
+}
+
+class _SignalChip extends StatelessWidget {
+  const _SignalChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: theme.chipTheme.backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: theme.colorScheme.primary),
+          const SizedBox(width: 8),
+          Text(label, style: theme.textTheme.labelLarge),
+        ],
+      ),
+    );
+  }
+}
+
+class _AmbientGlow extends StatelessWidget {
+  const _AmbientGlow({required this.color, required this.diameter});
+
+  final Color color;
+  final double diameter;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: diameter,
+        height: diameter,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: <Color>[color, color.withValues(alpha: 0)],
+          ),
+        ),
+      ),
+    );
   }
 }

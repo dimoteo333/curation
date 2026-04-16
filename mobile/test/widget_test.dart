@@ -8,6 +8,11 @@ import 'fakes/fake_curation_repository.dart';
 
 void main() {
   testWidgets('큐레이션 응답이 화면에 렌더링된다', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1280, 2200);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -19,6 +24,7 @@ void main() {
       ),
     );
 
+    await tester.ensureVisible(find.byKey(const Key('submitQuestionButton')));
     await tester.tap(find.byKey(const Key('submitQuestionButton')));
     await tester.pumpAndSettle();
 
