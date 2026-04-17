@@ -101,6 +101,6 @@ void main() {
     await store.loadDemoData();
 
     expect(await store.isEmpty(), isFalse);
-    expect(preferences.getBool('local_records.demo_data_loaded'), isTrue);
+    expect(preferences.getBool('local_records.demo_data_loaded'), isNull);
   });
 }

@@ -47,6 +47,7 @@ Rules
 - Personal text fields in the local store are encrypted at the application layer with a per-install master key stored in secure storage, while embedding vectors remain plaintext for retrieval.
 - Settings now expose a privacy policy reference, an explicit demo-data load action when the local DB is empty, and a destructive delete-all flow that removes the SQLite files, clears the secure-stored master key, and clears local app preferences.
 - Settings also expose calendar sync status, last sync time, import history, and a data-source summary so local ingest state is visible to the user.
+- Developer-only model path controls are grouped behind an explicit runtime section so ordinary user settings stay separate from local debug/runtime configuration.
 - Query embeddings currently use the pure Dart `SemanticEmbeddingService` fallback on both iOS and Android.
 - Local retrieval now keeps a tag-cluster ANN-style prefilter, persisted normalized embedding state, and an LRU repeated-question cache so searches do not rescore the full local corpus on every query.
 - Native `embed` bridge calls are intentionally unavailable on both platforms until the MediaPipe text embedding path is stabilized.
@@ -69,4 +70,5 @@ Rules
   - on-device repository path without network access
   - onboarding and settings widgets
 - Integration test now validates the default on-device rendering path on a supported simulator/device.
+- A dedicated remote-harness integration test now drives the app against the FastAPI backend on iOS simulator with explicit `CURATION_MODE=remote` and `API_BASE_URL` dart defines.
 - Android debug build verification should include at least one `flutter build apk --debug` smoke test in addition to `flutter analyze` and `flutter test`.

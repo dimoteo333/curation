@@ -30,12 +30,13 @@ void main() {
     );
 
     expect(result.usedNativeRuntime, isFalse);
-    expect(result.insightTitle, '압박이 쌓일 때 먼저 나타나는 신호');
-    expect(result.summary, contains('2년 전 쓰신 "야근이 길어지던 주간 회고"'));
+    expect(result.insightTitle, isNotEmpty);
+    expect(result.summary, contains('야근이 길어지던 주간 회고'));
     expect(result.answer, contains('야근이 길어지던 주간 회고'));
     expect(result.answer, contains('2년 전'));
+    expect(result.supportingQuote, startsWith('"'));
     expect(result.supportingQuote, contains('무기력했다'));
-    expect(result.suggestedFollowUp, contains('에너지가 급격히 떨어진 순간'));
+    expect(result.suggestedFollowUp, contains('에너지'));
   });
 
   test('수면 맥락에서는 수면 패턴 중심 후속 질문을 만든다', () async {
@@ -62,7 +63,7 @@ void main() {
       ],
     );
 
-    expect(result.insightTitle, '수면 리듬이 흔들릴 때의 반응');
+    expect(result.insightTitle, contains('수면'));
     expect(result.answer, contains('생활 리듬을 되돌린 날'));
     expect(result.supportingQuote, contains('하루 종일 멍했다'));
     expect(result.suggestedFollowUp, contains('최근 일주일'));

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/config/app_settings.dart';
 import '../../data/import/calendar_import_service.dart';
 import '../../data/import/import_history_service.dart';
 import '../../data/import/notes_import_guide.dart';
@@ -21,6 +22,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final TextEditingController _llmPathController;
   late final TextEditingController _embedderPathController;
   bool _pathsInitialized = false;
+  bool _developerToolsExpanded = false;
 
   @override
   void initState() {
@@ -308,35 +310,48 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   const SizedBox(height: 34),
                   _EditorialSection(
-                    title: '모델 준비',
+                    title: '개발자 런타임',
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        TextField(
-                          key: const Key('llmModelPathField'),
-                          controller: _llmPathController,
-                          decoration: const InputDecoration(
-                            labelText: 'LLM 모델 경로',
-                            hintText: '/path/to/gemma.task',
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-                        TextField(
-                          key: const Key('embedderModelPathField'),
-                          controller: _embedderPathController,
-                          decoration: const InputDecoration(
-                            labelText: '임베딩 모델 경로',
-                            hintText: '/path/to/embedder.tflite',
-                          ),
-                        ),
-                        const SizedBox(height: 18),
                         _ActionRow(
-                          key: const Key('saveModelPathsButton'),
-                          title: '모델 경로 저장',
-                          subtitle: '개발자용 로컬 경로로만 사용됩니다.',
-                          actionLabel: '저장',
-                          onTap: _saveModelPaths,
+                          key: const Key('developerRuntimeToggleButton'),
+                          title: '모델 경로와 런타임 디버그',
+                          subtitle: _developerRuntimeSummary(settings),
+                          actionLabel: _developerToolsExpanded ? '접기' : '열기',
+                          onTap: () {
+                            setState(() {
+                              _developerToolsExpanded = !_developerToolsExpanded;
+                            });
+                          },
                         ),
+                        if (_developerToolsExpanded) ...[
+                          const _HairlineDivider(),
+                          TextField(
+                            key: const Key('llmModelPathField'),
+                            controller: _llmPathController,
+                            decoration: const InputDecoration(
+                              labelText: 'LLM 모델 경로',
+                              hintText: '/path/to/gemma.task',
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          TextField(
+                            key: const Key('embedderModelPathField'),
+                            controller: _embedderPathController,
+                            decoration: const InputDecoration(
+                              labelText: '임베딩 모델 경로',
+                              hintText: '/path/to/embedder.tflite',
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          _ActionRow(
+                            key: const Key('saveModelPathsButton'),
+                            title: '모델 경로 저장',
+                            subtitle: '개발자용 로컬 경로로만 사용됩니다.',
+                            actionLabel: '저장',
+                            onTap: _saveModelPaths,
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -701,6 +716,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       return '없음';
     }
     return parts.join(' · ');
+  }
+
+  String _developerRuntimeSummary(AppSettings settings) {
+    final llmConfigured = settings.llmModelPath?.isNotEmpty ?? false;
+    final embedderConfigured = settings.embedderModelPath?.isNotEmpty ?? false;
+    if (!llmConfigured && !embedderConfigured) {
+      return '일반 사용에는 필요 없는 개발자 전용 설정입니다.';
+    }
+
+    final configured = <String>[
+      if (llmConfigured) 'LLM 경로 저장됨',
+      if (embedderConfigured) '임베딩 경로 저장됨',
+    ];
+    return '${configured.join(' · ')}. 일반 사용에는 보통 열지 않아도 됩니다.';
   }
 }
 

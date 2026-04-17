@@ -19,6 +19,16 @@ SYNONYM_GROUPS: dict[str, tuple[str, ...]] = {
     "지치": ("지치", "지침", "무기력", "피곤"),
 }
 
+THEME_INSIGHT_TITLES: dict[str, str] = {
+    "수면": "수면 리듬이 흔들릴 때 반복된 흐름",
+    "번아웃": "압박이 높아질 때 먼저 흐트러지는 리듬",
+    "회복": "회복 단서가 함께 남아 있는 기록",
+    "관계": "관계 속에서 마음의 무게가 달라진 순간",
+    "운동": "몸의 리듬이 집중을 회복시킨 장면",
+    "창작": "작은 실행이 다시 움직이게 한 흐름",
+    "성장": "작은 루틴이 버팀목이 된 기록",
+}
+
 
 class CurationService:
     def __init__(self, repository: RecordRepository) -> None:
@@ -45,21 +55,28 @@ class CurationService:
         top_themes = self._collect_themes(supporting_records)
         theme_text = ", ".join(top_themes[:2]) if top_themes else "최근 피로 흐름"
         primary_signal = self._primary_signal(expanded_terms, top_themes)
-        record_labels = ", ".join(
-            f"{record.created_at.strftime('%Y-%m-%d')} {record.title}" for _, record in supporting_records[:2]
-        )
+        top_record = supporting_records[0][1]
+        second_record = supporting_records[1][1] if len(supporting_records) > 1 else None
         action_hint = self._suggest_action(top_themes)
+        evidence_quote = self._build_excerpt(top_record)
+        comparison_text = (
+            f' 또한 {second_record.created_at.strftime("%Y-%m-%d")} "{second_record.title}"에서도'
+            f" 비슷한 결이 이어집니다."
+            if second_record is not None
+            else ""
+        )
 
         return CurationQueryResponse(
-            insight_title="최근 기록에서 반복된 흐름",
+            insight_title=self._insight_title(top_themes, primary_signal),
             summary=(
-                f"관련 기록 {len(supporting_records)}건에서 {theme_text} 흐름이 함께 보입니다. "
-                f"특히 {record_labels} 기록이 현재 질문과 가깝습니다."
+                f'가장 가까운 기록은 {top_record.created_at.strftime("%Y-%m-%d")} "{top_record.title}"이며, '
+                f"질문과 맞닿는 핵심 흐름은 {theme_text} 쪽에 가깝습니다."
+                f"{comparison_text}"
             ),
             answer=(
-                f"지금의 상태는 단순한 하루 기분이라기보다 최근 기록에서 반복된 {primary_signal} 흐름과 "
-                f"{theme_text} 패턴이 함께 보이는 상태에 가깝습니다. 기록을 보면 피로가 높아질 때 일정 압박이 겹치고, "
-                f"그 뒤에 {action_hint} 같은 회복 행동이 도움이 되는 흐름이 있었습니다."
+                f'이번 질문은 단순한 하루 컨디션보다 최근 기록에서 반복된 "{primary_signal}" 흐름과 더 가깝습니다. '
+                f'"{top_record.title}"에는 "{evidence_quote}"처럼 현재 상태를 설명해 주는 장면이 직접 남아 있습니다.'
+                f"{comparison_text} 기록을 함께 보면 {action_hint} 쪽이 회복 단서로 반복됩니다."
             ),
             supporting_records=[
                 SupportingRecordResponse(
@@ -80,15 +97,21 @@ class CurationService:
     ) -> list[tuple[int, StoredRecord]]:
         ranked: list[tuple[int, StoredRecord]] = []
         for record in records:
-            haystack_terms = self._tokenize(" ".join((record.title, record.content, " ".join(record.tags))))
+            title_terms = self._tokenize(record.title)
+            content_terms = self._tokenize(record.content)
+            tag_terms = {tag.lower() for tag in record.tags}
+            haystack_terms = title_terms | content_terms | tag_terms
             overlap = expanded_terms & haystack_terms
             if not overlap:
                 continue
 
-            score = len(overlap) * 3
-            score += len(expanded_terms & set(record.tags)) * 2
+            score = len(overlap) * 4
+            score += len(expanded_terms & tag_terms) * 4
+            score += len(expanded_terms & title_terms) * 3
+            score += self._phrase_match_bonus(record, expanded_terms)
             if record.source == "diary":
-                score += 1
+                score += 2
+            score += self._recency_bonus(record)
             ranked.append((score, record))
 
         return sorted(ranked, key=lambda item: (item[0], item[1].created_at), reverse=True)
@@ -108,6 +131,14 @@ class CurationService:
             if theme == "사이드프로젝트":
                 return "부담이 적은 작은 프로젝트"
         return "우선순위를 줄이는 정리"
+
+    def _insight_title(self, themes: list[str], primary_signal: str) -> str:
+        for theme in themes:
+            if theme in THEME_INSIGHT_TITLES:
+                return THEME_INSIGHT_TITLES[theme]
+        if primary_signal in THEME_INSIGHT_TITLES:
+            return THEME_INSIGHT_TITLES[primary_signal]
+        return "최근 기록에서 반복된 흐름"
 
     def _primary_signal(self, expanded_terms: set[str], themes: list[str]) -> str:
         for signal in ("무기력", "지침", "번아웃", "의욕", "회복"):
@@ -138,6 +169,25 @@ class CurationService:
         if len(excerpt) <= 88:
             return excerpt
         return f"{excerpt[:85].rstrip()}..."
+
+    def _phrase_match_bonus(self, record: StoredRecord, expanded_terms: set[str]) -> int:
+        normalized_haystack = " ".join((record.title, record.content, " ".join(record.tags))).lower()
+        bonus = 0
+        for term in expanded_terms:
+            if len(term) < 2:
+                continue
+            if term in normalized_haystack:
+                bonus += 1
+        return min(bonus, 4)
+
+    def _recency_bonus(self, record: StoredRecord) -> int:
+        if record.created_at.year >= 2025:
+            return 3
+        if record.created_at.year >= 2024:
+            return 2
+        if record.created_at.year >= 2023:
+            return 1
+        return 0
 
     def _tokenize(self, value: str) -> set[str]:
         return {token.lower() for token in TOKEN_PATTERN.findall(value)}

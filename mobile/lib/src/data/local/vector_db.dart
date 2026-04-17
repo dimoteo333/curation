@@ -107,10 +107,6 @@ class VectorDb {
     _invalidateCaches();
   }
 
-  Future<void> clearAllRecords() async {
-    await deleteAllData();
-  }
-
   Future<void> deleteAllData() async {
     _invalidateCaches();
     final existing = _database;

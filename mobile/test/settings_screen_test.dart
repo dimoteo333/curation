@@ -22,6 +22,13 @@ void main() {
   testWidgets('설정 화면은 런타임, 데이터 상태, import 액션을 노출한다', (
     WidgetTester tester,
   ) async {
+    tester.view.physicalSize = const Size(1440, 3200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
     final preferences = await SharedPreferences.getInstance();
 
     await tester.pumpWidget(

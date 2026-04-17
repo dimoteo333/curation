@@ -14,7 +14,23 @@ def test_curation_service_prioritizes_relevant_seed_records() -> None:
         "diary-burnout-feb-2024",
         "diary-burnout-nov-2024",
     }
-    assert "회복" in response.summary or "산책" in response.answer
+    assert response.insight_title
+    assert "기록은" in response.summary
+    assert "회복 단서" in response.answer or "우선순위" in response.answer
+
+
+def test_curation_service_surfaces_sleep_context_with_grounded_summary() -> None:
+    service = CurationService(SeedRecordRepository())
+
+    response = service.curate("잠이 뒤집혀서 하루 종일 멍해요", top_k=2)
+
+    assert response.supporting_records
+    assert response.supporting_records[0].id in {
+        "diary-routine-reset-2023",
+        "diary-sleep-apr-2024",
+    }
+    assert "수면" in response.insight_title
+    assert "생활 리듬" in response.summary or "새벽 세 시" in response.answer
 
 
 def test_curation_service_returns_empty_match_guidance_when_needed() -> None:

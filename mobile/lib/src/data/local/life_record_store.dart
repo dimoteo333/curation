@@ -26,8 +26,6 @@ class LifeRecordStore {
     required this.sharedPreferences,
   });
 
-  static const String _demoDataLoadedKey = 'local_records.demo_data_loaded';
-
   final VectorDb vectorDb;
   final DatabaseEncryption databaseEncryption;
   final TextEmbeddingService embeddingService;
@@ -46,16 +44,11 @@ class LifeRecordStore {
   Future<void> loadDemoData() async {
     await vectorDb.initialize();
     await vectorDb.replaceAllRecords(seedRecords, embeddingService);
-    await sharedPreferences.setBool(_demoDataLoadedKey, true);
   }
 
   Future<bool> isEmpty() async {
     await initialize();
     return await vectorDb.documentCount() == 0;
-  }
-
-  Future<void> clearAllRecords() async {
-    await deleteAllData();
   }
 
   Future<void> deleteAllData() async {

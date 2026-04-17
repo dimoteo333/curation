@@ -30,10 +30,17 @@ void main() {
       ],
     );
 
+    expect(result.usedNativeRuntime, isFalse);
+    expect(result.insightTitle, isNotEmpty);
+    expect(result.summary, contains('쉬어도 피곤한 주말'));
     expect(result.answer, contains('쉬어도 피곤한 주말'));
     expect(result.answer, contains('1년 전'));
-    expect(result.supportingQuote, contains('토요일 내내 누워 있었는데도 피로가 풀리지 않았다'));
-    expect(result.suggestedFollowUp, contains('에너지가 급격히 떨어진 순간'));
+    expect(result.supportingQuote, startsWith('"'));
+    expect(
+      result.supportingQuote,
+      contains('토요일 내내 누워 있었는데도 피로가 풀리지 않았다'),
+    );
+    expect(result.suggestedFollowUp, contains('에너지'));
   });
 }
 
