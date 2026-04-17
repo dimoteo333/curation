@@ -26,7 +26,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('큐\n레이터'), findsOneWidget);
+    expect(find.text('당신의 일상을\n조용히 지켜봅니다'), findsOneWidget);
     expect(find.byKey(const Key('onboardingSkipButton')), findsOneWidget);
+    expect(find.byKey(const Key('onboardingNextButton')), findsOneWidget);
 
     await tester.ensureVisible(find.byKey(const Key('onboardingSkipButton')));
     await tester.tap(

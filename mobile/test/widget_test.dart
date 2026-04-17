@@ -31,6 +31,8 @@ void main() {
 
     expect(find.text('당신의 하루를 읽습니다'), findsOneWidget);
     expect(find.text('최근 인사이트'), findsOneWidget);
+    expect(find.byKey(const Key('questionTextField')), findsOneWidget);
+    expect(find.byKey(const Key('openSettingsButton')), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.byKey(const Key('submitQuestionButton')),

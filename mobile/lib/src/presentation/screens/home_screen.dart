@@ -62,11 +62,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           );
                         },
                       ),
-                      const SizedBox(height: 44),
+                      const SizedBox(height: 24),
                       const _HomeHero(),
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 24),
                       const Divider(height: 1),
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 24),
                       _QuestionComposer(
                         controller: _controller,
                         isLoading: state.isLoading,
@@ -74,7 +74,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         onSubmit: () =>
                             controller.submitQuestion(_controller.text),
                       ),
-                      const SizedBox(height: 42),
+                      const SizedBox(height: 32),
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 220),
                         switchInCurve: Curves.easeOut,
@@ -110,14 +110,33 @@ class _HomeTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
+
     return Row(
       children: [
-        const Spacer(),
-        _PressScaleButton(
-          key: const Key('openSettingsButton'),
-          label: '설정',
-          tooltip: '설정 열기',
-          onTap: onOpenSettings,
+        Container(
+          width: 44,
+          height: 44,
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: palette.surfaceStrong.withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: palette.outline.withValues(alpha: 0.26)),
+          ),
+          child: Image.asset('assets/branding/curator_mark.png'),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text('큐레이터', style: theme.textTheme.titleLarge),
+        ),
+        Tooltip(
+          message: '설정 열기',
+          child: IconButton.filledTonal(
+            key: const Key('openSettingsButton'),
+            onPressed: onOpenSettings,
+            icon: const Icon(Icons.tune_rounded),
+          ),
         ),
       ],
     );
@@ -324,12 +343,10 @@ class _PressScaleButton extends StatefulWidget {
     super.key,
     required this.label,
     required this.onTap,
-    this.tooltip,
   });
 
   final String label;
   final VoidCallback? onTap;
-  final String? tooltip;
 
   @override
   State<_PressScaleButton> createState() => _PressScaleButtonState();
@@ -365,7 +382,7 @@ class _PressScaleButtonState extends State<_PressScaleButton> {
         child: Material(
           type: MaterialType.transparency,
           child: Tooltip(
-            message: widget.tooltip ?? widget.label,
+            message: widget.label,
             child: InkWell(
               onTap: widget.onTap,
               onHighlightChanged: (value) {

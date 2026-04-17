@@ -13,6 +13,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
+  late final PageController _pageController;
   int _currentPage = 0;
 
   static const List<_OnboardingPageData> _pages = [
@@ -35,8 +36,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final page = _pages[_currentPage];
+    final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
     final isLastPage = _currentPage == _pages.length - 1;
 
     return Scaffold(
@@ -47,63 +61,91 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 720),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(28, 24, 28, 28),
+                padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 52,
+                          height: 52,
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: palette.surfaceStrong.withValues(alpha: 0.9),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: palette.outline.withValues(alpha: 0.28),
+                            ),
+                          ),
+                          child: Image.asset('assets/branding/curator_mark.png'),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Text(
+                            '큐레이터 시작하기',
+                            style: theme.textTheme.titleLarge,
+                          ),
+                        ),
+                        if (!isLastPage)
+                          TextButton(
+                            key: const Key('onboardingSkipButton'),
+                            onPressed: _skipToLastPage,
+                            child: const Text('건너뛰기'),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
                     Expanded(
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 260),
-                        switchInCurve: Curves.easeOut,
-                        switchOutCurve: Curves.easeIn,
-                        transitionBuilder: (child, animation) {
-                          return FadeTransition(
-                            opacity: animation,
-                            child: child,
+                      child: PageView.builder(
+                        controller: _pageController,
+                        itemCount: _pages.length,
+                        onPageChanged: (index) {
+                          setState(() => _currentPage = index);
+                        },
+                        itemBuilder: (context, index) {
+                          final item = _pages[index];
+                          return _OnboardingPage(
+                            data: item,
+                            isFirstPage: index == 0,
+                            isLastPage: index == _pages.length - 1,
+                            pageIndex: index,
                           );
                         },
-                        child: _OnboardingPageView(
-                          key: ValueKey(_currentPage),
-                          data: page,
-                          isFirstPage: _currentPage == 0,
-                          isLastPage: isLastPage,
-                        ),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
                     Row(
                       children: [
                         for (var i = 0; i < _pages.length; i++) ...[
                           _PageDot(isActive: i == _currentPage),
                           if (i != _pages.length - 1) const SizedBox(width: 8),
                         ],
-                        const Spacer(),
-                        if (!isLastPage)
-                          _PressScaleTextButton(
-                            key: const Key('onboardingSkipButton'),
-                            label: '건너뛰기 →',
-                            onTap: _skipToLastPage,
-                          ),
                       ],
                     ),
                     const SizedBox(height: 18),
                     Row(
                       children: [
                         if (_currentPage > 0)
-                          _PressScaleTextButton(
-                            label: '이전',
-                            onTap: _goToPreviousPage,
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: _goToPreviousPage,
+                              child: const Text('이전'),
+                            ),
+                          )
+                        else
+                          const Spacer(),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: FilledButton(
+                            key: isLastPage
+                                ? const Key('completeOnboardingButton')
+                                : const Key('onboardingNextButton'),
+                            onPressed: isLastPage
+                                ? _completeOnboarding
+                                : _goToNextPage,
+                            child: Text(isLastPage ? '시작하기' : '다음'),
                           ),
-                        const Spacer(),
-                        _PressScaleTextButton(
-                          key: isLastPage
-                              ? const Key('completeOnboardingButton')
-                              : const Key('onboardingNextButton'),
-                          label: isLastPage ? '시작하기' : '다음 →',
-                          onTap: isLastPage
-                              ? _completeOnboarding
-                              : _goToNextPage,
-                          large: isLastPage,
                         ),
                       ],
                     ),
@@ -122,16 +164,26 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
-  void _goToNextPage() {
-    setState(() => _currentPage += 1);
+  Future<void> _goToNextPage() async {
+    await _pageController.nextPage(
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
   }
 
-  void _goToPreviousPage() {
-    setState(() => _currentPage -= 1);
+  Future<void> _goToPreviousPage() async {
+    await _pageController.previousPage(
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOutCubic,
+    );
   }
 
-  void _skipToLastPage() {
-    setState(() => _currentPage = _pages.length - 1);
+  Future<void> _skipToLastPage() async {
+    await _pageController.animateToPage(
+      _pages.length - 1,
+      duration: const Duration(milliseconds: 360),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   Future<void> _completeOnboarding() async {
@@ -153,69 +205,130 @@ class _OnboardingPageData {
   final bool showMark;
 }
 
-class _OnboardingPageView extends StatelessWidget {
-  const _OnboardingPageView({
-    super.key,
+class _OnboardingPage extends StatelessWidget {
+  const _OnboardingPage({
     required this.data,
     required this.isFirstPage,
     required this.isLastPage,
+    required this.pageIndex,
   });
 
   final _OnboardingPageData data;
   final bool isFirstPage;
   final bool isLastPage;
+  final int pageIndex;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final palette = theme.extension<CuratorPalette>()!;
-    final size = MediaQuery.of(context).size;
-    final headlineStyle = isFirstPage
-        ? theme.textTheme.displayLarge?.copyWith(
-            fontSize: size.width < 380 ? 92 : 118,
-          )
-        : theme.textTheme.displayMedium;
 
-    return SingleChildScrollView(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          minHeight: (size.height * 0.62).clamp(420.0, 680.0),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 24),
-            if (data.showMark) ...[
-              const CuratorMarkArtwork(size: 88, opacity: 0.96),
-              const SizedBox(height: 28),
-            ] else ...[
-              const SizedBox(height: 64),
-            ],
-            Text(data.headline, style: headlineStyle),
-            const SizedBox(height: 24),
-            Text(
-              data.body,
-              style: theme.textTheme.bodyLarge?.copyWith(color: palette.label),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxHeight < 620;
+        final headlineStyle = (isFirstPage
+                ? theme.textTheme.displayLarge
+                : theme.textTheme.displayMedium)
+            ?.copyWith(
+              fontSize: isFirstPage
+                  ? (isCompact ? 76 : 88)
+                  : (isCompact ? 36 : 42),
+            );
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Container(
+            decoration: BoxDecoration(
+              color: palette.surfaceStrong.withValues(alpha: 0.88),
+              borderRadius: BorderRadius.circular(34),
+              border: Border.all(color: palette.outline.withValues(alpha: 0.24)),
+              boxShadow: [
+                BoxShadow(
+                  color: palette.shadowColor.withValues(alpha: 0.08),
+                  blurRadius: 30,
+                  offset: const Offset(0, 18),
+                ),
+              ],
             ),
-            const SizedBox(height: 18),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Text(
-                data.detail,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: palette.label.withValues(alpha: 0.9),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 22),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: (constraints.maxHeight - 44).clamp(
+                    0.0,
+                    double.infinity,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (data.showMark) ...[
+                      const Center(
+                        child: CuratorMarkArtwork(size: 88, opacity: 0.96),
+                      ),
+                      SizedBox(height: isCompact ? 20 : 26),
+                    ] else ...[
+                      const SizedBox(height: 10),
+                    ],
+                    _PageLabel(page: pageIndex + 1, total: 3),
+                    const SizedBox(height: 14),
+                    Text(data.headline, style: headlineStyle),
+                    SizedBox(height: isCompact ? 18 : 22),
+                    Text(
+                      data.body,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: palette.label,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 460),
+                      child: Text(
+                        data.detail,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: palette.label.withValues(alpha: 0.92),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: isCompact ? 24 : 40),
+                    if (isLastPage) ...[
+                      Text(
+                        '첫 질문은 홈 화면에서 바로 남길 수 있습니다.',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),
-            if (isLastPage) ...[
-              const SizedBox(height: 28),
-              Text(
-                '첫 질문은 홈 화면에서 바로 남길 수 있습니다.',
-                style: theme.textTheme.bodySmall,
-              ),
-            ],
-            const SizedBox(height: 56),
-          ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PageLabel extends StatelessWidget {
+  const _PageLabel({required this.page, required this.total});
+
+  final int page;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: palette.highlight.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$page / $total',
+        style: theme.textTheme.labelLarge?.copyWith(
+          color: palette.accentStrong,
         ),
       ),
     );
@@ -240,66 +353,6 @@ class _PageDot extends StatelessWidget {
         color: isActive
             ? palette.accentStrong
             : palette.outline.withValues(alpha: 0.42),
-      ),
-    );
-  }
-}
-
-class _PressScaleTextButton extends StatefulWidget {
-  const _PressScaleTextButton({
-    super.key,
-    required this.label,
-    required this.onTap,
-    this.large = false,
-  });
-
-  final String label;
-  final VoidCallback onTap;
-  final bool large;
-
-  @override
-  State<_PressScaleTextButton> createState() => _PressScaleTextButtonState();
-}
-
-class _PressScaleTextButtonState extends State<_PressScaleTextButton> {
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final palette = theme.extension<CuratorPalette>()!;
-
-    return AnimatedScale(
-      duration: const Duration(milliseconds: 120),
-      scale: _pressed ? 0.98 : 1,
-      child: Material(
-        type: MaterialType.transparency,
-        child: InkWell(
-          onTap: widget.onTap,
-          onHighlightChanged: (value) {
-            setState(() => _pressed = value);
-          },
-          splashColor: Colors.transparent,
-          highlightColor: Colors.transparent,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Text(
-              widget.label,
-              style:
-                  (widget.large
-                          ? theme.textTheme.headlineMedium
-                          : theme.textTheme.bodyMedium)
-                      ?.copyWith(
-                        color: palette.accentStrong,
-                        decoration: TextDecoration.underline,
-                        decorationColor: palette.accentStrong.withValues(
-                          alpha: 0.5,
-                        ),
-                        decorationThickness: 0.7,
-                      ),
-            ),
-          ),
-        ),
       ),
     );
   }

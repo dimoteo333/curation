@@ -57,7 +57,7 @@ ThemeData buildCuratorTheme(Brightness brightness) {
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: false,
-      titleTextStyle: textTheme.headlineMedium,
+      titleTextStyle: textTheme.headlineSmall,
       surfaceTintColor: Colors.transparent,
     ),
     cardTheme: CardThemeData(
@@ -77,7 +77,10 @@ ThemeData buildCuratorTheme(Brightness brightness) {
         shadowColor: Colors.transparent,
         backgroundColor: palette.accent,
         foregroundColor: colorScheme.onPrimary,
-        textStyle: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+        minimumSize: const Size(0, 54),
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        textStyle: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
@@ -90,7 +93,10 @@ ThemeData buildCuratorTheme(Brightness brightness) {
       style: OutlinedButton.styleFrom(
         foregroundColor: colorScheme.onSurface,
         side: BorderSide(color: palette.outline.withValues(alpha: 0.8)),
-        textStyle: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+        minimumSize: const Size(0, 52),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        textStyle: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w500),
       ),
     ),
     switchTheme: SwitchThemeData(
@@ -112,10 +118,11 @@ ThemeData buildCuratorTheme(Brightness brightness) {
     ),
     inputDecorationTheme: InputDecorationTheme(
       isDense: true,
-      filled: false,
+      filled: true,
+      fillColor: palette.surfaceStrong.withValues(alpha: isDark ? 0.86 : 0.94),
       hintStyle: textTheme.bodyMedium?.copyWith(color: palette.label),
       labelStyle: textTheme.bodyMedium?.copyWith(color: palette.label),
-      contentPadding: const EdgeInsets.only(top: 8, bottom: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
       border: _inputBorder(palette.outline),
       enabledBorder: _inputBorder(palette.outline.withValues(alpha: 0.78)),
       focusedBorder: _inputBorder(palette.accentStrong),
@@ -177,23 +184,23 @@ TextTheme _buildTextTheme(TextTheme base, Color onSurface, Color label) {
     displayLarge: serif(
       base.displayLarge,
       weight: FontWeight.w700,
-      size: 128,
-      letterSpacing: -6,
-      height: 0.94,
+      size: 88,
+      letterSpacing: -4.2,
+      height: 0.96,
     ),
     displayMedium: serif(
       base.displayMedium,
       weight: FontWeight.w700,
-      size: 52,
-      letterSpacing: -2.2,
-      height: 1.02,
+      size: 42,
+      letterSpacing: -1.6,
+      height: 1.04,
     ),
     displaySmall: serif(
       base.displaySmall,
       weight: FontWeight.w700,
-      size: 40,
+      size: 34,
       letterSpacing: -1.2,
-      height: 1.06,
+      height: 1.08,
     ),
     headlineLarge: serif(
       base.headlineLarge,
@@ -238,10 +245,10 @@ TextTheme _buildTextTheme(TextTheme base, Color onSurface, Color label) {
       height: 1.36,
     ),
     bodyLarge: sans(base.bodyLarge, size: 16, height: 1.58),
-    bodyMedium: sans(base.bodyMedium, size: 14, height: 1.56),
+    bodyMedium: sans(base.bodyMedium, size: 15, height: 1.56),
     bodySmall: sans(
       base.bodySmall,
-      size: 12,
+      size: 13,
       color: label,
       letterSpacing: 0.1,
       height: 1.5,
@@ -272,8 +279,11 @@ TextTheme _buildTextTheme(TextTheme base, Color onSurface, Color label) {
   );
 }
 
-UnderlineInputBorder _inputBorder(Color color) {
-  return UnderlineInputBorder(borderSide: BorderSide(color: color, width: 0.9));
+OutlineInputBorder _inputBorder(Color color) {
+  return OutlineInputBorder(
+    borderRadius: BorderRadius.circular(24),
+    borderSide: BorderSide(color: color, width: 1),
+  );
 }
 
 class _EditorialFadeTransitionsBuilder extends PageTransitionsBuilder {
