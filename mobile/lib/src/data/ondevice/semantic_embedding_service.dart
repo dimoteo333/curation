@@ -6,6 +6,7 @@ class SemanticEmbeddingService implements TextEmbeddingService {
   const SemanticEmbeddingService({this.lexicalDimensions = 160});
 
   final int lexicalDimensions;
+  static const int _defaultSuggestedTagCount = 5;
 
   static final RegExp _tokenPattern = RegExp(r'[0-9A-Za-z가-힣]+');
   static final RegExp _compactPattern = RegExp(r'[0-9A-Za-z가-힣]');
@@ -48,7 +49,7 @@ class SemanticEmbeddingService implements TextEmbeddingService {
     ),
     _SemanticConcept(
       key: '회복',
-      aliases: <String>['회복', '숨통', '맑아졌'],
+      aliases: <String>['회복', '숨통', '맑아졌', '나아졌', '진정'],
       related: <String>['산책', '집중'],
     ),
     _SemanticConcept(
@@ -70,6 +71,36 @@ class SemanticEmbeddingService implements TextEmbeddingService {
       key: '불안',
       aliases: <String>['불안', '걱정', '초조', '죄책감', '답답'],
       related: <String>['마감', '무기력'],
+    ),
+    _SemanticConcept(
+      key: '운동',
+      aliases: <String>['운동', '러닝', '달리기', '헬스', '요가', '필라테스'],
+      related: <String>['건강', '회복'],
+    ),
+    _SemanticConcept(
+      key: '건강',
+      aliases: <String>['건강', '몸', '통증', '근육통', '컨디션', '식사'],
+      related: <String>['운동', '회복'],
+    ),
+    _SemanticConcept(
+      key: '관계',
+      aliases: <String>['관계', '친구', '가족', '연인', '엄마', '아빠', '동료'],
+      related: <String>['대화', '불안'],
+    ),
+    _SemanticConcept(
+      key: '대화',
+      aliases: <String>['대화', '이야기', '말했', '문자', '통화', '화해'],
+      related: <String>['관계', '회복'],
+    ),
+    _SemanticConcept(
+      key: '성장',
+      aliases: <String>['성장', '배움', '연습', '회고', '기록', '습관'],
+      related: <String>['집중', '의욕'],
+    ),
+    _SemanticConcept(
+      key: '창작',
+      aliases: <String>['창작', '글쓰기', '그림', '작업', '초안', '아이디어 스케치'],
+      related: <String>['의욕', '집중'],
     ),
   ];
 
@@ -128,7 +159,18 @@ class SemanticEmbeddingService implements TextEmbeddingService {
     ),
     _SemanticCluster(
       key: 'recovery',
-      aliases: <String>['회복', '휴식', '쉬', '쉼', '재충전', '숨통', '회복감', '맑아졌'],
+      aliases: <String>[
+        '회복',
+        '휴식',
+        '쉬',
+        '쉼',
+        '재충전',
+        '숨통',
+        '회복감',
+        '맑아졌',
+        '나아졌',
+        '진정',
+      ],
       related: <String>['fatigue', 'sleep', 'focus', 'walking'],
     ),
     _SemanticCluster(
@@ -150,6 +192,31 @@ class SemanticEmbeddingService implements TextEmbeddingService {
       key: 'anxiety',
       aliases: <String>['불안', '걱정', '초조', '죄책감', '답답', '버거'],
       related: <String>['fatigue', 'work_pressure'],
+    ),
+    _SemanticCluster(
+      key: 'exercise',
+      aliases: <String>['운동', '러닝', '달리기', '헬스', '요가', '필라테스', '스트레칭'],
+      related: <String>['health', 'recovery', 'focus'],
+    ),
+    _SemanticCluster(
+      key: 'health',
+      aliases: <String>['건강', '몸', '통증', '근육통', '컨디션', '식사', '호흡'],
+      related: <String>['exercise', 'recovery', 'sleep'],
+    ),
+    _SemanticCluster(
+      key: 'relationships',
+      aliases: <String>['관계', '친구', '가족', '연인', '동료', '엄마', '아빠', '서운'],
+      related: <String>['anxiety', 'reflection', 'recovery'],
+    ),
+    _SemanticCluster(
+      key: 'reflection',
+      aliases: <String>['회고', '기록', '배움', '성장', '습관', '정리', '돌아보'],
+      related: <String>['focus', 'motivation', 'relationships'],
+    ),
+    _SemanticCluster(
+      key: 'creativity',
+      aliases: <String>['창작', '글쓰기', '그림', '초안', '작업', '아이디어', '스케치'],
+      related: <String>['motivation', 'focus', 'recovery'],
     ),
   ];
 
@@ -197,20 +264,110 @@ class SemanticEmbeddingService implements TextEmbeddingService {
       _addHashed(vector, lexicalOffset, entry.key, weight);
 
       for (final ngram in _tokenNgrams(entry.key)) {
-        _addHashed(vector, lexicalOffset, 'gram:$ngram', weight * 0.36);
+        _addHashed(vector, lexicalOffset, 'gram:$ngram', weight * 0.22);
       }
 
       final matchedClusterKeys = _matchedClusterKeys(entry.key);
       for (final clusterKey in matchedClusterKeys) {
-        _addHashed(vector, lexicalOffset, 'cluster:$clusterKey', weight * 0.54);
+        _addHashed(vector, lexicalOffset, 'cluster:$clusterKey', weight * 0.34);
       }
     }
 
     for (final compactNgram in _compactNgrams(compactText)) {
-      _addHashed(vector, lexicalOffset, 'compact:$compactNgram', 0.08);
+      _addHashed(vector, lexicalOffset, 'compact:$compactNgram', 0.04);
     }
 
     return _normalize(vector);
+  }
+
+  static List<String> suggestTags(
+    String text, {
+    int maxTags = _defaultSuggestedTagCount,
+  }) {
+    final normalizedText = _normalizeStatic(text);
+    if (normalizedText.isEmpty) {
+      return const <String>[];
+    }
+
+    final tokenFrequency = <String, int>{};
+    for (final token
+        in _tokenPattern
+            .allMatches(normalizedText)
+            .map((Match match) => match.group(0)!)
+            .where((String token) => token.length > 1)) {
+      tokenFrequency.update(token, (int value) => value + 1, ifAbsent: () => 1);
+    }
+
+    final scores = <String, double>{};
+    for (final concept in _concepts) {
+      var score = 0.0;
+      for (final alias in concept.aliases) {
+        if (normalizedText.contains(alias)) {
+          score += 2.0 + math.min(1.1, alias.length * 0.07);
+          continue;
+        }
+
+        for (final entry in tokenFrequency.entries) {
+          if (_tokenSemanticallyOverlapsStatic(entry.key, alias)) {
+            score += (0.45 + alias.length * 0.02) * entry.value;
+          }
+        }
+      }
+
+      if (score > 0) {
+        scores[concept.key] = score;
+      }
+    }
+
+    final supplementalTokens =
+        tokenFrequency.entries
+            .where((MapEntry<String, int> entry) => entry.key.length >= 2)
+            .where(
+              (MapEntry<String, int> entry) =>
+                  !_looksNumeric(entry.key) && !_isCommonStopToken(entry.key),
+            )
+            .map(
+              (MapEntry<String, int> entry) => MapEntry<String, double>(
+                entry.key,
+                entry.value * (1.0 + math.min(0.8, entry.key.length * 0.06)),
+              ),
+            )
+            .toList(growable: false)
+          ..sort((left, right) => right.value.compareTo(left.value));
+
+    final ordered = scores.entries.toList(growable: false)
+      ..sort((left, right) {
+        final byScore = right.value.compareTo(left.value);
+        if (byScore != 0) {
+          return byScore;
+        }
+        return left.key.compareTo(right.key);
+      });
+
+    final tags = <String>[];
+    for (final entry in ordered) {
+      tags.add(entry.key);
+      if (tags.length >= maxTags) {
+        return tags;
+      }
+    }
+
+    for (final entry in supplementalTokens) {
+      if (tags.any(
+        (String tag) =>
+            tag == entry.key ||
+            tag.contains(entry.key) ||
+            entry.key.contains(tag),
+      )) {
+        continue;
+      }
+      tags.add(entry.key);
+      if (tags.length >= maxTags) {
+        break;
+      }
+    }
+
+    return tags;
   }
 
   List<double> _buildConceptScores(
@@ -224,7 +381,7 @@ class SemanticEmbeddingService implements TextEmbeddingService {
       var score = 0.0;
       for (final alias in concept.aliases) {
         if (normalizedText.contains(alias)) {
-          score += 1.8 + math.min(1.2, alias.length * 0.08);
+          score += 2.35 + math.min(1.35, alias.length * 0.09);
           continue;
         }
 
@@ -262,7 +419,7 @@ class SemanticEmbeddingService implements TextEmbeddingService {
       var score = 0.0;
       for (final alias in cluster.aliases) {
         final exactWeight = normalizedText.contains(alias)
-            ? 1.45 + math.min(1.1, alias.length * 0.08)
+            ? 2.15 + math.min(1.25, alias.length * 0.08)
             : 0.0;
         if (exactWeight > 0) {
           score += exactWeight;
@@ -301,6 +458,11 @@ class SemanticEmbeddingService implements TextEmbeddingService {
     final sleep = clusterScores[_clusterIndexByKey['sleep']!];
     final recovery = clusterScores[_clusterIndexByKey['recovery']!];
     final walking = clusterScores[_clusterIndexByKey['walking']!];
+    final exercise = clusterScores[_clusterIndexByKey['exercise']!];
+    final health = clusterScores[_clusterIndexByKey['health']!];
+    final relationships = clusterScores[_clusterIndexByKey['relationships']!];
+    final reflection = clusterScores[_clusterIndexByKey['reflection']!];
+    final creativity = clusterScores[_clusterIndexByKey['creativity']!];
 
     if (fatigue > 0 && workPressure > 0) {
       clusterScores[_clusterIndexByKey['burnout']!] += 0.9;
@@ -317,6 +479,20 @@ class SemanticEmbeddingService implements TextEmbeddingService {
     if (burnout > 0 && recovery > 0) {
       clusterScores[_clusterIndexByKey['motivation']!] += 0.22;
     }
+    if (exercise > 0 && health > 0) {
+      clusterScores[_clusterIndexByKey['recovery']!] += 0.26;
+      clusterScores[_clusterIndexByKey['focus']!] += 0.18;
+    }
+    if (relationships > 0 && reflection > 0) {
+      clusterScores[_clusterIndexByKey['recovery']!] += 0.18;
+    }
+    if (relationships > 0 &&
+        clusterScores[_clusterIndexByKey['anxiety']!] > 0) {
+      clusterScores[_clusterIndexByKey['reflection']!] += 0.22;
+    }
+    if (creativity > 0 && recovery > 0) {
+      clusterScores[_clusterIndexByKey['motivation']!] += 0.24;
+    }
   }
 
   Iterable<String> _matchedClusterKeys(String token) sync* {
@@ -330,6 +506,10 @@ class SemanticEmbeddingService implements TextEmbeddingService {
   }
 
   bool _tokenSemanticallyOverlaps(String token, String alias) {
+    return _tokenSemanticallyOverlapsStatic(token, alias);
+  }
+
+  static bool _tokenSemanticallyOverlapsStatic(String token, String alias) {
     if (token == alias) {
       return true;
     }
@@ -340,9 +520,9 @@ class SemanticEmbeddingService implements TextEmbeddingService {
   }
 
   double _lexicalWeight(String token, int frequency) {
-    final lengthFactor = 1.0 + math.min(1.1, token.length * 0.08);
-    final frequencyFactor = 1.0 + math.log(frequency + 1) / 2;
-    final semanticBonus = _matchedClusterKeys(token).isEmpty ? 1.0 : 1.25;
+    final lengthFactor = 1.0 + math.min(0.7, token.length * 0.05);
+    final frequencyFactor = 1.0 + math.log(frequency + 1) / 3;
+    final semanticBonus = _matchedClusterKeys(token).isEmpty ? 1.0 : 1.12;
     return lengthFactor * frequencyFactor * semanticBonus;
   }
 
@@ -360,7 +540,7 @@ class SemanticEmbeddingService implements TextEmbeddingService {
     final secondaryBucket = key.codeUnits.fold<int>(7, (int hash, int unit) {
       return (hash * 29 + unit) % lexicalDimensions;
     });
-    vector[lexicalOffset + secondaryBucket] += weight * 0.25;
+    vector[lexicalOffset + secondaryBucket] += weight * 0.14;
   }
 
   List<String> _extractTokens(String normalizedText) {
@@ -395,7 +575,38 @@ class SemanticEmbeddingService implements TextEmbeddingService {
   }
 
   String _normalizeText(String text) {
+    return _normalizeStatic(text);
+  }
+
+  static String _normalizeStatic(String text) {
     return text.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  static bool _looksNumeric(String value) {
+    return RegExp(r'^[0-9]+$').hasMatch(value);
+  }
+
+  static bool _isCommonStopToken(String token) {
+    const stopTokens = <String>{
+      '오늘',
+      '요즘',
+      '이번',
+      '그날',
+      '그때',
+      '정말',
+      '조금',
+      '계속',
+      '너무',
+      '다시',
+      '마음',
+      '느낌',
+      '상태',
+      '하루',
+      '주말',
+      '오전',
+      '오후',
+    };
+    return stopTokens.contains(token);
   }
 
   List<double> _normalize(List<double> vector) {

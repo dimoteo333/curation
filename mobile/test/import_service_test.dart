@@ -32,7 +32,9 @@ void main() {
 
   test('마크다운 헤더와 텍스트 첫 줄을 제목으로 가져와 로컬 DB에 저장한다', () async {
     final markdownFile = File(path.join(tempDirectory.path, 'night.md'));
-    await markdownFile.writeAsString('# 늦은 밤 기록\n오늘은 마음이 복잡했다.\n산책 후 조금 나아졌다.');
+    await markdownFile.writeAsString(
+      '# 야근 후 회고\n오늘도 10시까지 야근했다. 몸이 점점 무거워지는 느낌이다.\n산책 후 조금 나아졌다.',
+    );
     await markdownFile.setLastModified(DateTime(2026, 4, 15, 23, 10));
 
     final textFile = File(path.join(tempDirectory.path, 'memo.txt'));
@@ -68,15 +70,17 @@ void main() {
     expect(result.importedCount, 2);
     expect(await vectorDb.documentCount(), 2);
 
-    final queryVector = await embeddingService.embed('늦은 밤 산책');
+    final queryVector = await embeddingService.embed('야근 후 몸이 무겁다');
     final matches = await vectorDb.search(queryVector, topK: 1);
     final record = matches.first.record;
 
-    expect(record.title, '늦은 밤 기록');
+    expect(record.title, '야근 후 회고');
     expect(record.importSource, 'file');
     expect(record.createdAt, DateTime(2026, 4, 15, 23, 10));
+    expect(record.tags, containsAll(<String>['야근', '회복']));
     expect(record.metadata['file_extension'], 'md');
     expect(record.metadata['parser'], 'markdown-header');
+    expect(record.metadata['tag_count'], greaterThanOrEqualTo(2));
   });
 
   test('비어 있거나 지원하지 않는 파일은 건너뛴다', () async {

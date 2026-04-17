@@ -7,6 +7,7 @@ class GeneratedCuration {
     required this.insightTitle,
     required this.summary,
     required this.answer,
+    required this.supportingQuote,
     required this.suggestedFollowUp,
     required this.usedNativeRuntime,
     required this.runtimeMessage,
@@ -15,6 +16,7 @@ class GeneratedCuration {
   final String insightTitle;
   final String summary;
   final String answer;
+  final String supportingQuote;
   final String suggestedFollowUp;
   final bool usedNativeRuntime;
   final String runtimeMessage;
@@ -38,18 +40,23 @@ class LlmEngine {
     final prepared = await bridge.prepare(llmModelPath: llmModelPath);
     final contextRecords = matches
         .map((VectorSearchMatch match) => match.record)
-        .toList();
+        .toList(growable: false);
     final summary = _buildSummary(matches);
-    final followUp = _buildFollowUp(contextRecords);
+    final followUp = _buildFollowUp(
+      question: question,
+      records: contextRecords,
+    );
+    final supportingQuote = _buildSupportingQuote(contextRecords.first);
 
     if (prepared.llmReady) {
       final prompt = _buildPrompt(question: question, records: contextRecords);
       try {
         final answer = await bridge.generate(prompt: prompt);
         return GeneratedCuration(
-          insightTitle: '기록 속에서 드러난 연결',
+          insightTitle: _buildInsightTitle(_collectThemes(contextRecords)),
           summary: summary,
           answer: answer,
+          supportingQuote: supportingQuote,
           suggestedFollowUp: followUp,
           usedNativeRuntime: true,
           runtimeMessage: prepared.message,
@@ -69,44 +76,34 @@ class LlmEngine {
   ) {
     final records = matches
         .map((VectorSearchMatch match) => match.record)
-        .toList();
+        .toList(growable: false);
     final topRecord = records.first;
     final secondaryRecord = records.length > 1 ? records[1] : null;
     final themes = _collectThemes(records);
-    final themeText = themes.take(3).join(', ');
-    final fallbackPattern = _selectFallbackPattern(
+    final recordTime = _describeRelativeTime(topRecord.createdAt);
+    final template = _selectFallbackTemplate(
       question: question,
       records: records,
     );
-    final timeContext = _describeRelativeTime(topRecord.createdAt);
-    final tagSummary = _joinTags(topRecord.tags, maxItems: 3);
-    final recoveryCue = _extractRecoveryCue(records);
-    final secondaryContext = secondaryRecord == null
-        ? ''
-        : ' ${_describeRelativeTime(secondaryRecord.createdAt)}의 "${secondaryRecord.title}"에서도 ${_joinTags(secondaryRecord.tags, maxItems: 2)} 흐름이 반복됩니다.';
-    final answer = switch (fallbackPattern) {
-      _FallbackPattern.timeAnchored =>
-        '지금의 "$question" 감각은 $timeContext에 남긴 "${topRecord.title}" 기록과 가장 가깝습니다. '
-            '이 장면에는 $tagSummary 축이 함께 묶여 있었고, ${_summarizeContent(topRecord.content)}.$secondaryContext '
-            '당시 기록을 다시 보면 $recoveryCue 같은 회복 단서가 이미 남아 있습니다. '
-            '현재는 온디바이스 폴백 생성기를 사용하지만, 검색과 시간축 정리는 모두 기기 안에서 처리했습니다.',
-      _FallbackPattern.patternFocused =>
-        '"${topRecord.title}"를 중심으로 보면 최근 질문은 $themeText 패턴 쪽으로 강하게 연결됩니다. '
-            '$timeContext의 기록에서는 ${_summarizeContent(topRecord.content)} 같은 반응이 먼저 나타났고,$secondaryContext '
-            '특히 ${_joinTags(records.expand((LifeRecord record) => record.tags).toList(), maxItems: 4)} 태그가 같은 묶음으로 반복됩니다. '
-            '지금은 네이티브 LLM 대신 폴백 응답이지만, 근거가 된 기록 선택은 로컬 검색 결과를 그대로 반영했습니다.',
-      _FallbackPattern.recoveryFocused =>
-        '지금의 흐름을 보면 소진 자체보다 회복이 붙었던 순간을 같이 보는 편이 좋습니다. '
-            '$timeContext의 "${topRecord.title}"에서 ${_summarizeContent(topRecord.content)} 장면이 있었고,$secondaryContext '
-            '$recoveryCue 같은 행동이 질문과 연결된 기록들에 반복해서 남아 있습니다. '
-            '현재는 폴백 생성 경로지만, 태그와 내용 조합은 온디바이스 검색 결과를 기준으로 정리했습니다.',
-    };
+    final answer = switch (template) {
+      _FallbackTemplate.reflective =>
+        '$recordTime 쓰신 "${topRecord.title}"을 다시 보면, 지금의 질문은 갑자기 생긴 감정보다 오래 버틴 뒤에 몸과 마음이 함께 무거워지는 흐름에 더 가깝습니다. ${_buildSecondaryBridge(secondaryRecord)}그때의 기록에는 이미 ${_summarizeRecoveryCue(records)} 같은 회복 단서도 같이 남아 있습니다.',
+      _FallbackTemplate.temporal =>
+        '$recordTime의 "${topRecord.title}"에서는 지금 느끼는 감정의 결이 먼저 보입니다. ${_summarizeContent(topRecord.content)}라고 적어 두신 걸 보면, 현재의 어려움도 한 번의 사건보다 누적된 리듬과 더 닿아 있습니다. ${_buildSecondaryBridge(secondaryRecord)}',
+      _FallbackTemplate.recovery =>
+        '이번 질문은 힘든 이유를 찾는 것만큼, 언제 조금 덜 무너졌는지를 같이 보는 편이 도움이 됩니다. $recordTime 쓰신 "${topRecord.title}"에서도 힘이 빠진 장면 옆에 ${_summarizeRecoveryCue(records)} 같은 회복 행동이 함께 붙어 있었습니다. ${_buildSecondaryBridge(secondaryRecord)}',
+      _FallbackTemplate.relationship =>
+        '$recordTime 기록인 "${topRecord.title}"을 보면, 지금의 마음은 혼자 견디는 시간이 길어질수록 더 무거워지는 패턴에 가깝습니다. ${_summarizeContent(topRecord.content)}라는 문장처럼, 감정이 풀린 순간에는 대개 누군가와의 대화나 정리가 함께 있었습니다. ${_buildSecondaryBridge(secondaryRecord)}',
+      _FallbackTemplate.growth =>
+        '이번 질문은 단순히 지쳤다는 이야기보다, 어떤 리듬이 당신을 다시 앞으로 움직이게 했는지 묻는 질문으로도 읽힙니다. $recordTime의 "${topRecord.title}"을 보면 작은 기록, 짧은 실행, 혹은 회복 행동이 다음 날의 감각을 바꾸는 장면이 반복됩니다. ${_buildSecondaryBridge(secondaryRecord)}',
+    }.trim();
 
     return GeneratedCuration(
       insightTitle: _buildInsightTitle(themes),
       summary: _buildSummary(matches),
       answer: answer,
-      suggestedFollowUp: _buildFollowUp(records),
+      supportingQuote: _buildSupportingQuote(topRecord),
+      suggestedFollowUp: _buildFollowUp(question: question, records: records),
       usedNativeRuntime: false,
       runtimeMessage: runtimeMessage,
     );
@@ -123,6 +120,8 @@ class LlmEngine {
       ..writeln('- 존댓말을 사용합니다.')
       ..writeln('- 과거 기록에 없는 내용은 추측하지 않습니다.')
       ..writeln('- 의학적 진단이나 치료 조언은 하지 않습니다.')
+      ..writeln('- 응답은 따뜻하지만 과장되지 않게 작성합니다.')
+      ..writeln('- 답변에는 시간 맥락, 구체적인 기록 제목, 인용문 1개, 부드러운 후속 질문을 포함합니다.')
       ..writeln()
       ..writeln('[질문]')
       ..writeln(question)
@@ -139,8 +138,10 @@ class LlmEngine {
     }
 
     buffer
-      ..writeln('위 기록만을 근거로 현재 상태를 과거 패턴과 연결해 설명하세요.')
-      ..writeln('가능하면 과거에 도움이 되었던 행동을 정리하고, 다시 참고할 기록 ID를 알려주세요.');
+      ..writeln('위 기록만을 근거로 다음 구조를 지켜 답하세요.')
+      ..writeln('1. 현재 질문에 대한 핵심 통찰 2~3문장')
+      ..writeln('2. 기록에서 가져온 짧은 인용문 1개')
+      ..writeln('3. 사용자가 이어서 적어 볼 부드러운 질문 1개');
 
     return buffer.toString();
   }
@@ -148,39 +149,47 @@ class LlmEngine {
   String _buildSummary(List<VectorSearchMatch> matches) {
     final records = matches
         .map((VectorSearchMatch match) => match.record)
-        .toList();
-    final themes = _collectThemes(records).take(3).join(', ');
-    final timeline = records
-        .take(2)
-        .map(
-          (LifeRecord record) =>
-              '${_describeRelativeTime(record.createdAt)} "${record.title}"',
-        )
-        .join('와 ');
-    return '로컬 검색에서 ${matches.length}건의 기록이 연결되었고, $themes 흐름이 두드러집니다. 특히 $timeline 기록이 현재 질문과 같은 결로 묶였습니다.';
+        .toList(growable: false);
+    final topRecord = records.first;
+    final secondRecord = records.length > 1 ? records[1] : null;
+    final lead =
+        '${_describeRelativeTime(topRecord.createdAt)} 쓰신 "${topRecord.title}"';
+    if (secondRecord == null) {
+      return '이번 질문과 가장 가까운 기록은 $lead입니다.';
+    }
+
+    return '이번 질문은 $lead와 ${_describeRelativeTime(secondRecord.createdAt)}의 "${secondRecord.title}"에서 반복된 흐름과 가장 가깝습니다.';
   }
 
-  String _buildFollowUp(List<LifeRecord> records) {
+  String _buildFollowUp({
+    required String question,
+    required List<LifeRecord> records,
+  }) {
     final themes = _collectThemes(records);
-    final recordIds = records
-        .take(2)
-        .map((LifeRecord record) => record.id)
-        .join(', ');
+    final topRecord = records.first;
+    final timeContext = _describeRelativeTime(topRecord.createdAt);
 
     if (themes.contains('수면')) {
-      return '$recordIds 기록을 다시 보면서, 잠든 시간과 다음 날 집중도가 어떻게 달랐는지 이번 주 기준으로 적어 보시겠어요?';
+      return '$timeContext "${topRecord.title}"을 떠올리면서, 최근 일주일 동안 잠이 흐트러진 날과 다음 날의 감정을 같이 적어 보시겠어요?';
     }
-    if (themes.contains('야근') ||
-        themes.contains('번아웃') ||
+    if (themes.contains('번아웃') ||
+        themes.contains('야근') ||
         themes.contains('마감')) {
-      return '$recordIds 기록을 참고해, 이번 주에 에너지가 급격히 떨어진 순간과 바로 전에 있었던 업무 이벤트를 짝지어 적어 보시겠어요?';
+      return '이번 주에 에너지가 급격히 떨어진 순간을 하나만 고르고, 그 직전에 어떤 업무나 약속이 있었는지 함께 적어 보시겠어요?';
     }
-    if (themes.contains('산책') ||
-        themes.contains('회복') ||
-        themes.contains('휴식')) {
-      return '$recordIds 기록에서 실제로 회복감을 만든 행동을 골라, 지금 다시 시도할 수 있는 것 한 가지를 정해 보시겠어요?';
+    if (themes.contains('운동') || themes.contains('건강')) {
+      return '몸이 조금이라도 가벼워졌던 행동이 있었다면, 이번 주에 다시 해볼 수 있는 가장 작은 버전은 무엇인지 적어 보시겠어요?';
     }
-    return '$recordIds 기록을 다시 열어 보고, 그날 감정의 시작점과 조금 나아진 순간을 각각 한 줄씩 적어 보시겠어요?';
+    if (themes.contains('관계') || themes.contains('대화')) {
+      return '마음이 조금 풀렸던 대화가 있었다면, 그 대화에서 무엇이 안심을 줬는지 한 줄로 적어 보시겠어요?';
+    }
+    if (themes.contains('창작') || themes.contains('성장')) {
+      return '부담 없이 다시 시작할 수 있는 가장 작은 단위를 정해 본다면, 오늘은 어디까지가 적당할지 적어 보시겠어요?';
+    }
+    if (question.contains('왜')) {
+      return '비슷한 감정이 처음 시작된 장면과 조금 나아졌던 장면을 각각 한 줄씩 적어 보시겠어요?';
+    }
+    return '지금 떠오르는 장면 하나를 더 적는다면, 어떤 순간이 가장 먼저 떠오르는지 적어 보시겠어요?';
   }
 
   List<String> _collectThemes(List<LifeRecord> records) {
@@ -191,7 +200,7 @@ class LlmEngine {
       }
     }
 
-    final entries = counter.entries.toList()
+    final entries = counter.entries.toList(growable: false)
       ..sort((MapEntry<String, int> left, MapEntry<String, int> right) {
         final byCount = right.value.compareTo(left.value);
         if (byCount != 0) {
@@ -200,36 +209,58 @@ class LlmEngine {
         return left.key.compareTo(right.key);
       });
 
-    return entries.map((MapEntry<String, int> entry) => entry.key).toList();
+    return entries
+        .map((MapEntry<String, int> entry) => entry.key)
+        .toList(growable: false);
   }
 
-  _FallbackPattern _selectFallbackPattern({
+  _FallbackTemplate _selectFallbackTemplate({
     required String question,
     required List<LifeRecord> records,
   }) {
     final dominantTags = _collectThemes(records);
-    if (dominantTags.contains('수면') || dominantTags.contains('회복')) {
-      return _FallbackPattern.recoveryFocused;
+    if (dominantTags.contains('관계') || dominantTags.contains('대화')) {
+      return _FallbackTemplate.relationship;
+    }
+    if (dominantTags.contains('회복') || dominantTags.contains('수면')) {
+      return _FallbackTemplate.recovery;
+    }
+    if (dominantTags.contains('성장') || dominantTags.contains('창작')) {
+      return _FallbackTemplate.growth;
     }
 
     final hash = question.runes.fold<int>(
-      records.length,
+      records.length * 17,
       (int value, int rune) => value + rune,
     );
-    return _FallbackPattern.values[hash % _FallbackPattern.values.length];
+    final fallbackPool = <_FallbackTemplate>[
+      _FallbackTemplate.reflective,
+      _FallbackTemplate.temporal,
+      _FallbackTemplate.recovery,
+      _FallbackTemplate.growth,
+    ];
+    return fallbackPool[hash % fallbackPool.length];
   }
 
   String _buildInsightTitle(List<String> themes) {
     if (themes.contains('수면')) {
       return '수면 리듬이 흔들릴 때의 반응';
     }
-    if (themes.contains('번아웃') || themes.contains('야근')) {
-      return '압박이 쌓일 때 나타나는 소진 패턴';
+    if (themes.contains('번아웃') ||
+        themes.contains('야근') ||
+        themes.contains('마감')) {
+      return '압박이 쌓일 때 먼저 나타나는 신호';
     }
-    if (themes.contains('산책') || themes.contains('회복')) {
-      return '회복 단서가 남아 있는 기록';
+    if (themes.contains('관계') || themes.contains('대화')) {
+      return '마음의 무게가 관계 속에서 달라지는 순간';
     }
-    return '로컬 기록에서 감지된 흐름';
+    if (themes.contains('운동') || themes.contains('건강')) {
+      return '몸의 리듬이 회복을 끌어올린 기록';
+    }
+    if (themes.contains('창작') || themes.contains('성장')) {
+      return '작은 실행이 다시 움직이게 한 흐름';
+    }
+    return '기록에서 반복된 감정의 흐름';
   }
 
   String _describeRelativeTime(DateTime value) {
@@ -249,36 +280,70 @@ class LlmEngine {
 
     final years = (difference.inDays / 365).floor();
     if (years == 1) {
-      return '작년';
+      return '1년 전';
     }
     return '$years년 전';
   }
 
-  String _joinTags(List<String> tags, {required int maxItems}) {
-    if (tags.isEmpty) {
-      return '기록';
-    }
-    return tags.take(maxItems).join(', ');
-  }
-
-  String _extractRecoveryCue(List<LifeRecord> records) {
-    const recoveryTags = <String>{'회복', '산책', '휴식', '수면', '스트레칭', '우선순위'};
+  String _summarizeRecoveryCue(List<LifeRecord> records) {
+    const recoveryTags = <String>{
+      '회복',
+      '산책',
+      '휴식',
+      '수면',
+      '운동',
+      '우선순위',
+      '대화',
+      '기록',
+    };
     for (final record in records) {
-      final matched = record.tags.where(recoveryTags.contains).toList();
+      final matched = record.tags
+          .where(recoveryTags.contains)
+          .toList(growable: false);
       if (matched.isNotEmpty) {
-        return matched.join(', ');
+        if (matched.length == 1) {
+          return '"${matched.first}"처럼 스스로를 추슬렀던 방식';
+        }
+        return '"${matched.take(2).join(', ')}" 같은 회복 단서';
       }
     }
-    return '숨통이 트였던 행동';
+    return '몸과 마음을 조금 가볍게 만든 행동';
+  }
+
+  String _buildSecondaryBridge(LifeRecord? record) {
+    if (record == null) {
+      return '';
+    }
+    return '${_describeRelativeTime(record.createdAt)}의 "${record.title}"에서도 비슷한 결이 한 번 더 확인됩니다.';
+  }
+
+  String _buildSupportingQuote(LifeRecord record) {
+    final sentences = record.content
+        .split(RegExp(r'[.!?\n]+'))
+        .map((String sentence) => sentence.trim())
+        .where((String sentence) => sentence.isNotEmpty)
+        .toList(growable: false);
+
+    final selected = sentences.firstWhere(
+      (String sentence) => sentence.length >= 12,
+      orElse: () => sentences.isEmpty ? record.content.trim() : sentences.first,
+    );
+    return '"$selected"';
   }
 
   String _summarizeContent(String content) {
-    final sentence = content.split('.').first.trim();
-    if (sentence.length <= 70) {
+    final sentence = content
+        .split(RegExp(r'[.!?\n]+'))
+        .map((String value) => value.trim())
+        .firstWhere(
+          (String value) => value.isNotEmpty,
+          orElse: () => content.trim(),
+        );
+    if (sentence.length <= 72) {
       return sentence;
     }
-    return '${sentence.substring(0, 67).trimRight()}...';
+    return '${sentence.substring(0, 69).trimRight()}...';
   }
 }
 
-enum _FallbackPattern { timeAnchored, patternFocused, recoveryFocused }
+enum _FallbackTemplate { reflective, temporal, recovery, relationship, growth }

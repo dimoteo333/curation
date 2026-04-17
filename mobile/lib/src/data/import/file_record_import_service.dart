@@ -4,6 +4,7 @@ import 'package:path/path.dart' as path;
 
 import '../../domain/entities/life_record.dart';
 import '../local/life_record_store.dart';
+import '../ondevice/semantic_embedding_service.dart';
 import 'file_picker_gateway.dart';
 
 class FileImportResult {
@@ -81,6 +82,9 @@ class FileRecordImportService {
     final parser = extension == '.md'
         ? _parseMarkdown(pickedFile.name, normalizedText)
         : _parsePlainText(pickedFile.name, normalizedText);
+    final tags = SemanticEmbeddingService.suggestTags(
+      '${parser.title} ${parser.content}',
+    );
 
     return LifeRecord(
       id: _buildRecordId(fileName: pickedFile.name, modifiedAt: stat.modified),
@@ -89,13 +93,14 @@ class FileRecordImportService {
       title: parser.title,
       content: parser.content,
       createdAt: stat.modified,
-      tags: const <String>[],
+      tags: tags,
       metadata: <String, dynamic>{
         'file_name': pickedFile.name,
         'file_extension': extension.replaceFirst('.', ''),
         'modified_at': stat.modified.toIso8601String(),
         'imported_at': _nowProvider().toIso8601String(),
         'parser': parser.parser,
+        'tag_count': tags.length,
       },
     );
   }

@@ -70,6 +70,10 @@ class CurationController extends Notifier<CurationViewState> {
       );
     }
   }
+
+  void startNewQuestion() {
+    state = const CurationViewState();
+  }
 }
 
 final curationControllerProvider =

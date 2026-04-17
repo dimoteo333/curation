@@ -27,6 +27,7 @@ void main() {
     await _pumpUntilFound(tester, find.byKey(const Key('responseSection')));
 
     expect(find.textContaining('최근 인사이트'), findsWidgets);
+    expect(find.byKey(const Key('askAnotherQuestionButton')), findsOneWidget);
     expect(find.textContaining('무기력'), findsWidgets);
   });
 }

@@ -41,12 +41,16 @@ void main() {
     );
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('submitQuestionButton')));
+    await tester.pump();
+    expect(find.text('가장 가까운 기록과 문장을 고르고 있습니다.'), findsOneWidget);
     await tester.pumpAndSettle();
 
     expect(find.text('최근 인사이트'), findsWidgets);
     expect(find.text('질문  나 요즘 왜 이렇게 무기력하지?'), findsOneWidget);
-    expect(find.textContaining('테스트 환경에서도 질문 흐름이 화면에 표시됩니다.'), findsOneWidget);
-    expect(find.text('테스트용 요약입니다.'), findsOneWidget);
+    expect(find.textContaining('질문과 맞닿은 기록을 조용히 엮어 보여드립니다.'), findsOneWidget);
+    expect(find.text('테스트용 질문과 가장 가까운 기록 두 건을 묶어 보여줍니다.'), findsOneWidget);
+    expect(find.text('"테스트용 발췌문입니다."'), findsOneWidget);
+    expect(find.byKey(const Key('askAnotherQuestionButton')), findsOneWidget);
     expect(find.byKey(const Key('responseSection')), findsOneWidget);
   });
 
@@ -71,6 +75,38 @@ void main() {
 
     expect(find.text('"야근이 많았던 3월,\n당신의 무기력함은\n당연한 것이었습니다"'), findsOneWidget);
     expect(find.text('── 3개월 전 야근 회고'), findsOneWidget);
+  });
+
+  testWidgets('다른 질문하기 버튼은 응답을 비우고 다시 질문할 수 있게 한다', (
+    WidgetTester tester,
+  ) async {
+    await _pumpApp(
+      tester,
+      bridge: const FakeOnDeviceLlmBridge(
+        runtimeStatus: OnDeviceRuntimeStatus(
+          llmReady: false,
+          embedderReady: false,
+          runtime: 'template-fallback',
+          message: '모델 경로가 없어 템플릿 폴백을 사용합니다.',
+          platform: 'flutter-test',
+          llmModelConfigured: false,
+          embedderModelConfigured: false,
+          llmModelAvailable: false,
+          embedderModelAvailable: false,
+          fallbackActive: true,
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('submitQuestionButton')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('responseSection')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('askAnotherQuestionButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('responseSection')), findsNothing);
+    expect(find.text('"야근이 많았던 3월,\n당신의 무기력함은\n당연한 것이었습니다"'), findsOneWidget);
   });
 
   testWidgets('홈 화면에서 설정 화면으로 이동할 수 있다', (WidgetTester tester) async {

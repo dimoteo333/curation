@@ -23,7 +23,11 @@ class OnDeviceCurationRepository implements CurationRepository {
     await recordStore.initialize();
 
     final queryVector = await embeddingService.embed(question);
-    final matches = await vectorDb.search(queryVector, topK: 3);
+    final rawMatches = await vectorDb.search(queryVector, topK: 5);
+    final matches = rawMatches
+        .where((VectorSearchMatch match) => match.score >= 0.18)
+        .take(3)
+        .toList(growable: false);
     if (matches.isEmpty) {
       return const CuratedResponse(
         insightTitle: '연결할 기록이 부족합니다',
@@ -49,13 +53,15 @@ class OnDeviceCurationRepository implements CurationRepository {
       summary: generation.summary,
       answer: generation.answer,
       supportingRecords: matches
-          .map(
-            (VectorSearchMatch match) => SupportingRecord(
+          .mapIndexed(
+            (int index, VectorSearchMatch match) => SupportingRecord(
               id: match.record.id,
               source: match.record.source,
               title: match.record.title,
               createdAt: match.record.createdAt,
-              excerpt: _buildExcerpt(match.record.content),
+              excerpt: index == 0
+                  ? generation.supportingQuote
+                  : _buildExcerpt(match.record.content),
               relevanceReason: _buildRelevanceReason(match),
             ),
           )
@@ -72,16 +78,36 @@ class OnDeviceCurationRepository implements CurationRepository {
   }
 
   String _buildExcerpt(String content) {
-    if (content.length <= 92) {
+    final sentences = content
+        .split(RegExp(r'[.!?\n]+'))
+        .map((String sentence) => sentence.trim())
+        .where((String sentence) => sentence.isNotEmpty)
+        .toList(growable: false);
+    if (sentences.isEmpty) {
       return content;
     }
-    return '${content.substring(0, 89).trimRight()}...';
+
+    final selected = sentences.first;
+    if (selected.length <= 92) {
+      return '"$selected"';
+    }
+    return '"${selected.substring(0, 89).trimRight()}..."';
   }
 
   String _buildRelevanceReason(VectorSearchMatch match) {
     final tagSummary = match.record.tags.isEmpty
         ? '기록 맥락'
         : match.record.tags.take(2).join(', ');
-    return '로컬 벡터 검색 점수 ${match.score.toStringAsFixed(2)}로 상위에 연결된 기록이며, "$tagSummary" 흐름이 현재 질문과 가깝습니다.';
+    return '"$tagSummary" 흐름이 현재 질문과 가깝고, 기록 내용의 결이 가장 비슷한 편에 속했습니다.';
+  }
+}
+
+extension<T> on Iterable<T> {
+  Iterable<R> mapIndexed<R>(R Function(int index, T item) transform) sync* {
+    var index = 0;
+    for (final item in this) {
+      yield transform(index, item);
+      index += 1;
+    }
   }
 }

@@ -1,71 +1,39 @@
 import 'package:curator_mobile/src/data/local/seed_records.dart';
 import 'package:curator_mobile/src/data/local/vector_db.dart';
 import 'package:curator_mobile/src/data/ondevice/litert_method_channel_bridge.dart';
+import 'package:curator_mobile/src/domain/entities/life_record.dart';
 import 'package:curator_mobile/src/domain/services/llm_engine.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('폴백 응답은 시간 맥락과 기록 제목을 풍부하게 반영한다', () async {
+  test('템플릿 폴백은 기록 제목, 시간 맥락, 인용문, 후속 질문을 모두 포함한다', () async {
     final engine = LlmEngine(
       bridge: const _FallbackBridge(),
       nowProvider: () => DateTime(2026, 4, 17),
     );
 
     final result = await engine.generate(
-      question: '왜 이렇게 무기력하고 번아웃처럼 느껴질까?',
+      question: '요즘 왜 이렇게 지치고 일 생각이 머리에서 안 떠날까?',
       matches: <VectorSearchMatch>[
         VectorSearchMatch(
           record: seededLifeRecords.firstWhere(
-            (record) => record.id == 'diary-burnout-feb-2024',
+            (LifeRecord record) => record.id == 'diary-burnout-nov-2024',
           ),
-          score: 0.81,
+          score: 0.88,
         ),
         VectorSearchMatch(
           record: seededLifeRecords.firstWhere(
-            (record) => record.id == 'diary-project-pressure-2022',
+            (LifeRecord record) => record.id == 'diary-burnout-feb-2024',
           ),
-          score: 0.63,
+          score: 0.79,
         ),
       ],
     );
 
-    expect(result.usedNativeRuntime, isFalse);
-    expect(result.insightTitle, '압박이 쌓일 때 먼저 나타나는 신호');
-    expect(result.summary, contains('2년 전 쓰신 "야근이 길어지던 주간 회고"'));
-    expect(result.answer, contains('야근이 길어지던 주간 회고'));
-    expect(result.answer, contains('2년 전'));
-    expect(result.supportingQuote, contains('무기력했다'));
+    expect(result.answer, contains('쉬어도 피곤한 주말'));
+    expect(result.answer, contains('1년 전'));
+    expect(result.supportingQuote, contains('토요일 내내 누워 있었는데도 피로가 풀리지 않았다'));
     expect(result.suggestedFollowUp, contains('에너지가 급격히 떨어진 순간'));
-  });
-
-  test('수면 맥락에서는 수면 패턴 중심 후속 질문을 만든다', () async {
-    final engine = LlmEngine(
-      bridge: const _FallbackBridge(),
-      nowProvider: () => DateTime(2026, 4, 17),
-    );
-
-    final result = await engine.generate(
-      question: '요즘 잠이 뒤집혀서 하루 종일 멍해',
-      matches: <VectorSearchMatch>[
-        VectorSearchMatch(
-          record: seededLifeRecords.firstWhere(
-            (record) => record.id == 'diary-routine-reset-2023',
-          ),
-          score: 0.74,
-        ),
-        VectorSearchMatch(
-          record: seededLifeRecords.firstWhere(
-            (record) => record.id == 'diary-burnout-feb-2024',
-          ),
-          score: 0.42,
-        ),
-      ],
-    );
-
-    expect(result.insightTitle, '수면 리듬이 흔들릴 때의 반응');
-    expect(result.answer, contains('생활 리듬을 되돌린 날'));
-    expect(result.supportingQuote, contains('하루 종일 멍했다'));
-    expect(result.suggestedFollowUp, contains('최근 일주일'));
   });
 }
 

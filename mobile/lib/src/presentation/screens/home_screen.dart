@@ -16,16 +16,19 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   late final TextEditingController _controller;
+  late final FocusNode _questionFocusNode;
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: '나 요즘 왜 이렇게 무기력하지?');
+    _questionFocusNode = FocusNode();
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _questionFocusNode.dispose();
     super.dispose();
   }
 
@@ -69,6 +72,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       const SizedBox(height: 24),
                       _QuestionComposer(
                         controller: _controller,
+                        focusNode: _questionFocusNode,
                         isLoading: state.isLoading,
                         errorMessage: state.errorMessage,
                         onSubmit: () =>
@@ -76,10 +80,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       const SizedBox(height: 32),
                       AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 220),
-                        switchInCurve: Curves.easeOut,
-                        switchOutCurve: Curves.easeIn,
-                        child: state.response == null
+                        duration: const Duration(milliseconds: 260),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        child: state.isLoading
+                            ? const _ThinkingInsightSection(
+                                key: ValueKey('thinking-insight'),
+                              )
+                            : state.response == null
                             ? const _EmptyInsightSection(
                                 key: ValueKey('empty-insight'),
                               )
@@ -87,6 +95,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 key: ValueKey(state.response!.insightTitle),
                                 response: state.response!,
                                 lastQuestion: state.lastQuestion,
+                                onAskAnotherQuestion: () {
+                                  controller.startNewQuestion();
+                                  _controller.clear();
+                                  _questionFocusNode.requestFocus();
+                                },
                               ),
                       ),
                       const SizedBox(height: 48),
@@ -127,9 +140,7 @@ class _HomeTopBar extends StatelessWidget {
           child: Image.asset('assets/branding/curator_mark.png'),
         ),
         const SizedBox(width: 12),
-        Expanded(
-          child: Text('큐레이터', style: theme.textTheme.titleLarge),
-        ),
+        Expanded(child: Text('큐레이터', style: theme.textTheme.titleLarge)),
         Tooltip(
           message: '설정 열기',
           child: IconButton.filledTonal(
@@ -168,12 +179,14 @@ class _HomeHero extends StatelessWidget {
 class _QuestionComposer extends StatelessWidget {
   const _QuestionComposer({
     required this.controller,
+    required this.focusNode,
     required this.isLoading,
     required this.errorMessage,
     required this.onSubmit,
   });
 
   final TextEditingController controller;
+  final FocusNode focusNode;
   final bool isLoading;
   final String? errorMessage;
   final VoidCallback onSubmit;
@@ -189,6 +202,7 @@ class _QuestionComposer extends StatelessWidget {
         TextField(
           key: const Key('questionTextField'),
           controller: controller,
+          focusNode: focusNode,
           minLines: 1,
           maxLines: 4,
           textInputAction: TextInputAction.done,
@@ -205,14 +219,14 @@ class _QuestionComposer extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                isLoading ? '당신의 기록을 조용히 다시 읽는 중입니다.' : '짧은 문장 하나면 충분합니다.',
+                isLoading ? '당신의 기록을 조용히 다시 읽고 있습니다.' : '짧은 문장 하나면 충분합니다.',
                 style: theme.textTheme.bodySmall,
               ),
             ),
             const SizedBox(width: 16),
             _PressScaleButton(
               key: const Key('submitQuestionButton'),
-              label: isLoading ? '읽는 중...' : '읽어보기',
+              label: isLoading ? '생각 중...' : '읽어보기',
               onTap: isLoading ? null : onSubmit,
             ),
           ],
@@ -248,21 +262,71 @@ class _EmptyInsightSection extends StatelessWidget {
     final theme = Theme.of(context);
     final palette = theme.extension<CuratorPalette>()!;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('최근 인사이트', style: theme.textTheme.labelSmall),
-        const SizedBox(height: 22),
-        Text(
-          '"야근이 많았던 3월,\n당신의 무기력함은\n당연한 것이었습니다"',
-          style: theme.textTheme.headlineMedium?.copyWith(height: 1.48),
-        ),
-        const SizedBox(height: 18),
-        Text(
-          '── 3개월 전 야근 회고',
-          style: theme.textTheme.bodySmall?.copyWith(color: palette.label),
-        ),
-      ],
+    return _InsightCardShell(
+      eyebrow: '최근 인사이트',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '"야근이 많았던 3월,\n당신의 무기력함은\n당연한 것이었습니다"',
+            style: theme.textTheme.headlineMedium?.copyWith(height: 1.48),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            '── 3개월 전 야근 회고',
+            style: theme.textTheme.bodySmall?.copyWith(color: palette.label),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ThinkingInsightSection extends StatelessWidget {
+  const _ThinkingInsightSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
+
+    return _InsightCardShell(
+      eyebrow: '기록을 읽는 중',
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: palette.accentSoft.withValues(alpha: 0.52),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: const Center(child: _ThinkingDots()),
+          ),
+          const SizedBox(width: 18),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '가장 가까운 기록과 문장을 고르고 있습니다.',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: palette.accentStrong,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '질문과 닿는 시간, 제목, 감정의 흐름을 조용히 엮는 중입니다.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: palette.label,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -272,10 +336,12 @@ class _ResponseInsightSection extends StatelessWidget {
     super.key,
     required this.response,
     required this.lastQuestion,
+    required this.onAskAnotherQuestion,
   });
 
   final CuratedResponse response;
   final String lastQuestion;
+  final VoidCallback onAskAnotherQuestion;
 
   @override
   Widget build(BuildContext context) {
@@ -285,41 +351,208 @@ class _ResponseInsightSection extends StatelessWidget {
         ? null
         : response.supportingRecords.first;
 
-    return Column(
+    return _InsightCardShell(
       key: const Key('responseSection'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('최근 인사이트', style: theme.textTheme.labelSmall),
-        const SizedBox(height: 22),
-        if (lastQuestion.isNotEmpty) ...[
-          Text(
-            '질문  $lastQuestion',
-            style: theme.textTheme.bodySmall?.copyWith(color: palette.label),
+      eyebrow: '최근 인사이트',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (lastQuestion.isNotEmpty) ...[
+            Text(
+              '질문  $lastQuestion',
+              style: theme.textTheme.bodySmall?.copyWith(color: palette.label),
+            ),
+            const SizedBox(height: 18),
+          ],
+          Container(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+            decoration: BoxDecoration(
+              color: palette.surface.withValues(alpha: 0.54),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: palette.outline.withValues(alpha: 0.32),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  response.insightTitle,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: palette.accentStrong,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  response.answer,
+                  style: theme.textTheme.headlineMedium?.copyWith(height: 1.6),
+                ),
+              ],
+            ),
           ),
+          if (firstRecord != null) ...[
+            const SizedBox(height: 18),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+              decoration: BoxDecoration(
+                color: palette.surfaceStrong.withValues(alpha: 0.72),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: palette.outline.withValues(alpha: 0.28),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${_formatAbsoluteDate(firstRecord.createdAt)}  ${firstRecord.title}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: palette.label,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    firstRecord.excerpt,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontStyle: FontStyle.italic,
+                      height: 1.7,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 18),
-        ],
-        Text(
-          '“${response.answer}”',
-          style: theme.textTheme.headlineMedium?.copyWith(height: 1.55),
-        ),
-        const SizedBox(height: 18),
-        Text(
-          '── ${firstRecord?.title ?? response.insightTitle}',
-          style: theme.textTheme.bodySmall?.copyWith(color: palette.label),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          response.summary,
-          style: theme.textTheme.bodyMedium?.copyWith(color: palette.label),
-        ),
-        if (response.suggestedFollowUp.isNotEmpty) ...[
-          const SizedBox(height: 24),
           Text(
-            '다음에는 ${response.suggestedFollowUp}',
-            style: theme.textTheme.bodyMedium,
+            response.summary,
+            style: theme.textTheme.bodyMedium?.copyWith(color: palette.label),
+          ),
+          if (response.suggestedFollowUp.isNotEmpty) ...[
+            const SizedBox(height: 22),
+            Text(
+              response.suggestedFollowUp,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: palette.accentStrong,
+              ),
+            ),
+          ],
+          const SizedBox(height: 26),
+          OutlinedButton(
+            key: const Key('askAnotherQuestionButton'),
+            onPressed: onAskAnotherQuestion,
+            child: const Text('다른 질문하기'),
           ),
         ],
-      ],
+      ),
+    );
+  }
+
+  String _formatAbsoluteDate(DateTime value) {
+    return '${value.year}년 ${value.month}월 ${value.day}일';
+  }
+}
+
+class _InsightCardShell extends StatelessWidget {
+  const _InsightCardShell({
+    super.key,
+    required this.eyebrow,
+    required this.child,
+  });
+
+  final String eyebrow;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: <Color>[
+            palette.surfaceStrong.withValues(alpha: 0.94),
+            palette.surface.withValues(alpha: 0.9),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: palette.outline.withValues(alpha: 0.26)),
+        boxShadow: [
+          BoxShadow(
+            color: palette.shadowColor.withValues(alpha: 0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 18),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(eyebrow, style: theme.textTheme.labelSmall),
+          const SizedBox(height: 22),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _ThinkingDots extends StatefulWidget {
+  const _ThinkingDots();
+
+  @override
+  State<_ThinkingDots> createState() => _ThinkingDotsState();
+}
+
+class _ThinkingDotsState extends State<_ThinkingDots>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = Theme.of(context).extension<CuratorPalette>()!;
+
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final phase = _controller.value;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List<Widget>.generate(3, (int index) {
+            final distance = (phase - index * 0.16).abs();
+            final opacity = (1 - distance * 2.4).clamp(0.22, 1.0);
+            final size = 7.0 + (1 - distance.clamp(0.0, 0.5) * 2) * 3;
+            return Container(
+              width: size,
+              height: size,
+              margin: EdgeInsets.only(right: index == 2 ? 0 : 5),
+              decoration: BoxDecoration(
+                color: palette.accentStrong.withValues(alpha: opacity),
+                shape: BoxShape.circle,
+              ),
+            );
+          }),
+        );
+      },
     );
   }
 }

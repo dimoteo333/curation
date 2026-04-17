@@ -59,9 +59,16 @@ void main() {
     final response = await repository.curateQuestion('나 요즘 왜 이렇게 무기력하지?');
 
     expect(response.supportingRecords, isNotEmpty);
-    expect(response.summary, contains('로컬 검색'));
-    expect(response.answer, anyOf(contains('2년 전'), contains('작년')));
-    expect(response.answer, contains('온디바이스 검색 결과'));
+    expect(response.summary, contains('이번 질문은'));
+    expect(response.answer, anyOf(contains('2년 전'), contains('1년 전')));
+    expect(
+      response.answer,
+      anyOf(contains('야근이 길어지던 주간 회고'), contains('쉬어도 피곤한 주말')),
+    );
+    expect(
+      response.supportingRecords.first.excerpt,
+      anyOf(contains('무기력했다'), contains('지쳤던 상태')),
+    );
     expect(response.runtimeInfo?.label, '템플릿 폴백 사용 중');
   });
 }

@@ -43,7 +43,13 @@ void main() {
         .take(2)
         .map((VectorSearchMatch match) => match.record.id)
         .toList(growable: false);
-    expect(topIds, contains('diary-burnout-feb-2024'));
+    expect(
+      topIds,
+      anyOf(
+        contains('diary-burnout-feb-2024'),
+        contains('diary-burnout-nov-2024'),
+      ),
+    );
     expect(topIds, contains('diary-project-pressure-2022'));
     expect(matches.first.score, greaterThan(0.35));
   });
