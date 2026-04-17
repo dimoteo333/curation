@@ -32,7 +32,9 @@ target 'Runner' do
 
   pod 'MediaPipeTasksGenAI', '0.10.21'
   pod 'MediaPipeTasksGenAIC', '0.10.21'
-  pod 'MediaPipeTasksText', '0.10.21'
+  # Text embedder temporarily disabled - MediaPipeTasksTextC not available as CocoaPod
+  # Will be re-enabled when model files are ready for on-device use
+  # pod 'MediaPipeTasksText', '0.10.21'
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do

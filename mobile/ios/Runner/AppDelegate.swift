@@ -1,6 +1,5 @@
 import Flutter
-import MediaPipeTasksGenAI
-import MediaPipeTasksText
+// import MediaPipeTasksText - temporarily disabled
 import UIKit
 
 @main
