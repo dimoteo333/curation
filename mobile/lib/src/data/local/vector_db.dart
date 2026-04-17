@@ -2,12 +2,14 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../core/security/database_encryption.dart';
 import '../../domain/entities/life_record.dart';
 import '../../domain/services/text_embedding_service.dart';
+import '../ondevice/semantic_embedding_service.dart';
 
 typedef DatabasePathResolver = Future<String> Function();
 
@@ -30,16 +32,17 @@ class VectorDb {
   final DatabaseEncryption databaseEncryption;
 
   static const int _queryNormalizationCacheLimit = 48;
-  static const int _searchResultCacheLimit = 24;
-  static const int schemaVersion = 3;
+  static const int _searchResultCacheLimit = 50;
+  static const int _fallbackFullScanWindow = 24;
+  static const int schemaVersion = 4;
 
   Database? _database;
   String? _resolvedDatabasePath;
-  List<_IndexedDocument>? _indexedDocumentsCache;
+  _VectorIndexSnapshot? _indexSnapshotCache;
   final Map<String, List<double>> _normalizedQueryCache =
       <String, List<double>>{};
-  final Map<String, List<VectorSearchMatch>> _searchResultCache =
-      <String, List<VectorSearchMatch>>{};
+  final Map<String, _SearchCacheEntry> _searchResultCache =
+      <String, _SearchCacheEntry>{};
 
   Future<void> initialize() async {
     await _open();
@@ -130,35 +133,94 @@ class VectorDb {
 
   Future<List<VectorSearchMatch>> search(
     List<double> queryVector, {
-    int topK = 3,
+    int? topK,
+    int limit = 5,
+    int offset = 0,
   }) async {
+    final window = _resolveSearchWindow(
+      topK: topK,
+      limit: limit,
+      offset: offset,
+    );
     final normalizedQuery = _normalizeQuery(queryVector);
-    final cacheKey = '${_vectorKey(normalizedQuery)}::$topK';
-    final cachedResult = _searchResultCache[cacheKey];
+    final cacheKey = 'vector:${_vectorKey(normalizedQuery)}';
+    final cachedResult = _getSearchResultCache(
+      cacheKey,
+      minimumResults: window.requestedResultCount,
+    );
     if (cachedResult != null) {
-      return List<VectorSearchMatch>.from(cachedResult, growable: false);
+      return _paginateMatches(
+        cachedResult.matches,
+        limit: window.limit,
+        offset: window.offset,
+      );
     }
 
-    final indexedDocuments = await _loadIndexedDocuments();
-    final matches = <VectorSearchMatch>[
-      for (final indexedDocument in indexedDocuments)
-        VectorSearchMatch(
-          record: indexedDocument.record,
-          score: _cosineSimilarity(normalizedQuery, indexedDocument.vector),
-        ),
-    ];
+    final rankedMatches = _rankCandidates(
+      normalizedQuery,
+      (await _loadIndexSnapshot()).documents,
+    );
+    _setSearchResultCache(cacheKey, rankedMatches, isCompleteRanking: true);
+    return _paginateMatches(
+      rankedMatches,
+      limit: window.limit,
+      offset: window.offset,
+    );
+  }
 
-    matches.sort((left, right) {
-      final scoreCompare = right.score.compareTo(left.score);
-      if (scoreCompare != 0) {
-        return scoreCompare;
-      }
-      return right.record.createdAt.compareTo(left.record.createdAt);
-    });
+  Future<List<VectorSearchMatch>> searchWithPrefilter(
+    String question,
+    List<double> queryVector, {
+    int? topK,
+    int limit = 5,
+    int offset = 0,
+  }) async {
+    final window = _resolveSearchWindow(
+      topK: topK,
+      limit: limit,
+      offset: offset,
+    );
+    final cacheKey = 'question:${_questionHash(question)}';
+    final cachedResult = _getSearchResultCache(
+      cacheKey,
+      minimumResults: window.requestedResultCount,
+    );
+    if (cachedResult != null) {
+      return _paginateMatches(
+        cachedResult.matches,
+        limit: window.limit,
+        offset: window.offset,
+      );
+    }
 
-    final result = matches.take(topK).toList(growable: false);
-    _setSearchResultCache(cacheKey, result);
-    return result;
+    final normalizedQuery = _normalizeQuery(queryVector);
+    final queryTags = _normalizedTags(
+      SemanticEmbeddingService.suggestTags(question, maxTags: 6),
+    );
+    final indexSnapshot = await _loadIndexSnapshot();
+    final candidates = _prefilterCandidates(indexSnapshot, queryTags);
+
+    final isFallbackFullScan = candidates.isEmpty;
+    final rankedMatches = isFallbackFullScan
+        ? _rankTopCandidates(
+            normalizedQuery,
+            indexSnapshot.documents,
+            maxResults: math.max(
+              window.requestedResultCount,
+              _fallbackFullScanWindow,
+            ),
+          )
+        : _rankCandidates(normalizedQuery, candidates);
+    _setSearchResultCache(
+      cacheKey,
+      rankedMatches,
+      isCompleteRanking: !isFallbackFullScan,
+    );
+    return _paginateMatches(
+      rankedMatches,
+      limit: window.limit,
+      offset: window.offset,
+    );
   }
 
   @visibleForTesting
@@ -168,7 +230,8 @@ class VectorDb {
   int get debugSearchResultCacheCount => _searchResultCache.length;
 
   @visibleForTesting
-  int get debugIndexedDocumentCount => _indexedDocumentsCache?.length ?? 0;
+  int get debugIndexedDocumentCount =>
+      _indexSnapshotCache?.documents.length ?? 0;
 
   Future<Database> _open() async {
     final existing = _database;
@@ -207,6 +270,13 @@ class VectorDb {
           }
           if (oldVersion < 3) {
             await _encryptExistingPersonalData(db);
+          }
+          if (oldVersion < 4) {
+            await db.execute('''
+              ALTER TABLE embeddings
+              ADD COLUMN normalized INTEGER NOT NULL DEFAULT 0
+            ''');
+            await _normalizeStoredEmbeddings(db);
           }
         },
       ),
@@ -286,8 +356,8 @@ class VectorDb {
     return values.map((dynamic value) => (value as num).toDouble()).toList();
   }
 
-  Future<List<_IndexedDocument>> _loadIndexedDocuments() async {
-    final cached = _indexedDocumentsCache;
+  Future<_VectorIndexSnapshot> _loadIndexSnapshot() async {
+    final cached = _indexSnapshotCache;
     if (cached != null) {
       return cached;
     }
@@ -303,47 +373,129 @@ class VectorDb {
         documents.created_at,
         documents.tags_json,
         documents.metadata_json,
-        embeddings.vector_json
+        embeddings.vector_json,
+        embeddings.normalized
       FROM documents
       INNER JOIN embeddings ON documents.id = embeddings.doc_id
     ''');
 
     final indexedDocuments = <_IndexedDocument>[];
+    final documentsByTag = <String, List<_IndexedDocument>>{};
+    final documentsByCluster = <String, List<_IndexedDocument>>{};
+    final normalizationUpdates = <_EmbeddingNormalizationUpdate>[];
     for (final row in rows) {
-      indexedDocuments.add(
-        _IndexedDocument(
-          record: await _recordFromRow(row),
-          vector: _normalize(_vectorFromJson(row['vector_json']! as String)),
-        ),
-      );
+      final record = await _recordFromRow(row);
+      final rawVector = _vectorFromJson(row['vector_json']! as String);
+      final normalized = ((row['normalized'] as num?)?.toInt() ?? 0) == 1;
+      final vector = normalized ? rawVector : _normalize(rawVector);
+      if (!normalized) {
+        normalizationUpdates.add(
+          _EmbeddingNormalizationUpdate(documentId: record.id, vector: vector),
+        );
+      }
+      final tagKeys = _normalizedTags(record.tags);
+      final clusterKeys = tagKeys
+          .map(_clusterKeyForTag)
+          .whereType<String>()
+          .toSet();
+      final indexedDocument = _IndexedDocument(record: record, vector: vector);
+      indexedDocuments.add(indexedDocument);
+      for (final tagKey in tagKeys) {
+        documentsByTag
+            .putIfAbsent(tagKey, () => <_IndexedDocument>[])
+            .add(indexedDocument);
+      }
+      for (final clusterKey in clusterKeys) {
+        documentsByCluster
+            .putIfAbsent(clusterKey, () => <_IndexedDocument>[])
+            .add(indexedDocument);
+      }
     }
 
-    _indexedDocumentsCache = indexedDocuments;
-    return indexedDocuments;
+    if (normalizationUpdates.isNotEmpty) {
+      final batch = db.batch();
+      for (final update in normalizationUpdates) {
+        batch.update(
+          'embeddings',
+          <String, Object?>{
+            'vector_json': jsonEncode(update.vector),
+            'normalized': 1,
+          },
+          where: 'doc_id = ?',
+          whereArgs: <Object>[update.documentId],
+        );
+      }
+      await batch.commit(noResult: true);
+    }
+
+    final snapshot = _VectorIndexSnapshot(
+      documents: indexedDocuments,
+      documentsByTag: documentsByTag,
+      documentsByCluster: documentsByCluster,
+    );
+    _indexSnapshotCache = snapshot;
+    return snapshot;
   }
 
   List<double> _normalizeQuery(List<double> queryVector) {
     final key = _vectorKey(queryVector);
-    final cached = _normalizedQueryCache[key];
+    final cached = _getLruValue(_normalizedQueryCache, key);
     if (cached != null) {
       return cached;
     }
 
     final normalized = _normalize(queryVector);
-    _normalizedQueryCache[key] = normalized;
-    _trimCache(_normalizedQueryCache, _queryNormalizationCacheLimit);
+    _setLruValue(_normalizedQueryCache, key, normalized);
     return normalized;
   }
 
-  void _setSearchResultCache(String key, List<VectorSearchMatch> matches) {
-    _searchResultCache[key] = List<VectorSearchMatch>.from(
-      matches,
-      growable: false,
-    );
-    _trimCache(_searchResultCache, _searchResultCacheLimit);
+  _SearchCacheEntry? _getSearchResultCache(
+    String key, {
+    required int minimumResults,
+  }) {
+    final cached = _getLruValue(_searchResultCache, key);
+    if (cached == null) {
+      return null;
+    }
+    if (!cached.isCompleteRanking && cached.matches.length < minimumResults) {
+      _searchResultCache.remove(key);
+      return null;
+    }
+    return cached;
   }
 
-  void _trimCache<T>(Map<String, T> cache, int maxSize) {
+  void _setSearchResultCache(
+    String key,
+    List<VectorSearchMatch> rankedMatches, {
+    required bool isCompleteRanking,
+  }) {
+    _setLruValue(
+      _searchResultCache,
+      key,
+      _SearchCacheEntry(
+        matches: List<VectorSearchMatch>.unmodifiable(
+          List<VectorSearchMatch>.from(rankedMatches, growable: false),
+        ),
+        isCompleteRanking: isCompleteRanking,
+      ),
+    );
+  }
+
+  T? _getLruValue<T>(Map<String, T> cache, String key) {
+    final value = cache.remove(key);
+    if (value == null) {
+      return null;
+    }
+    cache[key] = value;
+    return value;
+  }
+
+  void _setLruValue<T>(Map<String, T> cache, String key, T value) {
+    cache.remove(key);
+    cache[key] = value;
+    final maxSize = identical(cache, _normalizedQueryCache)
+        ? _queryNormalizationCacheLimit
+        : _searchResultCacheLimit;
     while (cache.length > maxSize) {
       cache.remove(cache.keys.first);
     }
@@ -354,7 +506,7 @@ class VectorDb {
   }
 
   void _invalidateCaches() {
-    _indexedDocumentsCache = null;
+    _indexSnapshotCache = null;
     _normalizedQueryCache.clear();
     _searchResultCache.clear();
   }
@@ -377,6 +529,7 @@ class VectorDb {
         doc_id TEXT PRIMARY KEY,
         dim INTEGER NOT NULL,
         vector_json TEXT NOT NULL,
+        normalized INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY(doc_id) REFERENCES documents(id) ON DELETE CASCADE
       )
     ''');
@@ -412,12 +565,187 @@ class VectorDb {
       }, conflictAlgorithm: ConflictAlgorithm.replace);
 
       final embedding = await embeddingService.embed(record.searchableText);
+      final normalizedEmbedding = _normalize(embedding);
       await txn.insert('embeddings', <String, Object?>{
         'doc_id': record.id,
         'dim': embedding.length,
-        'vector_json': jsonEncode(_normalize(embedding)),
+        'vector_json': jsonEncode(normalizedEmbedding),
+        'normalized': 1,
       }, conflictAlgorithm: ConflictAlgorithm.replace);
     }
+  }
+
+  Future<void> _normalizeStoredEmbeddings(Database db) async {
+    final rows = await db.query(
+      'embeddings',
+      columns: <String>['doc_id', 'vector_json'],
+    );
+    final batch = db.batch();
+    for (final row in rows) {
+      batch.update(
+        'embeddings',
+        <String, Object?>{
+          'vector_json': jsonEncode(
+            _normalize(_vectorFromJson(row['vector_json']! as String)),
+          ),
+          'normalized': 1,
+        },
+        where: 'doc_id = ?',
+        whereArgs: <Object>[row['doc_id']! as String],
+      );
+    }
+    await batch.commit(noResult: true);
+  }
+
+  _SearchWindow _resolveSearchWindow({
+    required int? topK,
+    required int limit,
+    required int offset,
+  }) {
+    final resolvedLimit = topK ?? limit;
+    if (resolvedLimit <= 0) {
+      throw ArgumentError.value(
+        resolvedLimit,
+        'limit',
+        'Search limit must be greater than zero.',
+      );
+    }
+    if (offset < 0) {
+      throw ArgumentError.value(
+        offset,
+        'offset',
+        'Search offset cannot be negative.',
+      );
+    }
+    return _SearchWindow(limit: resolvedLimit, offset: offset);
+  }
+
+  List<_IndexedDocument> _prefilterCandidates(
+    _VectorIndexSnapshot indexSnapshot,
+    List<String> queryTags,
+  ) {
+    if (queryTags.isEmpty) {
+      return const <_IndexedDocument>[];
+    }
+
+    final candidates = <_IndexedDocument>{};
+    var hasExactTagOverlap = false;
+    for (final tag in queryTags) {
+      final tagMatches = indexSnapshot.documentsByTag[tag];
+      if (tagMatches == null || tagMatches.isEmpty) {
+        continue;
+      }
+      hasExactTagOverlap = true;
+      candidates.addAll(tagMatches);
+    }
+
+    for (final tag in queryTags) {
+      final clusterKey = _clusterKeyForTag(tag);
+      if (clusterKey == null) {
+        continue;
+      }
+      final clusterMatches = indexSnapshot.documentsByCluster[clusterKey];
+      if (clusterMatches == null || clusterMatches.isEmpty) {
+        continue;
+      }
+      candidates.addAll(clusterMatches);
+    }
+
+    if (!hasExactTagOverlap) {
+      return const <_IndexedDocument>[];
+    }
+    return candidates.toList(growable: false);
+  }
+
+  List<VectorSearchMatch> _rankCandidates(
+    List<double> normalizedQuery,
+    Iterable<_IndexedDocument> candidates,
+  ) {
+    final matches = <VectorSearchMatch>[
+      for (final indexedDocument in candidates)
+        VectorSearchMatch(
+          record: indexedDocument.record,
+          score: _cosineSimilarity(normalizedQuery, indexedDocument.vector),
+        ),
+    ];
+    matches.sort(_compareMatches);
+    return List<VectorSearchMatch>.unmodifiable(matches);
+  }
+
+  List<VectorSearchMatch> _rankTopCandidates(
+    List<double> normalizedQuery,
+    Iterable<_IndexedDocument> candidates, {
+    required int maxResults,
+  }) {
+    if (maxResults <= 0) {
+      return const <VectorSearchMatch>[];
+    }
+
+    final topMatches = <VectorSearchMatch>[];
+    for (final indexedDocument in candidates) {
+      final match = VectorSearchMatch(
+        record: indexedDocument.record,
+        score: _cosineSimilarity(normalizedQuery, indexedDocument.vector),
+      );
+      final insertAt = topMatches.indexWhere(
+        (VectorSearchMatch existing) => _compareMatches(match, existing) < 0,
+      );
+      if (insertAt == -1) {
+        topMatches.add(match);
+      } else {
+        topMatches.insert(insertAt, match);
+      }
+      if (topMatches.length > maxResults) {
+        topMatches.removeLast();
+      }
+    }
+    return List<VectorSearchMatch>.unmodifiable(topMatches);
+  }
+
+  int _compareMatches(VectorSearchMatch left, VectorSearchMatch right) {
+    final scoreCompare = right.score.compareTo(left.score);
+    if (scoreCompare != 0) {
+      return scoreCompare;
+    }
+    return right.record.createdAt.compareTo(left.record.createdAt);
+  }
+
+  List<VectorSearchMatch> _paginateMatches(
+    List<VectorSearchMatch> matches, {
+    required int limit,
+    required int offset,
+  }) {
+    if (offset >= matches.length) {
+      return const <VectorSearchMatch>[];
+    }
+    final end = math.min(offset + limit, matches.length);
+    return List<VectorSearchMatch>.unmodifiable(matches.sublist(offset, end));
+  }
+
+  String _questionHash(String question) {
+    final normalizedQuestion = question.trim().toLowerCase();
+    return sha256.convert(utf8.encode(normalizedQuestion)).toString();
+  }
+
+  List<String> _normalizedTags(List<String> tags) {
+    final uniqueTags = <String>{};
+    for (final tag in tags) {
+      final normalized = tag.trim().toLowerCase();
+      if (normalized.isEmpty) {
+        continue;
+      }
+      uniqueTags.add(normalized);
+    }
+    return uniqueTags.toList(growable: false);
+  }
+
+  String? _clusterKeyForTag(String tag) {
+    for (final rule in _tagClusterRules) {
+      if (rule.matches(tag)) {
+        return rule.key;
+      }
+    }
+    return null;
   }
 
   List<double> _normalize(List<double> vector) {
@@ -451,3 +779,100 @@ class _IndexedDocument {
   final LifeRecord record;
   final List<double> vector;
 }
+
+class _VectorIndexSnapshot {
+  const _VectorIndexSnapshot({
+    required this.documents,
+    required this.documentsByTag,
+    required this.documentsByCluster,
+  });
+
+  final List<_IndexedDocument> documents;
+  final Map<String, List<_IndexedDocument>> documentsByTag;
+  final Map<String, List<_IndexedDocument>> documentsByCluster;
+}
+
+class _EmbeddingNormalizationUpdate {
+  const _EmbeddingNormalizationUpdate({
+    required this.documentId,
+    required this.vector,
+  });
+
+  final String documentId;
+  final List<double> vector;
+}
+
+class _SearchWindow {
+  const _SearchWindow({required this.limit, required this.offset});
+
+  final int limit;
+  final int offset;
+
+  int get requestedResultCount => limit + offset;
+}
+
+class _SearchCacheEntry {
+  const _SearchCacheEntry({
+    required this.matches,
+    required this.isCompleteRanking,
+  });
+
+  final List<VectorSearchMatch> matches;
+  final bool isCompleteRanking;
+}
+
+class _TagClusterRule {
+  const _TagClusterRule({required this.key, required this.aliases});
+
+  final String key;
+  final List<String> aliases;
+
+  bool matches(String tag) {
+    return aliases.any((String alias) => tag.contains(alias));
+  }
+}
+
+const List<_TagClusterRule> _tagClusterRules = <_TagClusterRule>[
+  _TagClusterRule(
+    key: 'fatigue',
+    aliases: <String>['무기력', '지침', '피곤', '피로', '기운없', '기력없'],
+  ),
+  _TagClusterRule(key: 'burnout', aliases: <String>['번아웃', '소진', '탈진', '과로']),
+  _TagClusterRule(
+    key: 'work_pressure',
+    aliases: <String>['야근', '마감', '업무', '프로젝트', '회의', '압박'],
+  ),
+  _TagClusterRule(
+    key: 'sleep',
+    aliases: <String>['수면', '잠', '숙면', '불면', '기상', '졸림', '낮잠'],
+  ),
+  _TagClusterRule(
+    key: 'recovery',
+    aliases: <String>['회복', '휴식', '쉼', '산책', '재충전', '숨통'],
+  ),
+  _TagClusterRule(key: 'focus', aliases: <String>['집중', '리듬', '루틴', '정리']),
+  _TagClusterRule(
+    key: 'motivation',
+    aliases: <String>['의욕', '아이디어', '구현', '사이드프로젝트'],
+  ),
+  _TagClusterRule(
+    key: 'anxiety',
+    aliases: <String>['불안', '걱정', '초조', '죄책감', '답답'],
+  ),
+  _TagClusterRule(
+    key: 'health',
+    aliases: <String>['건강', '몸', '운동', '러닝', '통증', '컨디션', '식사'],
+  ),
+  _TagClusterRule(
+    key: 'relationships',
+    aliases: <String>['관계', '친구', '가족', '연인', '대화', '동료'],
+  ),
+  _TagClusterRule(
+    key: 'reflection',
+    aliases: <String>['회고', '성장', '배움', '기록', '습관'],
+  ),
+  _TagClusterRule(
+    key: 'creativity',
+    aliases: <String>['창작', '글쓰기', '그림', '초안', '작업', '스케치'],
+  ),
+];

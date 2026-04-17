@@ -1,5 +1,5 @@
 import Flutter
-// import MediaPipeTasksText - temporarily disabled
+// MediaPipeTasksText is not resolved by the current CocoaPods spec set.
 import UIKit
 
 @main

@@ -345,7 +345,7 @@ class MethodChannelOnDeviceLlmBridge implements OnDeviceLlmBridge {
   }) {
     return switch (error.code) {
       'llm_unavailable' => 'LLM 모델 경로가 준비되지 않았습니다.',
-      'embedder_unavailable' => '네이티브 텍스트 임베딩 모델이 준비되지 않았습니다. Dart 폴백을 사용합니다.',
+      'embedder_unavailable' => '네이티브 텍스트 임베딩을 사용할 수 없어 Dart 의미 임베딩 폴백을 사용합니다.',
       'invalid_prompt' => '프롬프트가 비어 있습니다.',
       'invalid_text' => '임베딩할 텍스트가 비어 있습니다.',
       _ => error.message ?? fallbackMessage,

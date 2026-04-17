@@ -43,6 +43,7 @@ Move the primary mobile curation path from backend-backed lookup to an on-device
 - iOS target:
   - `MediaPipeTasksGenAI 0.10.21`
   - `MediaPipeTasksGenAIC 0.10.21`
+  - `MediaPipeTasksText` is not currently available from CocoaPods trunk in this repository setup, so iOS text embedding remains on the Dart fallback path.
 
 ## Model staging strategy
 
@@ -60,13 +61,14 @@ Move the primary mobile curation path from backend-backed lookup to an on-device
 
 1. Seed or import local `LifeRecord` documents.
 2. Generate embeddings locally.
-3. Store documents plus normalized vectors in SQLite.
-4. Cache decoded normalized document vectors in memory after first load.
+3. Store documents plus normalized vectors in SQLite and persist whether an embedding is already normalized.
+4. Cache decoded normalized document vectors plus tag/cluster buckets in memory after first load.
 5. Embed the user question locally and cache repeated normalized queries.
-6. Retrieve top-k similar records and cache repeated search results.
-7. Render a Korean RAG prompt.
-8. Run generation on-device.
-9. Return Korean UI text and linked supporting records.
+6. Use exact-tag prefiltering first, expand candidates through tag clusters, and fall back to a bounded full scan only when the query shares no tags with the local corpus.
+7. Cache repeated question rankings with an LRU query cache.
+8. Render a Korean RAG prompt.
+9. Run generation on-device.
+10. Return Korean UI text and linked supporting records.
 
 ## Current repository compromise
 

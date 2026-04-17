@@ -57,7 +57,7 @@ void main() {
             .having(
               (OnDeviceRuntimeException error) => error.message,
               'message',
-              '네이티브 텍스트 임베딩 모델이 준비되지 않았습니다. Dart 폴백을 사용합니다.',
+              '네이티브 텍스트 임베딩을 사용할 수 없어 Dart 의미 임베딩 폴백을 사용합니다.',
             ),
       ),
     );

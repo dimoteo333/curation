@@ -1,8 +1,8 @@
 import Flutter
 import Foundation
 import MediaPipeTasksGenAI
-// MediaPipeTasksText temporarily disabled - MediaPipeTasksTextC not available as CocoaPod
-// Embedding falls back to Dart-side SemanticEmbeddingService
+// MediaPipeTasksText is not available from the current CocoaPods spec set.
+// iOS embedding falls back to the Dart-side SemanticEmbeddingService.
 
 final class LiteRtLlmBridgeHandler {
   private var llmModelPath: String?
@@ -20,11 +20,11 @@ final class LiteRtLlmBridgeHandler {
     case "generate":
       generate(call: call, result: result)
     case "embed":
-      // Embedding not available on native side yet
+      // iOS text embedding remains on the Dart fallback path.
       result(
         FlutterError(
           code: "embedder_unavailable",
-          message: "네이티브 텍스트 임베딩 모델이 준비되지 않았습니다. Dart 폴백을 사용합니다.",
+          message: "iOS MediaPipe 텍스트 임베더 Pod를 사용할 수 없어 Dart 의미 임베딩 폴백을 사용합니다.",
           details: nil
         )
       )
@@ -128,7 +128,7 @@ final class LiteRtLlmBridgeHandler {
     if llmReady && embedderReady {
       message = "LiteRT LLM 및 텍스트 임베더가 준비되었습니다."
     } else if llmReady {
-      message = "LiteRT LLM은 준비되었지만 텍스트 임베딩은 Dart 폴백을 사용합니다."
+      message = "LiteRT LLM은 준비되었지만 iOS 텍스트 임베딩은 Dart 의미 폴백을 사용합니다."
     } else if llmConfigured && !llmAvailable {
       message = "LLM 모델 경로가 설정되었지만 파일을 찾지 못해 Dart 로컬 폴백을 사용합니다."
     } else if lastErrorMessage != nil {

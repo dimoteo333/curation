@@ -33,8 +33,9 @@ target 'Runner' do
 
   pod 'MediaPipeTasksGenAI', mediapipe_genai_version
   pod 'MediaPipeTasksGenAIC', mediapipe_genai_version
-  # Text embedder temporarily disabled - MediaPipeTasksTextC not available as CocoaPod
-  # Will be re-enabled when model files are ready for on-device use
+  # CocoaPods trunk does not currently resolve MediaPipeTasksText /
+  # MediaPipeTasksTextC for this runtime, so iOS text embedding stays on the
+  # Dart SemanticEmbeddingService fallback until Google ships a supported pod.
   # pod 'MediaPipeTasksText', mediapipe_genai_version
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))

@@ -23,7 +23,11 @@ class OnDeviceCurationRepository implements CurationRepository {
     await recordStore.initialize();
 
     final queryVector = await embeddingService.embed(question);
-    final rawMatches = await vectorDb.search(queryVector, topK: 5);
+    final rawMatches = await vectorDb.searchWithPrefilter(
+      question,
+      queryVector,
+      limit: 5,
+    );
     final matches = rawMatches
         .where((VectorSearchMatch match) => match.score >= 0.18)
         .take(3)
