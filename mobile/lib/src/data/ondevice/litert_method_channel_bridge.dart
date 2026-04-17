@@ -4,9 +4,10 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 
 class OnDeviceRuntimeException implements Exception {
-  const OnDeviceRuntimeException(this.message);
+  const OnDeviceRuntimeException(this.message, {this.code = 'runtime_error'});
 
   final String message;
+  final String code;
 
   @override
   String toString() => message;
@@ -45,12 +46,18 @@ class OnDeviceRuntimeStatus {
   bool get usingNativeEmbedder => embedderReady;
 
   factory OnDeviceRuntimeStatus.fromJson(Map<Object?, Object?> json) {
+    final llmReady = json['llmReady'] as bool? ?? false;
+    final embedderReady = json['embedderReady'] as bool? ?? false;
     return OnDeviceRuntimeStatus(
-      llmReady: json['llmReady'] as bool? ?? false,
-      embedderReady: json['embedderReady'] as bool? ?? false,
-      runtime: json['runtime'] as String? ?? 'unavailable',
+      llmReady: llmReady,
+      embedderReady: embedderReady,
+      runtime: _normalizedRuntime(
+        json['runtime'] as String?,
+        llmReady: llmReady,
+        embedderReady: embedderReady,
+      ),
       message: json['message'] as String? ?? '온디바이스 런타임이 준비되지 않았습니다.',
-      platform: json['platform'] as String? ?? 'unknown',
+      platform: json['platform'] as String? ?? _currentPlatformLabel(),
       llmModelConfigured: json['llmModelConfigured'] as bool? ?? false,
       embedderModelConfigured:
           json['embedderModelConfigured'] as bool? ?? false,
@@ -100,13 +107,14 @@ class OnDeviceRuntimeStatus {
     String? llmModelPath,
     String? embedderModelPath,
     Duration timeout = MethodChannelOnDeviceLlmBridge.prepareTimeout,
+    String? platform,
   }) {
     return OnDeviceRuntimeStatus(
       llmReady: false,
       embedderReady: false,
       runtime: 'timeout-fallback',
       message: '네이티브 런타임 초기화가 ${timeout.inSeconds}초 안에 끝나지 않아 템플릿 폴백으로 전환했습니다.',
-      platform: 'unknown',
+      platform: platform ?? _currentPlatformLabel(),
       llmModelConfigured: _isConfigured(llmModelPath),
       embedderModelConfigured: _isConfigured(embedderModelPath),
       llmModelAvailable: _pathExists(llmModelPath),
@@ -121,13 +129,14 @@ class OnDeviceRuntimeStatus {
     required String message,
     String? llmModelPath,
     String? embedderModelPath,
+    String? platform,
   }) {
     return OnDeviceRuntimeStatus(
       llmReady: false,
       embedderReady: false,
       runtime: 'native-error',
       message: message,
-      platform: 'unknown',
+      platform: platform ?? _currentPlatformLabel(),
       llmModelConfigured: _isConfigured(llmModelPath),
       embedderModelConfigured: _isConfigured(embedderModelPath),
       llmModelAvailable: _pathExists(llmModelPath),
@@ -145,6 +154,27 @@ class OnDeviceRuntimeStatus {
       return false;
     }
     return File(path!).existsSync();
+  }
+
+  static String _normalizedRuntime(
+    String? rawRuntime, {
+    required bool llmReady,
+    required bool embedderReady,
+  }) {
+    if (llmReady && !embedderReady) {
+      return 'native-partial';
+    }
+    return rawRuntime ?? 'unavailable';
+  }
+
+  static String _currentPlatformLabel() {
+    if (Platform.isIOS) {
+      return 'ios';
+    }
+    if (Platform.isAndroid) {
+      return 'android';
+    }
+    return 'unknown';
   }
 }
 
@@ -203,7 +233,10 @@ class MethodChannelOnDeviceLlmBridge implements OnDeviceLlmBridge {
       );
     } on PlatformException catch (error) {
       return OnDeviceRuntimeStatus.nativeError(
-        message: error.message ?? '온디바이스 런타임 준비에 실패했습니다.',
+        message: _normalizedPlatformErrorMessage(
+          error,
+          fallbackMessage: '온디바이스 런타임 준비에 실패했습니다.',
+        ),
         llmModelPath: llmModelPath,
         embedderModelPath: embedderModelPath,
       );
@@ -227,7 +260,10 @@ class MethodChannelOnDeviceLlmBridge implements OnDeviceLlmBridge {
       );
     } on PlatformException catch (error) {
       return OnDeviceRuntimeStatus.nativeError(
-        message: error.message ?? '온디바이스 런타임 상태 확인에 실패했습니다.',
+        message: _normalizedPlatformErrorMessage(
+          error,
+          fallbackMessage: '온디바이스 런타임 상태 확인에 실패했습니다.',
+        ),
       );
     }
   }
@@ -254,10 +290,15 @@ class MethodChannelOnDeviceLlmBridge implements OnDeviceLlmBridge {
       }
       return response;
     } on MissingPluginException {
-      throw const OnDeviceRuntimeException('네이티브 LLM 브릿지가 연결되지 않았습니다.');
+      throw const OnDeviceRuntimeException(
+        '네이티브 LLM 브릿지가 연결되지 않았습니다.',
+        code: 'missing_plugin',
+      );
     } on PlatformException catch (error) {
-      throw OnDeviceRuntimeException(
-        error.message ?? '온디바이스 LLM 생성 중 오류가 발생했습니다.',
+      throw _runtimeExceptionFromPlatform(
+        error,
+        fallbackCode: 'generate_failed',
+        fallbackMessage: '온디바이스 LLM 생성 중 오류가 발생했습니다.',
       );
     }
   }
@@ -274,11 +315,40 @@ class MethodChannelOnDeviceLlmBridge implements OnDeviceLlmBridge {
       }
       return response;
     } on MissingPluginException {
-      throw const OnDeviceRuntimeException('네이티브 임베더 브릿지가 연결되지 않았습니다.');
+      throw const OnDeviceRuntimeException(
+        '네이티브 임베더 브릿지가 연결되지 않았습니다.',
+        code: 'missing_plugin',
+      );
     } on PlatformException catch (error) {
-      throw OnDeviceRuntimeException(
-        error.message ?? '온디바이스 임베딩 중 오류가 발생했습니다.',
+      throw _runtimeExceptionFromPlatform(
+        error,
+        fallbackCode: 'embed_failed',
+        fallbackMessage: '온디바이스 임베딩 중 오류가 발생했습니다.',
       );
     }
+  }
+
+  static OnDeviceRuntimeException _runtimeExceptionFromPlatform(
+    PlatformException error, {
+    required String fallbackCode,
+    required String fallbackMessage,
+  }) {
+    return OnDeviceRuntimeException(
+      _normalizedPlatformErrorMessage(error, fallbackMessage: fallbackMessage),
+      code: error.code.isEmpty ? fallbackCode : error.code,
+    );
+  }
+
+  static String _normalizedPlatformErrorMessage(
+    PlatformException error, {
+    required String fallbackMessage,
+  }) {
+    return switch (error.code) {
+      'llm_unavailable' => 'LLM 모델 경로가 준비되지 않았습니다.',
+      'embedder_unavailable' => '네이티브 텍스트 임베딩 모델이 준비되지 않았습니다. Dart 폴백을 사용합니다.',
+      'invalid_prompt' => '프롬프트가 비어 있습니다.',
+      'invalid_text' => '임베딩할 텍스트가 비어 있습니다.',
+      _ => error.message ?? fallbackMessage,
+    };
   }
 }

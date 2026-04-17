@@ -85,6 +85,7 @@ final textEmbeddingServiceProvider = Provider<TextEmbeddingService>((ref) {
   return LiteRtTextEmbeddingService(
     bridge: ref.watch(onDeviceLlmBridgeProvider),
     fallback: ref.watch(fallbackTextEmbeddingServiceProvider),
+    llmModelPath: settings.llmModelPath,
     embedderModelPath: settings.embedderModelPath,
   );
 });
@@ -109,6 +110,7 @@ final llmEngineProvider = Provider<LlmEngine>((ref) {
   return LlmEngine(
     bridge: ref.watch(onDeviceLlmBridgeProvider),
     llmModelPath: settings.llmModelPath,
+    embedderModelPath: settings.embedderModelPath,
   );
 });
 

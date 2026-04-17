@@ -18,8 +18,8 @@ Move the primary mobile curation path from backend-backed lookup to an on-device
   - SQLite-backed local store for documents and embeddings.
   - Responsible for document indexing, local similarity search, retrieval ordering, and normalized-query/result caching for repeated lookups.
 - `TextEmbeddingService`
-  - Prefers the native embedder bridge when an embedder model is staged locally.
-  - Falls back to a pure Dart semantic embedder for tests and developer machines without model assets.
+  - Currently uses the pure Dart semantic embedder on both iOS and Android.
+  - The native `embed` bridge remains intentionally unavailable until the MediaPipe text embedding path is stable on both platforms.
   - Uses Korean emotion/situation keyword concepts plus lexical weighting so fallback retrieval still preserves useful semantic similarity.
 - `LlmEngine`
   - Builds the Korean system prompt and RAG template from `README.md`.
@@ -40,11 +40,9 @@ Move the primary mobile curation path from backend-backed lookup to an on-device
   - `generate`
 - Android target:
   - `com.google.mediapipe:tasks-genai:0.10.21`
-  - `com.google.mediapipe:tasks-text:0.10.21`
 - iOS target:
   - `MediaPipeTasksGenAI 0.10.21`
   - `MediaPipeTasksGenAIC 0.10.21`
-  - `MediaPipeTasksText 0.10.21`
 
 ## Model staging strategy
 
@@ -73,7 +71,8 @@ Move the primary mobile curation path from backend-backed lookup to an on-device
 ## Current repository compromise
 
 - The repository includes a deterministic local semantic embedding fallback and a richer local generation fallback so `flutter test` and `flutter analyze` remain stable without shipping a multi-GB model artifact.
-- When native model paths are configured on a real device, the same orchestration path can switch to the native LiteRT / MediaPipe runtime without changing the Flutter UI layer.
+- When a native LLM model path is configured on a real device, the same orchestration path can switch generation to the native LiteRT / MediaPipe runtime without changing the Flutter UI layer.
+- Even when native generation is available, semantic embedding stays on the Dart fallback path on both platforms.
 - The home screen now exposes:
   - current runtime status
   - native vs fallback embedding state

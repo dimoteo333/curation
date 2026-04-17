@@ -26,18 +26,23 @@ class LlmEngine {
   LlmEngine({
     required this.bridge,
     this.llmModelPath,
+    this.embedderModelPath,
     DateTime Function()? nowProvider,
   }) : _nowProvider = nowProvider ?? DateTime.now;
 
   final OnDeviceLlmBridge bridge;
   final String? llmModelPath;
+  final String? embedderModelPath;
   final DateTime Function() _nowProvider;
 
   Future<GeneratedCuration> generate({
     required String question,
     required List<VectorSearchMatch> matches,
   }) async {
-    final prepared = await bridge.prepare(llmModelPath: llmModelPath);
+    final prepared = await bridge.prepare(
+      llmModelPath: llmModelPath,
+      embedderModelPath: embedderModelPath,
+    );
     final contextRecords = matches
         .map((VectorSearchMatch match) => match.record)
         .toList(growable: false);

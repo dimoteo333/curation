@@ -5,16 +5,21 @@ class LiteRtTextEmbeddingService implements TextEmbeddingService {
   const LiteRtTextEmbeddingService({
     required this.bridge,
     required this.fallback,
+    this.llmModelPath,
     this.embedderModelPath,
   });
 
   final OnDeviceLlmBridge bridge;
   final TextEmbeddingService fallback;
+  final String? llmModelPath;
   final String? embedderModelPath;
 
   @override
   Future<List<double>> embed(String text) async {
-    final status = await bridge.prepare(embedderModelPath: embedderModelPath);
+    final status = await bridge.prepare(
+      llmModelPath: llmModelPath,
+      embedderModelPath: embedderModelPath,
+    );
     if (!status.embedderReady) {
       return fallback.embed(text);
     }

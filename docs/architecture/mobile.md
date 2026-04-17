@@ -42,10 +42,14 @@ Rules
 - Runtime mode and developer model paths are stored as local settings and can override compile-time defaults without changing the API contract.
 - Seeded or imported records are indexed into a local SQLite vector store.
 - `.txt` and `.md` files can be imported through the settings screen, parsed into `LifeRecord` v2 records, and embedded into the local vector DB.
-- Query embeddings run on device through a native bridge when available, or through a pure Dart semantic embedding fallback tuned for Korean personal records.
+- Query embeddings currently use the pure Dart `SemanticEmbeddingService` fallback on both iOS and Android.
+- Native `embed` bridge calls are intentionally unavailable on both platforms until the MediaPipe text embedding path is stabilized.
 - The local vector store keeps normalized embedding and repeated-query caches so small datasets stay responsive without changing the retrieval contract.
 - `LifeRecord` now carries `source` for Korean UI display, `importSource` for extensible source typing, and `metadata` for source-specific details.
-- The curation answer is generated from Korean prompt templates and retrieved local context.
+- iOS can use the native LiteRT LLM bridge when a model path is configured on a supported device, but text embedding still falls back to Dart.
+- Android can compile and run the native LiteRT LLM bridge with `minSdk >= 24`, pinned MediaPipe GenAI dependencies, and release ProGuard rules that keep MediaPipe/TFLite classes.
+- Both platforms return the same native runtime status shape and fall back to the same Dart semantic embedding path when models are missing or initialization fails.
+- The curation answer is generated from Korean prompt templates and retrieved local context, with native generation used only when the LLM bridge reports partial native readiness.
 - Large model artifacts are staged outside the repository and passed by `LLM_MODEL_PATH` and `EMBEDDER_MODEL_PATH`.
 
 ## Tests
@@ -57,3 +61,4 @@ Rules
   - on-device repository path without network access
   - onboarding and settings widgets
 - Integration test now validates the default on-device rendering path on a supported simulator/device.
+- Android debug build verification should include at least one `flutter build apk --debug` smoke test in addition to `flutter analyze` and `flutter test`.

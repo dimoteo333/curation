@@ -6,6 +6,7 @@ import MediaPipeTasksGenAI
 
 final class LiteRtLlmBridgeHandler {
   private var llmModelPath: String?
+  private var embedderModelPath: String?
   private var llmInference: LlmInference?
   private var lastErrorMessage: String?
   private var lastPrepareDurationMs: Int?
@@ -35,6 +36,7 @@ final class LiteRtLlmBridgeHandler {
   private func prepare(call: FlutterMethodCall, result: @escaping FlutterResult) {
     let arguments = call.arguments as? [String: Any]
     llmModelPath = arguments?["llmModelPath"] as? String
+    embedderModelPath = arguments?["embedderModelPath"] as? String
 
     let startedAt = Date()
     var errors: [String] = []
@@ -103,13 +105,19 @@ final class LiteRtLlmBridgeHandler {
 
   private func buildStatus() -> [String: Any] {
     let llmConfigured = !(llmModelPath ?? "").isEmpty
+    let embedderConfigured = !(embedderModelPath ?? "").isEmpty
     let llmAvailable = llmConfigured && FileManager.default.fileExists(atPath: llmModelPath!)
+    let embedderAvailable =
+      embedderConfigured && FileManager.default.fileExists(atPath: embedderModelPath!)
     let llmReady = llmInference != nil && llmAvailable
-    let fallbackActive = !llmReady
+    let embedderReady = false
+    let fallbackActive = !llmReady || !embedderReady
 
     let runtime: String
-    if llmReady {
+    if llmReady && embedderReady {
       runtime = "native-ready"
+    } else if llmReady || embedderReady {
+      runtime = "native-partial"
     } else if lastErrorMessage != nil {
       runtime = "native-error"
     } else {
@@ -117,26 +125,28 @@ final class LiteRtLlmBridgeHandler {
     }
 
     let message: String
-    if llmReady {
-      message = "LiteRT LLM이 준비되었습니다. 임베딩은 Dart 폴백을 사용합니다."
+    if llmReady && embedderReady {
+      message = "LiteRT LLM 및 텍스트 임베더가 준비되었습니다."
+    } else if llmReady {
+      message = "LiteRT LLM은 준비되었지만 텍스트 임베딩은 Dart 폴백을 사용합니다."
     } else if llmConfigured && !llmAvailable {
-      message = "LLM 모델 경로가 설정되었지만 파일을 찾지 못해 템플릿 폴백을 사용합니다."
-    } else if let lastErrorMessage {
-      message = "네이티브 초기화에 실패해 온디바이스 폴백을 사용합니다: \(lastErrorMessage)"
+      message = "LLM 모델 경로가 설정되었지만 파일을 찾지 못해 Dart 로컬 폴백을 사용합니다."
+    } else if lastErrorMessage != nil {
+      message = "네이티브 초기화에 실패해 온디바이스 폴백을 사용합니다."
     } else {
       message = "모델 경로가 없어 Dart 로컬 폴백을 사용합니다."
     }
 
     return [
       "llmReady": llmReady,
-      "embedderReady": false,
+      "embedderReady": embedderReady,
       "runtime": runtime,
       "message": message,
       "platform": "ios",
       "llmModelConfigured": llmConfigured,
-      "embedderModelConfigured": false,
+      "embedderModelConfigured": embedderConfigured,
       "llmModelAvailable": llmAvailable,
-      "embedderModelAvailable": false,
+      "embedderModelAvailable": embedderAvailable,
       "fallbackActive": fallbackActive,
       "lastError": lastErrorMessage as Any,
       "lastPrepareDurationMs": lastPrepareDurationMs as Any,

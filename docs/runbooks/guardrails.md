@@ -40,6 +40,9 @@ Self-review에서 확인된 9개 이슈를 자동/수동 가드레일로 묶어,
 - 홈 화면 런타임 배지와 개발자 패널에서 실제 상태 확인
 - 모델 경로 미설정, 잘못된 경로, 실제 모델 연결 3가지 케이스 수동 실행
 - 스키마 변경 시 `VectorDb` 버전과 재색인/마이그레이션 문서 확인
+- Android 변경 시 `mobile/android/app/build.gradle.kts`에서 `minSdk >= 24`, `namespace`, `applicationId`, 고정 버전 의존성, release ProGuard 설정을 함께 확인
+- Android 변경 시 `mobile/android/app/src/main/AndroidManifest.xml`에서 `INTERNET`과 import 경로 관련 읽기 권한 가드를 확인
+- Android 변경 시 `flutter build apk --debug` 또는 `./gradlew :app:assembleDebug`로 실제 컴파일 스모크 테스트를 남긴다
 
 ## 우회 방지 전략
 
@@ -48,6 +51,7 @@ Self-review에서 확인된 9개 이슈를 자동/수동 가드레일로 묶어,
 - 네이티브 버전은 동적 버전 문자열을 금지해 "나중에 최신으로 풀리겠지" 식 우회를 막는다.
 - release signing은 warning이 아니라 error로 처리해 배포 전에 걸리도록 한다.
 - 폴백은 숨기지 않고 한국어 UI에서 명시해 "네이티브가 되는 줄 알았는데 사실은 폴백" 상태를 줄인다.
+- Android는 release shrinker를 끄는 식으로 문제를 숨기지 않고, 필요한 keep 규칙을 명시적으로 추가해 release 빌드에서도 같은 브릿지 계약을 유지한다.
 
 ## 창의적 해결책
 
@@ -84,6 +88,8 @@ Self-review에서 확인된 9개 이슈를 자동/수동 가드레일로 묶어,
 
 - Android:
   - `flutter build apk --debug` 또는 `./gradlew :app:assembleDebug`로 최소 컴파일 스모크 테스트를 추가한다.
+  - release 검증 시 shrinker/R8 활성화 상태와 `proguard-rules.pro`의 MediaPipe/TFLite keep 규칙을 함께 확인한다.
+  - 현재는 `embed`가 네이티브 미지원이어야 하므로, 상태 응답이 `native-partial` 또는 폴백으로 내려오고 Dart 의미 임베딩으로 계속 동작하는지 확인한다.
 - iOS:
   - macOS 러너에서 `flutter build ios --simulator --no-codesign` 또는 `xcodebuild -workspace Runner.xcworkspace -scheme Runner -sdk iphonesimulator build`를 사용한다.
 - 운영 원칙:

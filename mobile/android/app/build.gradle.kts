@@ -34,13 +34,18 @@ android {
         release {
             // Release signing is supplied outside the repository.
             // Keep the project unsigned here so guardrails can block debug signing drift.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }
 
 dependencies {
     implementation("com.google.mediapipe:tasks-genai:0.10.21")
-    implementation("com.google.mediapipe:tasks-text:0.10.21")
 }
 
 flutter {
