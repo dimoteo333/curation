@@ -6,6 +6,7 @@ import '../../domain/entities/curated_response.dart';
 import '../../providers.dart';
 import '../../state/curation_controller.dart';
 import '../../theme/curator_theme.dart';
+import '../widgets/curator_scene.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -39,54 +40,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final palette = theme.extension<CuratorPalette>()!;
 
     return Scaffold(
-      body: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: <Color>[
-              palette.backdropTop,
-              palette.backdropAccent,
-              palette.backdropBottom,
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Stack(
-          children: [
-            Positioned(
-              top: -110,
-              left: -20,
-              child: _AmbientGlow(
-                color: palette.ambientGlow.withValues(alpha: 0.26),
-                diameter: 300,
-              ),
-            ),
-            Positioned(
-              top: 180,
-              right: -80,
-              child: _AmbientGlow(
-                color: palette.accent.withValues(alpha: 0.16),
-                diameter: 260,
-              ),
-            ),
-            Positioned(
-              bottom: -100,
-              left: 40,
-              child: _AmbientGlow(
-                color: palette.accentSoft.withValues(alpha: 0.18),
-                diameter: 240,
-              ),
-            ),
-            SafeArea(
-              child: Align(
+      body: CuratorBackdrop(
+        child: SafeArea(
+          child: Stack(
+            children: [
+              Align(
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 760),
                   child: ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 260),
                     children: [
-                      _HeroHeader(
-                        palette: palette,
+                      _HomeTopBar(
                         onOpenSettings: () {
                           Navigator.of(context).push(
                             MaterialPageRoute<void>(
@@ -95,150 +60,256 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           );
                         },
                       ),
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 18),
+                      _HeroCard(runtimeStatus: runtimeStatus),
+                      const SizedBox(height: 18),
+                      _FeatureStrip(
+                        cards: const [
+                          _FeatureCardData(
+                            icon: Icons.auto_awesome_rounded,
+                            title: '온디바이스 AI 큐레이션',
+                            body: '흩어진 메모와 일기의 결을 다시 묶어 개인적인 흐름으로 정리합니다.',
+                          ),
+                          _FeatureCardData(
+                            icon: Icons.lock_rounded,
+                            title: '프라이버시 우선',
+                            body: '질문, 검색, 인사이트는 기본적으로 기기 안에서만 머무르도록 설계했습니다.',
+                          ),
+                          _FeatureCardData(
+                            icon: Icons.timeline_rounded,
+                            title: '기록 기반 맞춤 인사이트',
+                            body: '한 번의 감정이 아니라 최근의 반복과 맥락을 함께 읽어 드립니다.',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
                       _RuntimeStatusCard(
                         runtimeStatus: runtimeStatus,
                         onRefresh: () =>
                             ref.invalidate(onDeviceRuntimeStatusProvider),
                       ),
                       const SizedBox(height: 18),
-                      _QuestionPanel(
-                        controller: _controller,
-                        isLoading: state.isLoading,
-                        errorMessage: state.errorMessage,
-                        runtimeStatus: runtimeStatus,
-                        onSubmit: () =>
-                            controller.submitQuestion(_controller.text),
-                      ),
-                      const SizedBox(height: 18),
-                      if (state.response == null)
-                        const _PreviewPanel()
-                      else
+                      if (state.response != null)
                         _ResultSection(
                           response: state.response!,
                           lastQuestion: state.lastQuestion,
+                        )
+                      else
+                        const _EmptyResultSection(),
+                      const SizedBox(height: 18),
+                      Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: palette.surfaceStrong.withValues(alpha: 0.72),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: palette.outline.withValues(alpha: 0.24),
+                          ),
                         ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                color: palette.highlight.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Icon(
+                                Icons.info_outline_rounded,
+                                color: palette.accentStrong,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                '큐레이터는 일상 기록을 정리하고 질문을 돕는 도구이며, 의학적 또는 심리 진단을 제공하지 않습니다.',
+                                style: theme.textTheme.bodySmall,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ),
-            ),
-          ],
+              SafeArea(
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 760),
+                          child: _FloatingQuestionComposer(
+                            controller: _controller,
+                            isLoading: state.isLoading,
+                            errorMessage: state.errorMessage,
+                            runtimeStatus: runtimeStatus,
+                            onSubmit: () =>
+                                controller.submitQuestion(_controller.text),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _HeroHeader extends StatelessWidget {
-  const _HeroHeader({required this.palette, required this.onOpenSettings});
+class _HomeTopBar extends StatelessWidget {
+  const _HomeTopBar({required this.onOpenSettings});
 
-  final CuratorPalette palette;
   final VoidCallback onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
+
+    return Row(
+      children: [
+        Container(
+          width: 54,
+          height: 54,
+          padding: const EdgeInsets.all(9),
+          decoration: BoxDecoration(
+            color: palette.surfaceStrong.withValues(alpha: 0.82),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: palette.outline.withValues(alpha: 0.22)),
+          ),
+          child: Image.asset('assets/branding/curator_mark.png'),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('큐레이터', style: theme.textTheme.titleLarge),
+              const SizedBox(height: 2),
+              Text('당신의 일상을 큐레이션합니다', style: theme.textTheme.bodySmall),
+            ],
+          ),
+        ),
+        IconButton.filledTonal(
+          key: const Key('openSettingsButton'),
+          onPressed: onOpenSettings,
+          tooltip: '설정 열기',
+          icon: const Icon(Icons.tune_rounded),
+        ),
+      ],
+    );
+  }
+}
+
+class _HeroCard extends StatelessWidget {
+  const _HeroCard({required this.runtimeStatus});
+
+  final AsyncValue<OnDeviceRuntimeStatus> runtimeStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
+    final statusTone = _runtimePresentation(runtimeStatus.asData?.value);
 
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(26),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: <Color>[
-            theme.cardTheme.color ?? palette.surfaceStrong,
-            palette.surface.withValues(alpha: 0.84),
+            palette.surfaceStrong.withValues(alpha: 0.92),
+            palette.surface.withValues(alpha: 0.7),
+            palette.accentSoft.withValues(alpha: 0.34),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(34),
-        border: Border.all(color: palette.outline.withValues(alpha: 0.55)),
+        borderRadius: BorderRadius.circular(36),
+        border: Border.all(color: palette.outline.withValues(alpha: 0.24)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 34,
-            offset: const Offset(0, 18),
+            color: palette.shadowColor.withValues(alpha: 0.1),
+            blurRadius: 36,
+            offset: const Offset(0, 24),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _Pill(
+                label: statusTone.badge,
+                icon: statusTone.icon,
+                backgroundColor: statusTone.tint.withValues(alpha: 0.14),
+                foregroundColor: statusTone.tint,
+              ),
+              _Pill(
+                label: '기록과 질문은 기본적으로 기기 안에',
+                icon: Icons.verified_user_rounded,
+                backgroundColor: palette.highlight.withValues(alpha: 0.18),
+                foregroundColor: palette.accentStrong,
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 82,
-                height: 82,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: palette.surfaceStrong,
-                  borderRadius: BorderRadius.circular(28),
-                  boxShadow: [
-                    BoxShadow(
-                      color: palette.ambientGlow.withValues(alpha: 0.28),
-                      blurRadius: 30,
-                      spreadRadius: 4,
-                    ),
-                  ],
-                ),
-                child: Image.asset('assets/branding/curator_mark.png'),
-              ),
-              const SizedBox(width: 18),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('큐레이터', style: theme.textTheme.headlineMedium),
-                    const SizedBox(height: 8),
                     Text(
-                      '흩어진 한국어 기록을 감정의 결로 다시 읽는 개인 큐레이션.',
+                      '당신의 일상을\n큐레이션합니다',
+                      style: theme.textTheme.displaySmall,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      '메모, 일기, 일정에 흩어진 감정의 조각을 한데 모아 지금의 질문에 맞는 맥락으로 다시 읽어 드립니다.',
                       style: theme.textTheme.bodyLarge?.copyWith(
                         color: palette.label,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: palette.surfaceStrong.withValues(alpha: 0.68),
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(
+                          color: palette.outline.withValues(alpha: 0.18),
+                        ),
+                      ),
+                      child: Text(
+                        '짧은 메모, 애매한 감정, 설명하기 어려운 무드도 그대로 적어 보세요. 완성된 문장보다 살아 있는 흔적에 더 민감하게 반응하도록 설계했습니다.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: palette.label,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
-              IconButton.filledTonal(
-                key: const Key('openSettingsButton'),
-                onPressed: onOpenSettings,
-                tooltip: '설정 열기',
-                icon: const Icon(Icons.tune_rounded),
-              ),
+              const SizedBox(width: 18),
+              const CuratorOrbitArtwork(size: 196),
             ],
-          ),
-          const SizedBox(height: 22),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: const [
-              _SignalChip(icon: Icons.auto_awesome_rounded, label: '감정 흐름 추적'),
-              _SignalChip(icon: Icons.import_contacts_rounded, label: '기록 재배열'),
-              _SignalChip(icon: Icons.nightlight_round, label: '사적인 아카이브'),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: palette.surfaceStrong.withValues(alpha: 0.66),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: palette.outline.withValues(alpha: 0.35),
-              ),
-            ),
-            child: Text(
-              '완성된 문장보다 망설이는 질문에 더 잘 반응하도록 설계했습니다. 짧은 감정, 메모 한 줄, 애매한 불안도 그대로 적어 보세요.',
-              style: theme.textTheme.bodyMedium?.copyWith(color: palette.label),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '파일 가져오기와 프라이버시 설정은 오른쪽 위 설정에서 관리합니다.',
-            style: theme.textTheme.bodySmall,
           ),
         ],
       ),
@@ -246,125 +317,97 @@ class _HeroHeader extends StatelessWidget {
   }
 }
 
-class _QuestionPanel extends StatelessWidget {
-  const _QuestionPanel({
-    required this.controller,
-    required this.isLoading,
-    required this.errorMessage,
-    required this.runtimeStatus,
-    required this.onSubmit,
+class _FeatureStrip extends StatelessWidget {
+  const _FeatureStrip({required this.cards});
+
+  final List<_FeatureCardData> cards;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 700;
+        if (isWide) {
+          return Row(
+            children: [
+              for (var i = 0; i < cards.length; i++) ...[
+                Expanded(child: _FeatureCard(card: cards[i])),
+                if (i != cards.length - 1) const SizedBox(width: 14),
+              ],
+            ],
+          );
+        }
+        return Column(
+          children: [
+            for (var i = 0; i < cards.length; i++) ...[
+              _FeatureCard(card: cards[i]),
+              if (i != cards.length - 1) const SizedBox(height: 14),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _FeatureCardData {
+  const _FeatureCardData({
+    required this.icon,
+    required this.title,
+    required this.body,
   });
 
-  final TextEditingController controller;
-  final bool isLoading;
-  final String? errorMessage;
-  final AsyncValue<OnDeviceRuntimeStatus> runtimeStatus;
-  final VoidCallback onSubmit;
+  final IconData icon;
+  final String title;
+  final String body;
+}
+
+class _FeatureCard extends StatelessWidget {
+  const _FeatureCard({required this.card});
+
+  final _FeatureCardData card;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final palette = theme.extension<CuratorPalette>()!;
-    final runtimeLabel = _runtimeLabel();
-    final runtimeHint = _runtimeHint();
 
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: theme.cardTheme.color ?? palette.surfaceStrong,
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: palette.outline.withValues(alpha: 0.55)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.07),
-            blurRadius: 24,
-            offset: const Offset(0, 16),
-          ),
-        ],
+        color: palette.surfaceStrong.withValues(alpha: 0.84),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: palette.outline.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('오늘의 질문', style: theme.textTheme.titleLarge),
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: <Color>[
+                  palette.highlight.withValues(alpha: 0.86),
+                  palette.accent.withValues(alpha: 0.82),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(card.icon, color: theme.colorScheme.onPrimary),
+          ),
+          const SizedBox(height: 16),
+          Text(card.title, style: theme.textTheme.titleLarge),
           const SizedBox(height: 8),
           Text(
-            '지금 붙잡히는 감정과 문장을 적으면 기록 속 맥락을 다시 엮어 드립니다.',
+            card.body,
             style: theme.textTheme.bodyMedium?.copyWith(color: palette.label),
-          ),
-          const SizedBox(height: 18),
-          TextField(
-            key: const Key('questionTextField'),
-            controller: controller,
-            minLines: 4,
-            maxLines: 6,
-            textInputAction: TextInputAction.done,
-            decoration: const InputDecoration(
-              hintText: '요즘 떠오르는 고민이나 감정을 적어 주세요.',
-            ),
-          ),
-          const SizedBox(height: 14),
-          Text(runtimeHint, style: theme.textTheme.bodySmall),
-          const SizedBox(height: 10),
-          Text(
-            '예시: 일이 밀릴수록 더 멍해지고, 쉬는 시간도 죄책감이 들어요.',
-            style: theme.textTheme.bodySmall?.copyWith(color: palette.label),
-          ),
-          if (errorMessage != null) ...[
-            const SizedBox(height: 14),
-            Text(
-              errorMessage!,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.error,
-              ),
-            ),
-          ],
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            key: const Key('submitQuestionButton'),
-            onPressed: isLoading ? null : onSubmit,
-            icon: Icon(
-              isLoading
-                  ? Icons.hourglass_top_rounded
-                  : runtimeLabel.contains('네이티브')
-                  ? Icons.memory_rounded
-                  : Icons.travel_explore_rounded,
-            ),
-            label: Text(isLoading ? '기록을 찾는 중...' : runtimeLabel),
           ),
         ],
       ),
     );
-  }
-
-  String _runtimeLabel() {
-    final status = runtimeStatus.asData?.value;
-    if (status == null) {
-      return '런타임 확인 후 기록 연결하기';
-    }
-    if (status.runtime == 'remote-harness') {
-      return '원격 하네스로 기록 연결하기';
-    }
-    if (status.usingNativeLlm) {
-      return '네이티브로 기록 연결하기';
-    }
-    return '템플릿으로 기록 연결하기';
-  }
-
-  String _runtimeHint() {
-    final status = runtimeStatus.asData?.value;
-    if (status == null) {
-      return '런타임 준비 상태를 확인하는 중입니다. 확인 전에도 기본 폴백 경로로 질문을 보낼 수 있습니다.';
-    }
-    if (status.runtime == 'remote-harness') {
-      return '현재는 FastAPI 개발 하네스를 사용합니다.';
-    }
-    if (status.usingNativeLlm && status.usingNativeEmbedder) {
-      return '현재 네이티브 LLM과 임베더가 모두 준비되어 있습니다.';
-    }
-    if (status.usingNativeLlm) {
-      return '현재 LLM은 네이티브지만, 검색은 한국어 의미 임베딩 폴백으로 동작할 수 있습니다.';
-    }
-    return '현재는 폴백 생성 경로를 사용하며, 검색은 한국어 의미 임베딩으로 계속 기기 안에서 처리합니다.';
   }
 }
 
@@ -382,18 +425,15 @@ class _RuntimeStatusCard extends StatelessWidget {
     final theme = Theme.of(context);
     final palette = theme.extension<CuratorPalette>()!;
     final status = runtimeStatus.asData?.value;
-    final title = _titleFor(status);
-    final message = status?.message ?? '네이티브 런타임 준비 상태를 확인하고 있습니다.';
-    final accentColor = _accentFor(theme, status);
-    final fallbackNotice = status == null ? null : _fallbackNotice(status);
+    final presentation = _runtimePresentation(status);
 
     return Container(
       key: const Key('runtimeStatusCard'),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: palette.surfaceStrong.withValues(alpha: 0.78),
+        color: palette.surfaceStrong.withValues(alpha: 0.82),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: palette.outline.withValues(alpha: 0.5)),
+        border: Border.all(color: palette.outline.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -405,20 +445,20 @@ class _RuntimeStatusCard extends StatelessWidget {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.14),
+                  color: presentation.tint.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(_iconFor(status), color: accentColor),
+                child: Icon(presentation.icon, color: presentation.tint),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: theme.textTheme.titleLarge),
+                    Text('현재 상태', style: theme.textTheme.titleLarge),
                     const SizedBox(height: 6),
                     Text(
-                      message,
+                      presentation.summary,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: palette.label,
                       ),
@@ -427,68 +467,35 @@ class _RuntimeStatusCard extends StatelessWidget {
                 ),
               ),
               IconButton(
-                key: const Key('runtimeRefreshButton'),
                 onPressed: onRefresh,
-                tooltip: '런타임 상태 다시 확인',
+                tooltip: '상태 새로고침',
                 icon: const Icon(Icons.refresh_rounded),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           Wrap(
             spacing: 10,
             runSpacing: 10,
             children: [
-              _RuntimePill(
-                label: status == null ? '확인 중' : _runtimeKind(status),
-                color: accentColor,
+              _Pill(
+                label: presentation.badge,
+                icon: presentation.icon,
+                backgroundColor: presentation.tint.withValues(alpha: 0.12),
+                foregroundColor: presentation.tint,
               ),
-              if (status != null)
-                _RuntimePill(
-                  label: _llmStateLabel(status),
-                  color: status.usingNativeLlm
-                      ? Colors.teal.shade700
-                      : Colors.orange.shade700,
-                ),
-              if (status != null)
-                _RuntimePill(
-                  label: _embeddingStateLabel(status),
-                  color: status.usingNativeEmbedder
-                      ? Colors.teal.shade700
-                      : Colors.orange.shade700,
-                ),
-              if (status != null)
-                _RuntimePill(
-                  label: '플랫폼 ${status.platform}',
-                  color: palette.accentStrong,
-                ),
-              if (status?.lastPrepareDurationMs != null)
-                _RuntimePill(
-                  label: '초기화 ${status!.lastPrepareDurationMs}ms',
-                  color: palette.label,
-                ),
+              _Pill(
+                label: status == null
+                    ? '상태 확인 중'
+                    : status.runtime == 'remote-harness'
+                    ? '개발용 연결'
+                    : '온디바이스 우선',
+                icon: Icons.radar_rounded,
+                backgroundColor: palette.highlight.withValues(alpha: 0.14),
+                foregroundColor: palette.accentStrong,
+              ),
             ],
           ),
-          if (fallbackNotice != null) ...[
-            const SizedBox(height: 14),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: Colors.orange.withValues(alpha: 0.25),
-                ),
-              ),
-              child: Text(
-                fallbackNotice,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: palette.label,
-                ),
-              ),
-            ),
-          ],
           const SizedBox(height: 10),
           Theme(
             data: theme.copyWith(dividerColor: Colors.transparent),
@@ -496,51 +503,43 @@ class _RuntimeStatusCard extends StatelessWidget {
               key: const Key('runtimeDeveloperPanel'),
               tilePadding: EdgeInsets.zero,
               childrenPadding: const EdgeInsets.only(bottom: 4),
-              title: Text('개발자 정보', style: theme.textTheme.titleMedium),
+              title: Text('세부 상태 보기', style: theme.textTheme.titleMedium),
               subtitle: Text(
-                status?.lastError == null
-                    ? '모델 준비 상태와 마지막 오류를 확인합니다.'
-                    : '마지막 오류: ${status!.lastError}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: palette.label,
-                ),
+                '너무 기술적인 내용은 접어 두고, 필요할 때만 확인할 수 있습니다.',
+                style: theme.textTheme.bodySmall,
               ),
               children: [
                 _RuntimeFact(
-                  label: 'LLM 모델',
-                  value: _modelState(
-                    configured: status?.llmModelConfigured ?? false,
-                    available: status?.llmModelAvailable ?? false,
-                    ready: status?.llmReady ?? false,
-                  ),
-                ),
-                _RuntimeFact(
-                  label: '임베더 모델',
-                  value: _modelState(
-                    configured: status?.embedderModelConfigured ?? false,
-                    available: status?.embedderModelAvailable ?? false,
-                    ready: status?.embedderReady ?? false,
-                  ),
-                ),
-                _RuntimeFact(
-                  label: '임베딩 경로',
-                  value: status?.usingNativeEmbedder ?? false
-                      ? '네이티브 임베딩'
-                      : '의미 임베딩 폴백',
-                ),
-                _RuntimeFact(
-                  label: '런타임 코드',
-                  value: status?.runtime ?? 'loading',
-                ),
-                _RuntimeFact(
-                  label: '폴백 활성화',
+                  label: '생성 엔진',
                   value: status == null
                       ? '확인 중'
-                      : status.fallbackActive
-                      ? '예'
-                      : '아니오',
+                      : status.usingNativeLlm
+                      ? '네이티브'
+                      : status.runtime == 'remote-harness'
+                      ? '원격 개발 하네스'
+                      : '로컬 폴백',
                 ),
-                _RuntimeFact(label: '마지막 오류', value: status?.lastError ?? '없음'),
+                _RuntimeFact(
+                  label: '검색 엔진',
+                  value: status == null
+                      ? '확인 중'
+                      : status.usingNativeEmbedder
+                      ? '네이티브'
+                      : '의미 임베딩 폴백',
+                ),
+                _RuntimeFact(label: '플랫폼', value: status?.platform ?? '확인 중'),
+                _RuntimeFact(
+                  label: '초기화 시간',
+                  value: status?.lastPrepareDurationMs == null
+                      ? '기록 없음'
+                      : '${status!.lastPrepareDurationMs}ms',
+                ),
+                _RuntimeFact(
+                  label: '상태 메시지',
+                  value: status?.message ?? '런타임을 확인하고 있습니다.',
+                ),
+                if (status?.lastError != null)
+                  _RuntimeFact(label: '마지막 오류', value: status!.lastError!),
               ],
             ),
           ),
@@ -548,130 +547,378 @@ class _RuntimeStatusCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  static String _titleFor(OnDeviceRuntimeStatus? status) {
-    if (status == null) {
-      return '런타임 상태 확인 중';
-    }
-    if (status.runtime == 'remote-harness') {
-      return '원격 API 하네스 사용 중';
-    }
-    if (status.usingNativeLlm && status.usingNativeEmbedder) {
-      return '네이티브 LLM 사용 가능';
-    }
-    if (status.usingNativeLlm) {
-      return '네이티브 LLM 부분 준비';
-    }
-    return '템플릿 폴백 사용 중';
-  }
+class _EmptyResultSection extends StatelessWidget {
+  const _EmptyResultSection();
 
-  static String _runtimeKind(OnDeviceRuntimeStatus status) {
-    if (status.runtime == 'remote-harness') {
-      return '원격 하네스';
-    }
-    if (status.usingNativeLlm && status.usingNativeEmbedder) {
-      return '온디바이스 네이티브';
-    }
-    if (status.usingNativeLlm) {
-      return '온디바이스 부분 준비';
-    }
-    return '온디바이스 폴백';
-  }
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
 
-  static String _llmStateLabel(OnDeviceRuntimeStatus status) {
-    return status.usingNativeLlm ? 'LLM: 네이티브' : 'LLM: 폴백';
-  }
-
-  static String _embeddingStateLabel(OnDeviceRuntimeStatus status) {
-    return status.usingNativeEmbedder ? '임베딩: 네이티브' : '임베딩: 의미 폴백';
-  }
-
-  static IconData _iconFor(OnDeviceRuntimeStatus? status) {
-    if (status == null) {
-      return Icons.hourglass_top_rounded;
-    }
-    if (status.runtime == 'remote-harness') {
-      return Icons.cloud_sync_rounded;
-    }
-    if (status.usingNativeLlm && status.usingNativeEmbedder) {
-      return Icons.memory_rounded;
-    }
-    if (status.lastError != null) {
-      return Icons.warning_amber_rounded;
-    }
-    return Icons.layers_clear_rounded;
-  }
-
-  static Color _accentFor(ThemeData theme, OnDeviceRuntimeStatus? status) {
-    if (status == null) {
-      return theme.colorScheme.primary;
-    }
-    if (status.runtime == 'remote-harness') {
-      return theme.colorScheme.secondary;
-    }
-    if (status.usingNativeLlm && status.usingNativeEmbedder) {
-      return Colors.teal.shade700;
-    }
-    if (status.lastError != null) {
-      return theme.colorScheme.error;
-    }
-    return Colors.orange.shade700;
-  }
-
-  static String _modelState({
-    required bool configured,
-    required bool available,
-    required bool ready,
-  }) {
-    if (ready) {
-      return '준비 완료';
-    }
-    if (configured && !available) {
-      return '경로 설정됨, 파일 없음';
-    }
-    if (configured) {
-      return '경로 설정됨, 초기화 대기';
-    }
-    return '미설정';
-  }
-
-  static String? _fallbackNotice(OnDeviceRuntimeStatus status) {
-    if (status.runtime == 'remote-harness') {
-      return null;
-    }
-    if (!status.usingNativeLlm && !status.usingNativeEmbedder) {
-      return '현재 생성은 템플릿 폴백, 검색은 한국어 의미 임베딩 폴백으로 동작합니다.';
-    }
-    if (!status.usingNativeEmbedder) {
-      return '임베딩 모델이 준비되지 않아 검색은 한국어 의미 임베딩 폴백으로 처리합니다.';
-    }
-    if (!status.usingNativeLlm) {
-      return 'LLM이 준비되지 않아 응답 생성은 폴백 경로를 사용하지만, 임베딩 검색은 계속 온디바이스로 수행합니다.';
-    }
-    return null;
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: palette.surfaceStrong.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: palette.outline.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('최근 큐레이션', style: theme.textTheme.titleLarge),
+          const SizedBox(height: 8),
+          Text(
+            '아직 첫 질문이 없습니다. 아래 플로팅 바에 지금 떠오르는 고민을 적으면, 최근 기록의 흐름을 바로 묶어서 보여 드립니다.',
+            style: theme.textTheme.bodyMedium?.copyWith(color: palette.label),
+          ),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: const [
+              _ExampleChip('퇴근 후에도 머리가 안 쉬어요'),
+              _ExampleChip('요즘 사람 만나는 게 왜 버겁지'),
+              _ExampleChip('이번 주 감정 기복이 커진 이유가 뭘까'),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 
-class _RuntimePill extends StatelessWidget {
-  const _RuntimePill({required this.label, required this.color});
+class _ResultSection extends StatelessWidget {
+  const _ResultSection({required this.response, required this.lastQuestion});
+
+  final CuratedResponse response;
+  final String lastQuestion;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
+
+    return Container(
+      key: const Key('responseSection'),
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: palette.surfaceStrong.withValues(alpha: 0.84),
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: palette.outline.withValues(alpha: 0.22)),
+        boxShadow: [
+          BoxShadow(
+            color: palette.shadowColor.withValues(alpha: 0.08),
+            blurRadius: 22,
+            offset: const Offset(0, 16),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('최근 큐레이션', style: theme.textTheme.titleLarge),
+                    const SizedBox(height: 6),
+                    Text(
+                      lastQuestion.isEmpty
+                          ? '방금 남긴 질문을 바탕으로 정리했습니다.'
+                          : '질문: $lastQuestion',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              if (response.runtimeInfo != null)
+                _Pill(
+                  label: response.runtimeInfo!.label,
+                  icon: response.runtimeInfo!.isFallback
+                      ? Icons.layers_clear_rounded
+                      : Icons.auto_awesome_rounded,
+                  backgroundColor: response.runtimeInfo!.isFallback
+                      ? Colors.orange.withValues(alpha: 0.12)
+                      : palette.highlight.withValues(alpha: 0.14),
+                  foregroundColor: response.runtimeInfo!.isFallback
+                      ? Colors.orange.shade800
+                      : palette.accentStrong,
+                ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Text(response.insightTitle, style: theme.textTheme.headlineSmall),
+          const SizedBox(height: 8),
+          Text(
+            response.summary,
+            style: theme.textTheme.bodyMedium?.copyWith(color: palette.label),
+          ),
+          const SizedBox(height: 18),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: <Color>[
+                  palette.surface.withValues(alpha: 0.9),
+                  palette.accentSoft.withValues(alpha: 0.22),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Text(response.answer, style: theme.textTheme.bodyLarge),
+          ),
+          const SizedBox(height: 18),
+          if (response.supportingRecords.isNotEmpty) ...[
+            Text('이렇게 읽었습니다', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 10),
+            for (final record in response.supportingRecords.take(2)) ...[
+              _SupportingRecordCard(record: record),
+              if (record != response.supportingRecords.take(2).last)
+                const SizedBox(height: 10),
+            ],
+            const SizedBox(height: 16),
+          ],
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: palette.highlight.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Text(
+              '다음 질문: ${response.suggestedFollowUp}',
+              style: theme.textTheme.bodyMedium,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SupportingRecordCard extends StatelessWidget {
+  const _SupportingRecordCard({required this.record});
+
+  final SupportingRecord record;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: palette.surface.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: palette.outline.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _SmallTag(record.source),
+              _SmallTag(_formatDate(record.createdAt)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(record.title, style: theme.textTheme.titleMedium),
+          const SizedBox(height: 6),
+          Text(
+            record.excerpt,
+            style: theme.textTheme.bodyMedium?.copyWith(color: palette.label),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            record.relevanceReason,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: palette.accentStrong,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FloatingQuestionComposer extends StatelessWidget {
+  const _FloatingQuestionComposer({
+    required this.controller,
+    required this.isLoading,
+    required this.errorMessage,
+    required this.runtimeStatus,
+    required this.onSubmit,
+  });
+
+  final TextEditingController controller;
+  final bool isLoading;
+  final String? errorMessage;
+  final AsyncValue<OnDeviceRuntimeStatus> runtimeStatus;
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
+    final presentation = _runtimePresentation(runtimeStatus.asData?.value);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+      decoration: BoxDecoration(
+        color: palette.surfaceStrong.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: palette.outline.withValues(alpha: 0.28)),
+        boxShadow: [
+          BoxShadow(
+            color: palette.shadowColor.withValues(alpha: 0.16),
+            blurRadius: 40,
+            offset: const Offset(0, 20),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('지금 떠오른 질문', style: theme.textTheme.titleLarge),
+                    const SizedBox(height: 4),
+                    Text(
+                      '길게 설명하지 않아도 괜찮습니다. 한 문장만 남겨도 시작할 수 있습니다.',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              _Pill(
+                label: presentation.badge,
+                icon: presentation.icon,
+                backgroundColor: presentation.tint.withValues(alpha: 0.12),
+                foregroundColor: presentation.tint,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            key: const Key('questionTextField'),
+            controller: controller,
+            minLines: 2,
+            maxLines: 4,
+            textInputAction: TextInputAction.done,
+            decoration: const InputDecoration(
+              hintText: '예: 일이 밀릴수록 쉬는 시간에도 죄책감이 들어요.',
+            ),
+          ),
+          if (errorMessage != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              errorMessage!,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '의학·심리 진단이 아닌 개인 기록 해석 도구입니다.',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+              const SizedBox(width: 12),
+              FilledButton.icon(
+                key: const Key('submitQuestionButton'),
+                onPressed: isLoading ? null : onSubmit,
+                icon: Icon(
+                  isLoading
+                      ? Icons.hourglass_top_rounded
+                      : Icons.arrow_upward_rounded,
+                ),
+                label: Text(isLoading ? '읽는 중...' : '큐레이션 시작'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({
+    required this.label,
+    required this.icon,
+    required this.backgroundColor,
+    required this.foregroundColor,
+  });
 
   final String label;
-  final Color color;
+  final IconData icon;
+  final Color backgroundColor;
+  final Color foregroundColor;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(
-        label,
-        style: theme.textTheme.labelLarge?.copyWith(color: color),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: foregroundColor),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: theme.textTheme.labelLarge?.copyWith(color: foregroundColor),
+          ),
+        ],
       ),
+    );
+  }
+}
+
+class _SmallTag extends StatelessWidget {
+  const _SmallTag(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: palette.surfaceStrong.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(label, style: theme.textTheme.labelSmall),
     );
   }
 }
@@ -693,313 +940,12 @@ class _RuntimeFact extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 96,
-            child: Text(
-              label,
-              style: theme.textTheme.bodySmall?.copyWith(color: palette.label),
-            ),
+            width: 88,
+            child: Text(label, style: theme.textTheme.titleSmall),
           ),
-          Expanded(child: Text(value, style: theme.textTheme.bodyMedium)),
-        ],
-      ),
-    );
-  }
-}
-
-class _PreviewPanel extends StatelessWidget {
-  const _PreviewPanel();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final palette = theme.extension<CuratorPalette>()!;
-
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: palette.surfaceStrong.withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: palette.outline.withValues(alpha: 0.45)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('이런 방식으로 엮습니다', style: theme.textTheme.titleLarge),
-          const SizedBox(height: 16),
-          const _PreviewStep(
-            index: '01',
-            title: '표현의 반복을 읽습니다',
-            description: '기분, 행동, 회피 패턴처럼 자주 되돌아오는 문장을 먼저 찾아냅니다.',
-          ),
-          const _PreviewStep(
-            index: '02',
-            title: '기록 사이의 간격을 연결합니다',
-            description: '한 번의 메모가 아니라 시간에 따라 어떻게 감정이 이동했는지 보여줍니다.',
-          ),
-          const _PreviewStep(
-            index: '03',
-            title: '지금 필요한 질문을 남깁니다',
-            description: '답을 단정하기보다 다음 기록을 위한 후속 질문을 건네는 방식입니다.',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PreviewStep extends StatelessWidget {
-  const _PreviewStep({
-    required this.index,
-    required this.title,
-    required this.description,
-  });
-
-  final String index;
-  final String title;
-  final String description;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final palette = theme.extension<CuratorPalette>()!;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: palette.surfaceMuted,
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Text(index, style: theme.textTheme.labelLarge),
-          ),
-          const SizedBox(width: 14),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: theme.textTheme.titleMedium),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: palette.label,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ResultSection extends StatelessWidget {
-  const _ResultSection({required this.response, required this.lastQuestion});
-
-  final CuratedResponse response;
-  final String lastQuestion;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final palette = theme.extension<CuratorPalette>()!;
-
-    return Column(
-      key: const Key('responseSection'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: <Color>[
-                palette.surfaceStrong.withValues(alpha: 0.94),
-                palette.surface.withValues(alpha: 0.9),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: palette.outline.withValues(alpha: 0.55)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: palette.surfaceMuted,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Image.asset('assets/branding/curator_mark.png'),
-                  ),
-                  const SizedBox(width: 12),
-                  Text('오늘의 큐레이션', style: theme.textTheme.titleLarge),
-                ],
-              ),
-              if (response.runtimeInfo != null) ...[
-                const SizedBox(height: 14),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: response.runtimeInfo!.isFallback
-                        ? Colors.orange.withValues(alpha: 0.12)
-                        : Colors.teal.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '이번 응답: ${response.runtimeInfo!.label}',
-                        style: theme.textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        response.runtimeInfo!.message,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: palette.label,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 22),
-              Text(
-                '질문',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: palette.label,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(lastQuestion, style: theme.textTheme.headlineSmall),
-              const SizedBox(height: 22),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: palette.surfaceStrong.withValues(alpha: 0.72),
-                  borderRadius: BorderRadius.circular(26),
-                  border: Border.all(
-                    color: palette.outline.withValues(alpha: 0.35),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      response.insightTitle,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(response.summary, style: theme.textTheme.bodyLarge),
-                    const SizedBox(height: 16),
-                    Text(
-                      response.answer,
-                      style: theme.textTheme.bodyLarge?.copyWith(height: 1.65),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: palette.accentSoft.withValues(alpha: 0.32),
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: Text(
-                  response.suggestedFollowUp,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: palette.accentStrong,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 18),
-        Text('연결된 기록', style: theme.textTheme.titleLarge),
-        const SizedBox(height: 12),
-        for (final record in response.supportingRecords) ...[
-          _SupportingRecordCard(record: record),
-          const SizedBox(height: 12),
-        ],
-      ],
-    );
-  }
-}
-
-class _SupportingRecordCard extends StatelessWidget {
-  const _SupportingRecordCard({required this.record});
-
-  final SupportingRecord record;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final palette = theme.extension<CuratorPalette>()!;
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color ?? palette.surfaceStrong,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: palette.outline.withValues(alpha: 0.45)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: palette.surfaceMuted,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(record.source, style: theme.textTheme.labelLarge),
-              ),
-              const Spacer(),
-              Text(
-                _formatDate(record.createdAt),
-                style: theme.textTheme.bodySmall,
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(record.title, style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Text(record.excerpt, style: theme.textTheme.bodyMedium),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: palette.surfaceMuted.withValues(alpha: 0.68),
-              borderRadius: BorderRadius.circular(18),
-            ),
             child: Text(
-              record.relevanceReason,
+              value,
               style: theme.textTheme.bodySmall?.copyWith(color: palette.label),
             ),
           ),
@@ -1007,62 +953,89 @@ class _SupportingRecordCard extends StatelessWidget {
       ),
     );
   }
-
-  static String _formatDate(DateTime value) {
-    final month = value.month.toString().padLeft(2, '0');
-    final day = value.day.toString().padLeft(2, '0');
-    return '${value.year}-$month-$day';
-  }
 }
 
-class _SignalChip extends StatelessWidget {
-  const _SignalChip({required this.icon, required this.label});
+class _ExampleChip extends StatelessWidget {
+  const _ExampleChip(this.label);
 
-  final IconData icon;
   final String label;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: theme.chipTheme.backgroundColor,
+        color: palette.surface.withValues(alpha: 0.84),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.16)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: theme.colorScheme.primary),
-          const SizedBox(width: 8),
-          Text(label, style: theme.textTheme.labelLarge),
-        ],
+      child: Text(
+        label,
+        style: theme.textTheme.bodySmall?.copyWith(color: palette.label),
       ),
     );
   }
 }
 
-class _AmbientGlow extends StatelessWidget {
-  const _AmbientGlow({required this.color, required this.diameter});
+String _formatDate(DateTime dateTime) {
+  final month = dateTime.month.toString().padLeft(2, '0');
+  final day = dateTime.day.toString().padLeft(2, '0');
+  return '${dateTime.year}.$month.$day';
+}
 
-  final Color color;
-  final double diameter;
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        width: diameter,
-        height: diameter,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(
-            colors: <Color>[color, color.withValues(alpha: 0)],
-          ),
-        ),
-      ),
+_RuntimePresentation _runtimePresentation(OnDeviceRuntimeStatus? status) {
+  if (status == null) {
+    return const _RuntimePresentation(
+      badge: '준비 상태 확인 중',
+      summary: '기기 안 큐레이션 준비 상태를 확인하고 있습니다.',
+      icon: Icons.motion_photos_on_rounded,
+      tint: Color(0xFFC1784E),
     );
   }
+  if (status.runtime == 'remote-harness') {
+    return const _RuntimePresentation(
+      badge: '개발용 원격 연결',
+      summary: '현재는 개발 하네스로 응답을 확인하고 있습니다.',
+      icon: Icons.cloud_queue_rounded,
+      tint: Color(0xFFB26147),
+    );
+  }
+  if (status.usingNativeLlm && status.usingNativeEmbedder) {
+    return const _RuntimePresentation(
+      badge: '기기 안에서 분석 중',
+      summary: '질문과 검색 흐름이 모두 기기 안에서 정리됩니다.',
+      icon: Icons.phone_android_rounded,
+      tint: Color(0xFFB45F43),
+    );
+  }
+  if (status.usingNativeLlm) {
+    return const _RuntimePresentation(
+      badge: '대부분 기기 안에서 처리',
+      summary: '생성은 네이티브, 검색은 로컬 보조 경로로 이어집니다.',
+      icon: Icons.memory_rounded,
+      tint: Color(0xFFC1724A),
+    );
+  }
+  return const _RuntimePresentation(
+    badge: '가벼운 큐레이션 모드',
+    summary: '네이티브 모델 없이도 기록의 흐름을 계속 읽어 드립니다.',
+    icon: Icons.auto_fix_high_rounded,
+    tint: Color(0xFFCE8B49),
+  );
+}
+
+class _RuntimePresentation {
+  const _RuntimePresentation({
+    required this.badge,
+    required this.summary,
+    required this.icon,
+    required this.tint,
+  });
+
+  final String badge;
+  final String summary;
+  final IconData icon;
+  final Color tint;
 }

@@ -28,12 +28,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('큐레이터에 오신 것을 환영합니다'), findsOneWidget);
-    expect(find.byKey(const Key('completeOnboardingButton')), findsOneWidget);
+    expect(find.text('당신의 일상,\nAI가 큐레이션합니다'), findsOneWidget);
+    expect(find.byKey(const Key('onboardingSkipButton')), findsOneWidget);
 
-    await tester.ensureVisible(
-      find.byKey(const Key('completeOnboardingButton')),
-    );
+    await tester.tap(find.byKey(const Key('onboardingSkipButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('시작하기 전에\n기록을 불러오세요'), findsOneWidget);
     await tester.tap(find.byKey(const Key('completeOnboardingButton')));
     await tester.pumpAndSettle();
 

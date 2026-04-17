@@ -29,16 +29,11 @@ void main() {
       ),
     );
 
-    expect(find.text('네이티브 LLM 사용 가능'), findsOneWidget);
-    expect(find.text('온디바이스 네이티브'), findsOneWidget);
-    expect(find.text('LLM: 네이티브'), findsOneWidget);
-    expect(find.text('임베딩: 네이티브'), findsOneWidget);
+    expect(find.text('당신의 일상을 큐레이션합니다'), findsOneWidget);
+    expect(find.text('기기 안에서 분석 중'), findsWidgets);
 
-    await tester.tap(find.byKey(const Key('runtimeDeveloperPanel')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('LLM 모델'), findsOneWidget);
-    expect(find.text('준비 완료'), findsWidgets);
+    expect(find.text('현재 상태'), findsOneWidget);
+    expect(find.text('온디바이스 우선'), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.byKey(const Key('submitQuestionButton')),
@@ -49,9 +44,10 @@ void main() {
     await tester.tap(find.byKey(const Key('submitQuestionButton')));
     await tester.pumpAndSettle();
 
+    expect(find.text('최근 큐레이션'), findsWidgets);
     expect(find.text('최근 기록에서 반복된 흐름'), findsOneWidget);
     expect(find.text('테스트 환경에서도 질문 흐름이 화면에 표시됩니다.'), findsOneWidget);
-    expect(find.text('이번 응답: 템플릿 폴백 사용 중'), findsOneWidget);
+    expect(find.text('템플릿 폴백 사용 중'), findsOneWidget);
     expect(find.byKey(const Key('responseSection')), findsOneWidget);
   });
 
@@ -74,9 +70,10 @@ void main() {
       ),
     );
 
-    expect(find.text('템플릿 폴백 사용 중'), findsOneWidget);
-    expect(find.textContaining('의미 임베딩 폴백'), findsWidgets);
-    expect(find.textContaining('검색은 한국어 의미 임베딩'), findsWidgets);
+    expect(find.text('가벼운 큐레이션 모드'), findsWidgets);
+
+    expect(find.text('현재 상태'), findsOneWidget);
+    expect(find.text('온디바이스 우선'), findsOneWidget);
   });
 
   testWidgets('홈 화면에서 설정 화면으로 이동할 수 있다', (WidgetTester tester) async {
@@ -102,7 +99,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('설정'), findsOneWidget);
-    expect(find.text('런타임 모드'), findsOneWidget);
+    expect(find.text('사용 방식'), findsOneWidget);
   });
 }
 

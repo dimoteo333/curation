@@ -53,7 +53,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('런타임 모드'), findsOneWidget);
+    expect(find.text('사용 방식'), findsOneWidget);
     expect(find.text('저장된 기록 5건'), findsOneWidget);
     expect(find.byKey(const Key('settingsImportButton')), findsOneWidget);
 
