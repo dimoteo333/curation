@@ -10,10 +10,7 @@ void main() {
   testWidgets('첫 실행 시 온보딩을 보여주고 완료 후 홈으로 진입한다', (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues(const <String, Object>{});
     final preferences = await SharedPreferences.getInstance();
-    tester.view.physicalSize = const Size(1200, 2200);
-    tester.view.devicePixelRatio = 2;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+    _setViewport(tester, const Size(1200, 2200));
 
     await tester.pumpWidget(
       ProviderScope(
@@ -41,6 +38,37 @@ void main() {
     expect(find.byKey(const Key('openSettingsButton')), findsOneWidget);
     expect(preferences.getBool('app.onboarding_completed'), isTrue);
   });
+
+  testWidgets('작은 화면에서도 온보딩 화면이 overflow 없이 렌더링된다', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(const <String, Object>{});
+    final preferences = await SharedPreferences.getInstance();
+    _setViewport(tester, const Size(640, 1136));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(preferences),
+          onDeviceLlmBridgeProvider.overrideWithValue(
+            const _FakeOnDeviceLlmBridge(),
+          ),
+        ],
+        child: const CuratorApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('onboardingSkipButton')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+}
+
+void _setViewport(WidgetTester tester, Size physicalSize) {
+  tester.view.physicalSize = physicalSize;
+  tester.view.devicePixelRatio = 2;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
 }
 
 class _FakeOnDeviceLlmBridge implements OnDeviceLlmBridge {

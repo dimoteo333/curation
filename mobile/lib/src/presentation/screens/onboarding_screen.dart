@@ -56,6 +56,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final isLastPage = _currentPage == _pages.length - 1;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: CuratorBackdrop(
         child: SafeArea(
           child: Center(
@@ -220,66 +221,86 @@ class _OnboardingPage extends StatelessWidget {
     final theme = Theme.of(context);
     final palette = theme.extension<CuratorPalette>()!;
 
-    return AnimatedScale(
-      duration: const Duration(milliseconds: 260),
-      scale: isActive ? 1 : 0.97,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 240),
-        opacity: isActive ? 1 : 0.76,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 22),
-            decoration: BoxDecoration(
-              color: palette.surfaceStrong.withValues(alpha: 0.88),
-              borderRadius: BorderRadius.circular(38),
-              border: Border.all(
-                color: palette.outline.withValues(alpha: 0.22),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final artworkSize = (constraints.maxHeight * 0.32)
+            .clamp(148.0, 220.0)
+            .toDouble();
+        final heroSpacing = constraints.maxHeight < 520 ? 16.0 : 24.0;
+        final detailSpacing = constraints.maxHeight < 520 ? 16.0 : 20.0;
+
+        return AnimatedScale(
+          duration: const Duration(milliseconds: 260),
+          scale: isActive ? 1 : 0.97,
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 240),
+            opacity: isActive ? 1 : 0.76,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: palette.surfaceStrong.withValues(alpha: 0.88),
+                  borderRadius: BorderRadius.circular(38),
+                  border: Border.all(
+                    color: palette.outline.withValues(alpha: 0.22),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: palette.shadowColor.withValues(alpha: 0.1),
+                      blurRadius: 34,
+                      offset: const Offset(0, 24),
+                    ),
+                  ],
+                ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 22),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: (constraints.maxHeight - 46).clamp(
+                        0.0,
+                        double.infinity,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: CuratorOrbitArtwork(
+                            size: artworkSize,
+                            icon: data.icon,
+                            showBrandMark: pageIndex == 0,
+                          ),
+                        ),
+                        SizedBox(height: heroSpacing),
+                        _PageLabel(page: pageIndex + 1, total: 3),
+                        const SizedBox(height: 10),
+                        Text(data.title, style: theme.textTheme.displaySmall),
+                        const SizedBox(height: 12),
+                        Text(
+                          data.body,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: palette.label,
+                          ),
+                        ),
+                        SizedBox(height: detailSpacing),
+                        for (final highlight in data.highlights) ...[
+                          _HighlightCard(
+                            icon: data.icon,
+                            body: highlight,
+                            isPrimary: highlight == data.highlights.first,
+                          ),
+                          if (highlight != data.highlights.last)
+                            const SizedBox(height: 12),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: palette.shadowColor.withValues(alpha: 0.1),
-                  blurRadius: 34,
-                  offset: const Offset(0, 24),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: CuratorOrbitArtwork(
-                    size: 220,
-                    icon: data.icon,
-                    showBrandMark: pageIndex == 0,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                _PageLabel(page: pageIndex + 1, total: 3),
-                const SizedBox(height: 10),
-                Text(data.title, style: theme.textTheme.displaySmall),
-                const SizedBox(height: 12),
-                Text(
-                  data.body,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: palette.label,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                for (final highlight in data.highlights) ...[
-                  _HighlightCard(
-                    icon: data.icon,
-                    body: highlight,
-                    isPrimary: highlight == data.highlights.first,
-                  ),
-                  if (highlight != data.highlights.last)
-                    const SizedBox(height: 12),
-                ],
-              ],
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

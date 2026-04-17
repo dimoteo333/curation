@@ -50,6 +50,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(title: const Text('설정')),
       body: CuratorBackdrop(
         child: SafeArea(
@@ -59,6 +60,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 760),
               child: ListView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
                 children: [
                   _SettingsHero(runtimeStatus: runtimeStatus),
@@ -371,15 +374,21 @@ class _SettingsHero extends StatelessWidget {
         borderRadius: BorderRadius.circular(34),
         border: Border.all(color: palette.outline.withValues(alpha: 0.22)),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const CuratorOrbitArtwork(size: 130, icon: Icons.settings_rounded),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isCompact = constraints.maxWidth < 560;
+
+          if (isCompact) {
+            return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const Center(
+                  child: CuratorOrbitArtwork(
+                    size: 116,
+                    icon: Icons.settings_rounded,
+                  ),
+                ),
+                const SizedBox(height: 16),
                 Text('내 기록은 내 기기 안에서', style: theme.textTheme.headlineSmall),
                 const SizedBox(height: 8),
                 Text(
@@ -389,9 +398,38 @@ class _SettingsHero extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
-          ),
-        ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const CuratorOrbitArtwork(
+                size: 130,
+                icon: Icons.settings_rounded,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '내 기록은 내 기기 안에서',
+                      style: theme.textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      statusText,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: palette.label,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

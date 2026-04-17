@@ -36,131 +36,138 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final state = ref.watch(curationControllerProvider);
     final controller = ref.read(curationControllerProvider.notifier);
     final runtimeStatus = ref.watch(onDeviceRuntimeStatusProvider);
-    final theme = Theme.of(context);
-    final palette = theme.extension<CuratorPalette>()!;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: CuratorBackdrop(
         child: SafeArea(
-          child: Stack(
-            children: [
-              Align(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final theme = Theme.of(context);
+              final palette = theme.extension<CuratorPalette>()!;
+              final contentWidth = constraints.maxWidth > 760
+                  ? 760.0
+                  : constraints.maxWidth;
+
+              return Align(
                 alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 760),
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 260),
+                child: SizedBox(
+                  width: contentWidth,
+                  height: constraints.maxHeight,
+                  child: Column(
                     children: [
-                      _HomeTopBar(
-                        onOpenSettings: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => const SettingsScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 18),
-                      _HeroCard(runtimeStatus: runtimeStatus),
-                      const SizedBox(height: 18),
-                      _FeatureStrip(
-                        cards: const [
-                          _FeatureCardData(
-                            icon: Icons.auto_awesome_rounded,
-                            title: '온디바이스 AI 큐레이션',
-                            body: '흩어진 메모와 일기의 결을 다시 묶어 개인적인 흐름으로 정리합니다.',
-                          ),
-                          _FeatureCardData(
-                            icon: Icons.lock_rounded,
-                            title: '프라이버시 우선',
-                            body: '질문, 검색, 인사이트는 기본적으로 기기 안에서만 머무르도록 설계했습니다.',
-                          ),
-                          _FeatureCardData(
-                            icon: Icons.timeline_rounded,
-                            title: '기록 기반 맞춤 인사이트',
-                            body: '한 번의 감정이 아니라 최근의 반복과 맥락을 함께 읽어 드립니다.',
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 18),
-                      _RuntimeStatusCard(
-                        runtimeStatus: runtimeStatus,
-                        onRefresh: () =>
-                            ref.invalidate(onDeviceRuntimeStatusProvider),
-                      ),
-                      const SizedBox(height: 18),
-                      if (state.response != null)
-                        _ResultSection(
-                          response: state.response!,
-                          lastQuestion: state.lastQuestion,
-                        )
-                      else
-                        const _EmptyResultSection(),
-                      const SizedBox(height: 18),
-                      Container(
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          color: palette.surfaceStrong.withValues(alpha: 0.72),
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: palette.outline.withValues(alpha: 0.24),
-                          ),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      Expanded(
+                        child: ListView(
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
+                          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
                           children: [
-                            Container(
-                              width: 42,
-                              height: 42,
-                              decoration: BoxDecoration(
-                                color: palette.highlight.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Icon(
-                                Icons.info_outline_rounded,
-                                color: palette.accentStrong,
-                              ),
+                            _HomeTopBar(
+                              onOpenSettings: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => const SettingsScreen(),
+                                  ),
+                                );
+                              },
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                '큐레이터는 일상 기록을 정리하고 질문을 돕는 도구이며, 의학적 또는 심리 진단을 제공하지 않습니다.',
-                                style: theme.textTheme.bodySmall,
+                            const SizedBox(height: 18),
+                            _HeroCard(runtimeStatus: runtimeStatus),
+                            const SizedBox(height: 18),
+                            _FeatureStrip(
+                              cards: const [
+                                _FeatureCardData(
+                                  icon: Icons.auto_awesome_rounded,
+                                  title: '온디바이스 AI 큐레이션',
+                                  body: '흩어진 메모와 일기의 결을 다시 묶어 개인적인 흐름으로 정리합니다.',
+                                ),
+                                _FeatureCardData(
+                                  icon: Icons.lock_rounded,
+                                  title: '프라이버시 우선',
+                                  body:
+                                      '질문, 검색, 인사이트는 기본적으로 기기 안에서만 머무르도록 설계했습니다.',
+                                ),
+                                _FeatureCardData(
+                                  icon: Icons.timeline_rounded,
+                                  title: '기록 기반 맞춤 인사이트',
+                                  body: '한 번의 감정이 아니라 최근의 반복과 맥락을 함께 읽어 드립니다.',
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 18),
+                            _RuntimeStatusCard(
+                              runtimeStatus: runtimeStatus,
+                              onRefresh: () =>
+                                  ref.invalidate(onDeviceRuntimeStatusProvider),
+                            ),
+                            const SizedBox(height: 18),
+                            if (state.response != null)
+                              _ResultSection(
+                                response: state.response!,
+                                lastQuestion: state.lastQuestion,
+                              )
+                            else
+                              const _EmptyResultSection(),
+                            const SizedBox(height: 18),
+                            Container(
+                              padding: const EdgeInsets.all(18),
+                              decoration: BoxDecoration(
+                                color: palette.surfaceStrong.withValues(
+                                  alpha: 0.72,
+                                ),
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                  color: palette.outline.withValues(
+                                    alpha: 0.24,
+                                  ),
+                                ),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    width: 42,
+                                    height: 42,
+                                    decoration: BoxDecoration(
+                                      color: palette.highlight.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    child: Icon(
+                                      Icons.info_outline_rounded,
+                                      color: palette.accentStrong,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      '큐레이터는 일상 기록을 정리하고 질문을 돕는 도구이며, 의학적 또는 심리 진단을 제공하지 않습니다.',
+                                      style: theme.textTheme.bodySmall,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
                       ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                        child: _FloatingQuestionComposer(
+                          controller: _controller,
+                          isLoading: state.isLoading,
+                          errorMessage: state.errorMessage,
+                          runtimeStatus: runtimeStatus,
+                          onSubmit: () =>
+                              controller.submitQuestion(_controller.text),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-              ),
-              SafeArea(
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: Align(
-                        alignment: Alignment.bottomCenter,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 760),
-                          child: _FloatingQuestionComposer(
-                            controller: _controller,
-                            isLoading: state.isLoading,
-                            errorMessage: state.errorMessage,
-                            runtimeStatus: runtimeStatus,
-                            onSubmit: () =>
-                                controller.submitQuestion(_controller.text),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),
@@ -246,34 +253,35 @@ class _HeroCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              _Pill(
-                label: statusTone.badge,
-                icon: statusTone.icon,
-                backgroundColor: statusTone.tint.withValues(alpha: 0.14),
-                foregroundColor: statusTone.tint,
-              ),
-              _Pill(
-                label: '기록과 질문은 기본적으로 기기 안에',
-                icon: Icons.verified_user_rounded,
-                backgroundColor: palette.highlight.withValues(alpha: 0.18),
-                foregroundColor: palette.accentStrong,
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isCompact = constraints.maxWidth < 620;
+
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  _Pill(
+                    label: statusTone.badge,
+                    icon: statusTone.icon,
+                    backgroundColor: statusTone.tint.withValues(alpha: 0.14),
+                    foregroundColor: statusTone.tint,
+                  ),
+                  _Pill(
+                    label: '기록과 질문은 기본적으로 기기 안에',
+                    icon: Icons.verified_user_rounded,
+                    backgroundColor: palette.highlight.withValues(alpha: 0.18),
+                    foregroundColor: palette.accentStrong,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              if (isCompact) ...[
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -287,6 +295,8 @@ class _HeroCard extends StatelessWidget {
                         color: palette.label,
                       ),
                     ),
+                    const SizedBox(height: 18),
+                    const Center(child: CuratorOrbitArtwork(size: 168)),
                     const SizedBox(height: 18),
                     Container(
                       padding: const EdgeInsets.all(16),
@@ -306,12 +316,55 @@ class _HeroCard extends StatelessWidget {
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 18),
-              const CuratorOrbitArtwork(size: 196),
+              ] else ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '당신의 일상을\n큐레이션합니다',
+                            style: theme.textTheme.displaySmall,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            '메모, 일기, 일정에 흩어진 감정의 조각을 한데 모아 지금의 질문에 맞는 맥락으로 다시 읽어 드립니다.',
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              color: palette.label,
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: palette.surfaceStrong.withValues(
+                                alpha: 0.68,
+                              ),
+                              borderRadius: BorderRadius.circular(22),
+                              border: Border.all(
+                                color: palette.outline.withValues(alpha: 0.18),
+                              ),
+                            ),
+                            child: Text(
+                              '짧은 메모, 애매한 감정, 설명하기 어려운 무드도 그대로 적어 보세요. 완성된 문장보다 살아 있는 흔적에 더 민감하게 반응하도록 설계했습니다.',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: palette.label,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 18),
+                    const CuratorOrbitArtwork(size: 196),
+                  ],
+                ),
+              ],
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -787,15 +840,16 @@ class _FloatingQuestionComposer extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isCompact = constraints.maxWidth < 520;
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
+              if (isCompact) ...[
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('지금 떠오른 질문', style: theme.textTheme.titleLarge),
@@ -804,61 +858,114 @@ class _FloatingQuestionComposer extends StatelessWidget {
                       '길게 설명하지 않아도 괜찮습니다. 한 문장만 남겨도 시작할 수 있습니다.',
                       style: theme.textTheme.bodySmall,
                     ),
+                    const SizedBox(height: 12),
+                    _Pill(
+                      label: presentation.badge,
+                      icon: presentation.icon,
+                      backgroundColor: presentation.tint.withValues(
+                        alpha: 0.12,
+                      ),
+                      foregroundColor: presentation.tint,
+                    ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 12),
-              _Pill(
-                label: presentation.badge,
-                icon: presentation.icon,
-                backgroundColor: presentation.tint.withValues(alpha: 0.12),
-                foregroundColor: presentation.tint,
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            key: const Key('questionTextField'),
-            controller: controller,
-            minLines: 2,
-            maxLines: 4,
-            textInputAction: TextInputAction.done,
-            decoration: const InputDecoration(
-              hintText: '예: 일이 밀릴수록 쉬는 시간에도 죄책감이 들어요.',
-            ),
-          ),
-          if (errorMessage != null) ...[
-            const SizedBox(height: 10),
-            Text(
-              errorMessage!,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.error,
-              ),
-            ),
-          ],
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '의학·심리 진단이 아닌 개인 기록 해석 도구입니다.',
-                  style: theme.textTheme.bodySmall,
+              ] else ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('지금 떠오른 질문', style: theme.textTheme.titleLarge),
+                          const SizedBox(height: 4),
+                          Text(
+                            '길게 설명하지 않아도 괜찮습니다. 한 문장만 남겨도 시작할 수 있습니다.',
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    _Pill(
+                      label: presentation.badge,
+                      icon: presentation.icon,
+                      backgroundColor: presentation.tint.withValues(
+                        alpha: 0.12,
+                      ),
+                      foregroundColor: presentation.tint,
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 14),
+              TextField(
+                key: const Key('questionTextField'),
+                controller: controller,
+                minLines: 2,
+                maxLines: 4,
+                textInputAction: TextInputAction.done,
+                decoration: const InputDecoration(
+                  hintText: '예: 일이 밀릴수록 쉬는 시간에도 죄책감이 들어요.',
                 ),
               ),
-              const SizedBox(width: 12),
-              FilledButton.icon(
-                key: const Key('submitQuestionButton'),
-                onPressed: isLoading ? null : onSubmit,
-                icon: Icon(
-                  isLoading
-                      ? Icons.hourglass_top_rounded
-                      : Icons.arrow_upward_rounded,
+              if (errorMessage != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  errorMessage!,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
                 ),
-                label: Text(isLoading ? '읽는 중...' : '큐레이션 시작'),
-              ),
+              ],
+              const SizedBox(height: 12),
+              if (isCompact) ...[
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      '의학·심리 진단이 아닌 개인 기록 해석 도구입니다.',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      key: const Key('submitQuestionButton'),
+                      onPressed: isLoading ? null : onSubmit,
+                      icon: Icon(
+                        isLoading
+                            ? Icons.hourglass_top_rounded
+                            : Icons.arrow_upward_rounded,
+                      ),
+                      label: Text(isLoading ? '읽는 중...' : '큐레이션 시작'),
+                    ),
+                  ],
+                ),
+              ] else ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '의학·심리 진단이 아닌 개인 기록 해석 도구입니다.',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    FilledButton.icon(
+                      key: const Key('submitQuestionButton'),
+                      onPressed: isLoading ? null : onSubmit,
+                      icon: Icon(
+                        isLoading
+                            ? Icons.hourglass_top_rounded
+                            : Icons.arrow_upward_rounded,
+                      ),
+                      label: Text(isLoading ? '읽는 중...' : '큐레이션 시작'),
+                    ),
+                  ],
+                ),
+              ],
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -887,16 +994,24 @@ class _Pill extends StatelessWidget {
         color: backgroundColor,
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: foregroundColor),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: theme.textTheme.labelLarge?.copyWith(color: foregroundColor),
-          ),
-        ],
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 240),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: foregroundColor),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                softWrap: true,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: foregroundColor,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

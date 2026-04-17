@@ -32,6 +32,13 @@ void main() {
     expect(find.text('당신의 일상을 큐레이션합니다'), findsOneWidget);
     expect(find.text('기기 안에서 분석 중'), findsWidgets);
 
+    await tester.scrollUntilVisible(
+      find.text('현재 상태'),
+      220,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
     expect(find.text('현재 상태'), findsOneWidget);
     expect(find.text('온디바이스 우선'), findsOneWidget);
 
@@ -72,6 +79,13 @@ void main() {
 
     expect(find.text('가벼운 큐레이션 모드'), findsWidgets);
 
+    await tester.scrollUntilVisible(
+      find.text('현재 상태'),
+      220,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
     expect(find.text('현재 상태'), findsOneWidget);
     expect(find.text('온디바이스 우선'), findsOneWidget);
   });
@@ -101,17 +115,42 @@ void main() {
     expect(find.text('설정'), findsOneWidget);
     expect(find.text('사용 방식'), findsOneWidget);
   });
+
+  testWidgets('작은 화면에서도 홈 화면이 overflow 없이 렌더링된다', (WidgetTester tester) async {
+    await _pumpApp(
+      tester,
+      bridge: const FakeOnDeviceLlmBridge(
+        runtimeStatus: OnDeviceRuntimeStatus(
+          llmReady: false,
+          embedderReady: false,
+          runtime: 'template-fallback',
+          message: '모델 경로가 없어 템플릿 폴백을 사용합니다.',
+          platform: 'flutter-test',
+          llmModelConfigured: false,
+          embedderModelConfigured: false,
+          llmModelAvailable: false,
+          embedderModelAvailable: false,
+          fallbackActive: true,
+        ),
+      ),
+      physicalSize: const Size(640, 1136),
+    );
+
+    expect(find.byKey(const Key('questionTextField')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 Future<void> _pumpApp(
   WidgetTester tester, {
   required OnDeviceLlmBridge bridge,
+  Size physicalSize = const Size(1400, 2800),
 }) async {
   SharedPreferences.setMockInitialValues(const <String, Object>{
     'app.onboarding_completed': true,
   });
   final preferences = await SharedPreferences.getInstance();
-  tester.view.physicalSize = const Size(1400, 2800);
+  tester.view.physicalSize = physicalSize;
   tester.view.devicePixelRatio = 2;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
