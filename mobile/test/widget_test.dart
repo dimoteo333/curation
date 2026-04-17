@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'fakes/fake_curation_repository.dart';
 
 void main() {
-  testWidgets('홈 화면은 런타임 상태와 응답 경로를 함께 렌더링한다', (WidgetTester tester) async {
+  testWidgets('홈 화면은 에디토리얼 레이아웃에서 응답을 렌더링한다', (WidgetTester tester) async {
     await _pumpApp(
       tester,
       bridge: const FakeOnDeviceLlmBridge(
@@ -29,18 +29,8 @@ void main() {
       ),
     );
 
-    expect(find.text('당신의 일상을 큐레이션합니다'), findsOneWidget);
-    expect(find.text('기기 안에서 분석 중'), findsWidgets);
-
-    await tester.scrollUntilVisible(
-      find.text('현재 상태'),
-      220,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('현재 상태'), findsOneWidget);
-    expect(find.text('온디바이스 우선'), findsOneWidget);
+    expect(find.text('당신의 하루를 읽습니다'), findsOneWidget);
+    expect(find.text('최근 인사이트'), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.byKey(const Key('submitQuestionButton')),
@@ -51,14 +41,14 @@ void main() {
     await tester.tap(find.byKey(const Key('submitQuestionButton')));
     await tester.pumpAndSettle();
 
-    expect(find.text('최근 큐레이션'), findsWidgets);
-    expect(find.text('최근 기록에서 반복된 흐름'), findsOneWidget);
-    expect(find.text('테스트 환경에서도 질문 흐름이 화면에 표시됩니다.'), findsOneWidget);
-    expect(find.text('템플릿 폴백 사용 중'), findsOneWidget);
+    expect(find.text('최근 인사이트'), findsWidgets);
+    expect(find.text('질문  나 요즘 왜 이렇게 무기력하지?'), findsOneWidget);
+    expect(find.textContaining('테스트 환경에서도 질문 흐름이 화면에 표시됩니다.'), findsOneWidget);
+    expect(find.text('테스트용 요약입니다.'), findsOneWidget);
     expect(find.byKey(const Key('responseSection')), findsOneWidget);
   });
 
-  testWidgets('런타임이 준비되지 않으면 폴백 상태를 배지로 노출한다', (WidgetTester tester) async {
+  testWidgets('응답이 없을 때도 에디토리얼 플레이스홀더를 보여준다', (WidgetTester tester) async {
     await _pumpApp(
       tester,
       bridge: const FakeOnDeviceLlmBridge(
@@ -77,17 +67,8 @@ void main() {
       ),
     );
 
-    expect(find.text('가벼운 큐레이션 모드'), findsWidgets);
-
-    await tester.scrollUntilVisible(
-      find.text('현재 상태'),
-      220,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('현재 상태'), findsOneWidget);
-    expect(find.text('온디바이스 우선'), findsOneWidget);
+    expect(find.text('"야근이 많았던 3월,\n당신의 무기력함은\n당연한 것이었습니다"'), findsOneWidget);
+    expect(find.text('── 3개월 전 야근 회고'), findsOneWidget);
   });
 
   testWidgets('홈 화면에서 설정 화면으로 이동할 수 있다', (WidgetTester tester) async {

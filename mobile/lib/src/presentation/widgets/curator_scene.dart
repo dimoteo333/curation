@@ -19,48 +19,35 @@ class CuratorBackdrop extends StatelessWidget {
             palette.backdropAccent,
             palette.backdropBottom,
           ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
         ),
       ),
       child: Stack(
         children: [
           Positioned(
             top: -120,
-            left: -50,
-            child: _GlowOrb(
-              color: palette.ambientGlow.withValues(alpha: 0.24),
+            right: -60,
+            child: _EditorialHalo(
               diameter: 320,
-            ),
-          ),
-          Positioned(
-            top: 180,
-            right: -110,
-            child: _GlowOrb(
-              color: palette.accent.withValues(alpha: 0.16),
-              diameter: 280,
+              color: palette.ambientGlow.withValues(alpha: 0.11),
             ),
           ),
           Positioned(
             bottom: -120,
-            left: 20,
-            child: _GlowOrb(
-              color: palette.highlight.withValues(alpha: 0.18),
-              diameter: 260,
+            left: -100,
+            child: _EditorialHalo(
+              diameter: 300,
+              color: palette.accent.withValues(alpha: 0.08),
             ),
           ),
           Positioned(
-            bottom: 110,
-            right: 42,
-            child: Container(
-              width: 96,
-              height: 96,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(32),
-                border: Border.all(
-                  color: palette.outline.withValues(alpha: 0.18),
-                ),
-              ),
+            top: 140,
+            left: 36,
+            child: _HairlineFrame(
+              width: 84,
+              height: 84,
+              color: palette.outline.withValues(alpha: 0.18),
             ),
           ),
           child,
@@ -70,133 +57,77 @@ class CuratorBackdrop extends StatelessWidget {
   }
 }
 
-class CuratorOrbitArtwork extends StatelessWidget {
-  const CuratorOrbitArtwork({
-    super.key,
-    this.size = 220,
-    this.icon = Icons.auto_awesome_rounded,
-    this.showBrandMark = true,
-  });
+class CuratorMarkArtwork extends StatelessWidget {
+  const CuratorMarkArtwork({super.key, this.size = 136, this.opacity = 1});
 
   final double size;
-  final IconData icon;
-  final bool showBrandMark;
+  final double opacity;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final palette = theme.extension<CuratorPalette>()!;
-    final orbSize = size * 0.78;
+    final palette = Theme.of(context).extension<CuratorPalette>()!;
 
-    return SizedBox(
-      width: size,
-      height: size,
+    return Opacity(
+      opacity: opacity,
       child: Stack(
         alignment: Alignment.center,
         children: [
+          _EditorialHalo(
+            diameter: size * 1.45,
+            color: palette.ambientGlow.withValues(alpha: 0.18),
+          ),
           Container(
             width: size,
             height: size,
+            padding: EdgeInsets.all(size * 0.18),
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
+              borderRadius: BorderRadius.circular(size * 0.3),
+              gradient: LinearGradient(
                 colors: <Color>[
-                  palette.highlight.withValues(alpha: 0.6),
-                  palette.accent.withValues(alpha: 0.16),
-                  Colors.transparent,
+                  palette.accent.withValues(alpha: 0.94),
+                  palette.accentSoft.withValues(alpha: 0.94),
                 ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
               ),
             ),
+            child: Image.asset('assets/branding/curator_mark.png'),
           ),
-          Transform.rotate(
-            angle: -0.22,
-            child: Container(
-              width: orbSize,
-              height: orbSize,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(size * 0.28),
-                gradient: LinearGradient(
-                  colors: <Color>[
-                    palette.highlight.withValues(alpha: 0.92),
-                    palette.accent.withValues(alpha: 0.78),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: palette.shadowColor.withValues(alpha: 0.16),
-                    blurRadius: 48,
-                    offset: const Offset(0, 24),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Container(
-            width: size * 0.84,
-            height: size * 0.84,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: theme.colorScheme.onPrimary.withValues(alpha: 0.38),
-                width: 1.5,
-              ),
-            ),
-          ),
-          Positioned(
-            top: size * 0.18,
-            right: size * 0.16,
-            child: Container(
-              width: size * 0.17,
-              height: size * 0.17,
-              decoration: BoxDecoration(
-                color: palette.surfaceStrong.withValues(alpha: 0.88),
-                borderRadius: BorderRadius.circular(size * 0.08),
-              ),
-              child: Icon(icon, size: size * 0.09, color: palette.accentStrong),
-            ),
-          ),
-          Positioned(
-            bottom: size * 0.12,
-            left: size * 0.12,
-            child: Container(
-              width: size * 0.22,
-              height: size * 0.22,
-              decoration: BoxDecoration(
-                color: palette.surfaceStrong.withValues(alpha: 0.74),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: palette.outline.withValues(alpha: 0.22),
-                ),
-              ),
-            ),
-          ),
-          if (showBrandMark)
-            Container(
-              width: size * 0.44,
-              height: size * 0.44,
-              padding: EdgeInsets.all(size * 0.07),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.onPrimary.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(size * 0.16),
-                border: Border.all(
-                  color: theme.colorScheme.onPrimary.withValues(alpha: 0.18),
-                ),
-              ),
-              child: Image.asset('assets/branding/curator_mark.png'),
-            ),
         ],
       ),
     );
   }
 }
 
-class _GlowOrb extends StatelessWidget {
-  const _GlowOrb({required this.color, required this.diameter});
+class _HairlineFrame extends StatelessWidget {
+  const _HairlineFrame({
+    required this.width,
+    required this.height,
+    required this.color,
+  });
 
+  final double width;
+  final double height;
   final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: color, width: 0.9),
+      ),
+    );
+  }
+}
+
+class _EditorialHalo extends StatelessWidget {
+  const _EditorialHalo({required this.diameter, required this.color});
+
   final double diameter;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -208,8 +139,8 @@ class _GlowOrb extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: color,
-            blurRadius: diameter * 0.5,
-            spreadRadius: diameter * 0.12,
+            blurRadius: diameter * 0.42,
+            spreadRadius: diameter * 0.02,
           ),
         ],
       ),

@@ -25,14 +25,22 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('당신의 일상,\nAI가 큐레이션합니다'), findsOneWidget);
+    expect(find.text('큐\n레이터'), findsOneWidget);
     expect(find.byKey(const Key('onboardingSkipButton')), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('onboardingSkipButton')));
+    await tester.ensureVisible(find.byKey(const Key('onboardingSkipButton')));
+    await tester.tap(
+      find.byKey(const Key('onboardingSkipButton')),
+      warnIfMissed: false,
+    );
     await tester.pumpAndSettle();
 
-    expect(find.text('시작하기 전에\n기록을 불러오세요'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('completeOnboardingButton')));
+    expect(find.text('파일을 불러와주세요'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('completeOnboardingButton')));
+    await tester.tap(
+      find.byKey(const Key('completeOnboardingButton')),
+      warnIfMissed: false,
+    );
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('openSettingsButton')), findsOneWidget);
