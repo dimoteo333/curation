@@ -36,15 +36,17 @@ void main() {
   test('온디바이스 저장소는 네이티브 브릿지가 없어도 로컬 RAG 응답을 만든다', () async {
     SharedPreferences.setMockInitialValues(const <String, Object>{});
     final preferences = await SharedPreferences.getInstance();
+    final encryption = createTestDatabaseEncryption();
     final vectorDb = VectorDb(
       databaseFactory: databaseFactoryFfi,
       databasePathResolver: () async =>
           path.join(tempDirectory.path, 'curator.db'),
-      databaseEncryption: createTestDatabaseEncryption(),
+      databaseEncryption: encryption,
     );
     final embeddingService = const SemanticEmbeddingService();
     final recordStore = LifeRecordStore(
       vectorDb: vectorDb,
+      databaseEncryption: encryption,
       embeddingService: embeddingService,
       seedRecords: seededLifeRecords,
       sharedPreferences: preferences,
@@ -59,6 +61,7 @@ void main() {
       recordStore: recordStore,
     );
 
+    await recordStore.loadDemoData();
     final response = await repository.curateQuestion('나 요즘 왜 이렇게 무기력하지?');
 
     expect(response.supportingRecords, isNotEmpty);

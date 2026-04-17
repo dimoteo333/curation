@@ -14,15 +14,19 @@ class InMemorySecureKeyStore implements SecureKeyStore {
   Future<void> write(String key, String value) async {
     _values[key] = value;
   }
+
+  @override
+  Future<void> delete(String key) async {
+    _values.remove(key);
+  }
 }
 
 DatabaseEncryption createTestDatabaseEncryption({
   String appNamespace = 'curator.test',
-  String deviceContext = 'test-device',
+  SecureKeyStore? secureKeyStore,
 }) {
   return DatabaseEncryption(
-    secureKeyStore: InMemorySecureKeyStore(),
-    deviceContextResolver: () async => deviceContext,
+    secureKeyStore: secureKeyStore ?? InMemorySecureKeyStore(),
     appNamespace: appNamespace,
     random: Random(7),
   );

@@ -163,10 +163,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               status.permissionStatus ==
                                   CalendarImportPermissionStatus.writeOnly ||
                               status.permissionStatus ==
-                                  CalendarImportPermissionStatus.restricted) ...[
+                                  CalendarImportPermissionStatus
+                                      .restricted) ...[
                             const _HairlineDivider(),
                             _ActionRow(
-                              key: const Key('settingsCalendarPermissionButton'),
+                              key: const Key(
+                                'settingsCalendarPermissionButton',
+                              ),
                               title: '권한 설정 열기',
                               subtitle: '시스템 설정에서 캘린더 접근 권한을 바꿉니다.',
                               actionLabel: '열기',
@@ -177,8 +180,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             const Padding(
                               padding: EdgeInsets.only(top: 18),
                               child: _DescriptionBlock(
-                                text:
-                                    '동기화를 꺼도 이미 가져온 일정 기록은 로컬 DB에 남아 있습니다.',
+                                text: '동기화를 꺼도 이미 가져온 일정 기록은 로컬 DB에 남아 있습니다.',
                               ),
                             ),
                         ],
@@ -196,64 +198,60 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   const SizedBox(height: 34),
                   _EditorialSection(
                     title: '데이터',
-                    child: Column(
-                      children: [
-                        dataStats.when(
-                          data: (stats) => Column(
-                            children: [
-                              _ValueRow(
-                                title: '저장된 기록',
-                                value: '${stats.recordCount}건',
-                              ),
-                              const _HairlineDivider(),
-                              _ValueRow(
-                                title: '벡터 DB',
-                                value: _formatBytes(stats.databaseSizeBytes),
-                              ),
-                              const _HairlineDivider(),
-                              _ValueRow(
-                                title: '데이터 소스',
-                                value: _formatDataSourceSummary(
-                                  stats.sourceCounts,
-                                ),
-                              ),
-                            ],
+                    child: dataStats.when(
+                      data: (stats) => Column(
+                        children: [
+                          _ValueRow(
+                            title: '저장된 기록',
+                            value: '${stats.recordCount}건',
                           ),
-                          loading: () => const Padding(
-                            padding: EdgeInsets.only(bottom: 18),
-                            child: LinearProgressIndicator(minHeight: 1.5),
+                          const _HairlineDivider(),
+                          _ValueRow(
+                            title: '벡터 DB',
+                            value: _formatBytes(stats.databaseSizeBytes),
                           ),
-                          error: (error, _) => _DescriptionBlock(
-                            text: '데이터 상태를 읽지 못했습니다: $error',
-                            color: theme.colorScheme.error,
+                          const _HairlineDivider(),
+                          _ValueRow(
+                            title: '데이터 소스',
+                            value: _formatDataSourceSummary(stats.sourceCounts),
                           ),
-                        ),
-                        const _HairlineDivider(),
-                        _ActionRow(
-                          key: const Key('settingsImportButton'),
-                          title: '파일 가져오기',
-                          subtitle: '`.txt`, `.md` 기록을 불러옵니다.',
-                          actionLabel: '불러오기',
-                          onTap: _importFiles,
-                        ),
-                        const _HairlineDivider(),
-                        _ActionRow(
-                          key: const Key('settingsResetSeedButton'),
-                          title: '기본 시드 복원',
-                          subtitle: '체험용 기본 기록으로 되돌립니다.',
-                          actionLabel: '복원',
-                          onTap: _resetToSeedRecords,
-                        ),
-                        const _HairlineDivider(),
-                        _ActionRow(
-                          key: const Key('settingsClearDataButton'),
-                          title: '모든 데이터 삭제',
-                          subtitle: '로컬 기록, 인덱스, 앱 설정을 모두 제거합니다.',
-                          actionLabel: '삭제',
-                          destructive: true,
-                          onTap: _clearAllData,
-                        ),
-                      ],
+                          const _HairlineDivider(),
+                          _ActionRow(
+                            key: const Key('settingsImportButton'),
+                            title: '파일 가져오기',
+                            subtitle: '`.txt`, `.md` 기록을 불러옵니다.',
+                            actionLabel: '불러오기',
+                            onTap: _importFiles,
+                          ),
+                          if (stats.recordCount == 0) ...[
+                            const _HairlineDivider(),
+                            _ActionRow(
+                              key: const Key('settingsLoadDemoDataButton'),
+                              title: '데모 데이터 로드',
+                              subtitle: '체험용 기록 14건을 로컬 DB에 불러옵니다.',
+                              actionLabel: '로드',
+                              onTap: _loadDemoData,
+                            ),
+                          ],
+                          const _HairlineDivider(),
+                          _ActionRow(
+                            key: const Key('settingsClearDataButton'),
+                            title: '모든 데이터 삭제',
+                            subtitle: '로컬 기록, 인덱스, 앱 설정을 모두 제거합니다.',
+                            actionLabel: '삭제',
+                            destructive: true,
+                            onTap: _clearAllData,
+                          ),
+                        ],
+                      ),
+                      loading: () => const Padding(
+                        padding: EdgeInsets.only(bottom: 18),
+                        child: LinearProgressIndicator(minHeight: 1.5),
+                      ),
+                      error: (error, _) => _DescriptionBlock(
+                        text: '데이터 상태를 읽지 못했습니다: $error',
+                        color: theme.colorScheme.error,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 34),
@@ -269,9 +267,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                         return Column(
                           children: [
-                            for (var index = 0;
-                                index < history.recentEntries.length;
-                                index += 1) ...[
+                            for (
+                              var index = 0;
+                              index < history.recentEntries.length;
+                              index += 1
+                            ) ...[
                               _HistoryRow(entry: history.recentEntries[index]),
                               if (index != history.recentEntries.length - 1)
                                 const _HairlineDivider(),
@@ -471,7 +471,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _syncCalendar() async {
-    final result = await ref.read(calendarImportServiceProvider).syncRecentEvents();
+    final result = await ref
+        .read(calendarImportServiceProvider)
+        .syncRecentEvents();
     if (result.permissionStatus != CalendarImportPermissionStatus.granted) {
       ref.invalidate(calendarSyncStatusProvider);
       if (!mounted) {
@@ -504,13 +506,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _showMessage('시스템 설정에서 캘린더 권한을 확인해 주세요.');
   }
 
-  Future<void> _resetToSeedRecords() async {
-    await ref.read(lifeRecordStoreProvider).resetToSeedRecords();
+  Future<void> _loadDemoData() async {
+    await ref.read(lifeRecordStoreProvider).loadDemoData();
     ref.read(localDataRevisionProvider.notifier).bump();
     if (!mounted) {
       return;
     }
-    _showMessage('기본 시드 데이터로 초기화했습니다.');
+    _showMessage('데모 데이터를 로드했습니다.');
   }
 
   Future<void> _clearAllData() async {
@@ -540,6 +542,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await ref.read(lifeRecordStoreProvider).deleteAllData();
     ref.read(localDataRevisionProvider.notifier).bump();
     ref.invalidate(appSettingsProvider);
+    ref.invalidate(localDataInitializationProvider);
     ref.invalidate(onDeviceRuntimeStatusProvider);
     if (!mounted) {
       return;
@@ -575,7 +578,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               [
                 NotesImportGuide.summary,
                 '',
-                for (var index = 0; index < NotesImportGuide.steps.length; index += 1)
+                for (
+                  var index = 0;
+                  index < NotesImportGuide.steps.length;
+                  index += 1
+                )
                   '${index + 1}. ${NotesImportGuide.steps[index]}',
                 '',
                 NotesImportGuide.fallbackTip,
@@ -667,18 +674,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         '캘린더 권한이 거부되었습니다. 설정에서 접근을 허용해 주세요.',
       CalendarImportPermissionStatus.writeOnly =>
         '쓰기 전용 권한만 허용되어 기존 일정을 읽을 수 없습니다. 전체 접근 권한이 필요합니다.',
-      CalendarImportPermissionStatus.restricted =>
-        '이 기기에서는 캘린더 접근이 제한되어 있습니다.',
-      CalendarImportPermissionStatus.notDetermined =>
-        '캘린더 권한을 먼저 허용해 주세요.',
+      CalendarImportPermissionStatus.restricted => '이 기기에서는 캘린더 접근이 제한되어 있습니다.',
+      CalendarImportPermissionStatus.notDetermined => '캘린더 권한을 먼저 허용해 주세요.',
     };
   }
 
   String _formatDataSourceSummary(Map<String, int> sourceCounts) {
-    final fileCount = sourceCounts['file'] ?? 0;
-    final calendarCount = sourceCounts['calendar'] ?? 0;
-    final manualCount = sourceCounts['manual'] ?? 0;
-    return '파일 $fileCount건 · 캘린더 $calendarCount건 · 수동 $manualCount건';
+    final orderedSources = <MapEntry<String, String>>[
+      const MapEntry<String, String>('file', '파일'),
+      const MapEntry<String, String>('diary', '일기'),
+      const MapEntry<String, String>('note', '메모'),
+      const MapEntry<String, String>('calendar', '캘린더'),
+    ];
+    final parts = <String>[
+      for (final entry in orderedSources)
+        if ((sourceCounts[entry.key] ?? 0) > 0)
+          '${entry.value} ${sourceCounts[entry.key]}건',
+      for (final entry in sourceCounts.entries)
+        if (!orderedSources.any(
+              (orderedEntry) => orderedEntry.key == entry.key,
+            ) &&
+            entry.value > 0)
+          '${entry.key} ${entry.value}건',
+    ];
+    if (parts.isEmpty) {
+      return '없음';
+    }
+    return parts.join(' · ');
   }
 }
 

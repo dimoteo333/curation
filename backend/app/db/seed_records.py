@@ -34,10 +34,11 @@ SEEDED_RECORDS: tuple[StoredRecord, ...] = (
         title="작은 사이드 프로젝트 아이디어",
         content=(
             "의욕이 떨어질 때는 새로운 아이디어를 짧게라도 구현해보면 회복이 빨랐다. "
-            "부담이 적은 주말 프로젝트가 생각보다 큰 전환점이 됐다."
+            "부담이 적은 주말 프로젝트가 생각보다 큰 전환점이 됐다. "
+            "완성도보다 시작 속도가 중요하다는 걸 다시 적어 둔다."
         ),
         created_at=datetime.fromisoformat("2023-03-09T20:15:00"),
-        tags=("의욕", "사이드프로젝트", "회복"),
+        tags=("의욕", "사이드프로젝트", "회복", "창작"),
     ),
     StoredRecord(
         id="diary-routine-reset-2023",
@@ -45,7 +46,8 @@ SEEDED_RECORDS: tuple[StoredRecord, ...] = (
         title="생활 리듬을 되돌린 날",
         content=(
             "이틀 연속 늦게 자고 나니 하루 종일 멍했다. 그날은 운동 대신 일찍 자고 "
-            "아침에 가볍게 스트레칭했더니 집중력이 돌아왔다."
+            "아침에 가볍게 스트레칭했더니 집중력이 돌아왔다. "
+            "수면 시간이 짧아지면 예민해진다는 사실을 또 확인했다."
         ),
         created_at=datetime.fromisoformat("2023-11-02T22:10:00"),
         tags=("수면", "집중", "회복"),
@@ -60,5 +62,109 @@ SEEDED_RECORDS: tuple[StoredRecord, ...] = (
         ),
         created_at=datetime.fromisoformat("2022-10-14T18:40:00"),
         tags=("번아웃", "마감", "우선순위", "회복"),
+    ),
+    StoredRecord(
+        id="diary-sleep-apr-2024",
+        source="diary",
+        title="새벽 세 시에 다시 깬 밤",
+        content=(
+            "새벽 세 시쯤 눈이 떠져서 한참 뒤척였다. 다음 날 회의에서 말이 자꾸 꼬였고 "
+            "사소한 질문에도 예민하게 반응했다. 저녁에 카페인을 줄이니 조금 안정됐다."
+        ),
+        created_at=datetime.fromisoformat("2024-04-11T07:20:00"),
+        tags=("수면", "불안", "집중"),
+    ),
+    StoredRecord(
+        id="memo-running-reset-2024",
+        source="memo",
+        title="퇴근 후 20분 러닝 메모",
+        content=(
+            "퇴근 후 20분만 천천히 달려도 머리가 정리됐다. 몸은 피곤했지만 샤워를 하고 나면 "
+            "일 이야기에서 한 걸음 떨어질 수 있었다. 운동은 시간을 더 쓰는 일이 아니라 "
+            "회복을 앞당기는 일이었다."
+        ),
+        created_at=datetime.fromisoformat("2024-05-03T22:05:00"),
+        tags=("운동", "건강", "회복"),
+    ),
+    StoredRecord(
+        id="diary-relationship-apology-2024",
+        source="diary",
+        title="친구와의 대화가 풀린 저녁",
+        content=(
+            "괜히 서운했던 마음을 오래 끌고 갔는데, 저녁에 차분히 이야기하니 오해가 많이 풀렸다. "
+            "말하지 않으면 상대가 다 알 거라고 기대했던 내가 더 지쳐 있었다. "
+            "대화 뒤에는 몸의 긴장도 조금 내려갔다."
+        ),
+        created_at=datetime.fromisoformat("2024-06-21T23:00:00"),
+        tags=("관계", "대화", "회복"),
+    ),
+    StoredRecord(
+        id="calendar-family-lunch-2024",
+        source="calendar",
+        title="엄마와 점심",
+        content=(
+            "엄마와 점심을 먹으며 최근에 힘들었던 이야기를 조금 꺼냈다. 조언보다도 그냥 들어주는 "
+            "시간이 필요했다는 걸 알았다. 집에 돌아오는 길에는 마음이 덜 거칠었다."
+        ),
+        created_at=datetime.fromisoformat("2024-07-07T13:10:00"),
+        tags=("관계", "가족", "회복"),
+    ),
+    StoredRecord(
+        id="diary-growth-course-2024",
+        source="diary",
+        title="작은 공부 루틴이 생긴 주",
+        content=(
+            "하루 15분씩 강의를 듣고 메모를 남겼다. 양은 적었지만 매일 쌓이니 스스로를 덜 "
+            "자책하게 됐다. 성장에는 큰 결심보다 작게 이어지는 리듬이 더 중요했다."
+        ),
+        created_at=datetime.fromisoformat("2024-08-12T21:50:00"),
+        tags=("성장", "습관", "기록"),
+    ),
+    StoredRecord(
+        id="memo-writing-draft-2024",
+        source="memo",
+        title="에세이 초안을 밀어붙인 밤",
+        content=(
+            "완성되지 않은 문장을 오래 붙잡고 있었지만, 세 문단만 쓰기로 하니 오히려 끝까지 갔다. "
+            "창작이 막힐 때는 잘 쓰는 것보다 계속 이어 가는 감각이 중요했다. "
+            "초안을 남긴 날은 이상하게 잠도 조금 더 잘 왔다."
+        ),
+        created_at=datetime.fromisoformat("2024-09-02T00:10:00"),
+        tags=("창작", "글쓰기", "의욕"),
+    ),
+    StoredRecord(
+        id="diary-burnout-nov-2024",
+        source="diary",
+        title="쉬어도 피곤한 주말",
+        content=(
+            "토요일 내내 누워 있었는데도 피로가 풀리지 않았다. 쉬는 시간에도 머릿속에서 "
+            "업무 대화가 계속 재생됐다. 일정을 줄이는 것만큼 머리를 비우는 전환 행동이 "
+            "필요하다고 적어 두었다."
+        ),
+        created_at=datetime.fromisoformat("2024-11-16T20:30:00"),
+        tags=("번아웃", "피로", "휴식"),
+    ),
+    StoredRecord(
+        id="calendar-gym-morning-2025",
+        source="calendar",
+        title="아침 헬스장",
+        content=(
+            "출근 전에 가볍게 근력 운동을 했다. 오전 회의에서 집중이 덜 흔들렸고 점심 이후에도 "
+            "덜 처졌다. 몸을 먼저 깨우면 생각도 덜 뒤엉킨다는 느낌이 있었다."
+        ),
+        created_at=datetime.fromisoformat("2025-01-23T07:15:00"),
+        tags=("운동", "집중", "건강"),
+    ),
+    StoredRecord(
+        id="diary-creative-retreat-2025",
+        source="diary",
+        title="혼자 카페에 앉아 초안을 정리한 오후",
+        content=(
+            "사람 많은 일정에서 잠시 빠져나와 카페에 앉으니 머리가 조금 잠잠해졌다. "
+            "해야 할 말을 먼저 적어 보니 생각보다 덜 막혔고, 창작은 고립이 아니라 "
+            "정리의 시간이 필요하다는 걸 느꼈다. 돌아오는 길에는 다시 해볼 의욕이 생겼다."
+        ),
+        created_at=datetime.fromisoformat("2025-03-06T16:25:00"),
+        tags=("창작", "집중", "회복"),
     ),
 )

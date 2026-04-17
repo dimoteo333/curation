@@ -121,15 +121,17 @@ Future<CalendarImportService> _createService({
   required String databasePath,
   DateTime Function()? nowProvider,
 }) async {
+  final encryption = createTestDatabaseEncryption();
   final vectorDb = VectorDb(
     databaseFactory: databaseFactoryFfi,
     databasePathResolver: () async => databasePath,
-    databaseEncryption: createTestDatabaseEncryption(),
+    databaseEncryption: encryption,
   );
   final preferences = await SharedPreferences.getInstance();
   return CalendarImportService(
     recordStore: LifeRecordStore(
       vectorDb: vectorDb,
+      databaseEncryption: encryption,
       embeddingService: const SemanticEmbeddingService(),
       seedRecords: const [],
       sharedPreferences: preferences,

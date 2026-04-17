@@ -37,16 +37,11 @@ void main() {
             ),
           ),
           localDataStatsProvider.overrideWith(
-            (ref) async =>
-                const LocalDataStats(
-                  recordCount: 5,
-                  databaseSizeBytes: 2048,
-                  sourceCounts: <String, int>{
-                    'file': 2,
-                    'calendar': 1,
-                    'manual': 0,
-                  },
-                ),
+            (ref) => const LocalDataStats(
+              recordCount: 5,
+              databaseSizeBytes: 2048,
+              sourceCounts: <String, int>{'file': 2, 'calendar': 1, 'diary': 2},
+            ),
           ),
           onDeviceLlmBridgeProvider.overrideWithValue(
             const _FakeOnDeviceLlmBridge(),
@@ -67,6 +62,7 @@ void main() {
 
     expect(find.text('사용 방식'), findsOneWidget);
     expect(find.text('캘린더'), findsOneWidget);
+    expect(find.text('데모 데이터 로드'), findsNothing);
 
     await tester.tap(find.byType(Switch));
     await tester.pumpAndSettle();

@@ -40,16 +40,14 @@ class ImportHistoryEntry {
 
 class FileImportHistoryRecord {
   const FileImportHistoryRecord({
-    required this.path,
+    required this.contentHash,
     required this.fileName,
-    required this.modifiedAt,
     required this.sourceId,
     required this.importedAt,
   });
 
-  final String path;
+  final String contentHash;
   final String fileName;
-  final DateTime modifiedAt;
   final String sourceId;
   final DateTime importedAt;
 }
@@ -76,7 +74,8 @@ class ImportHistoryService {
   static const String _entriesKey = 'import_history.entries';
   static const String _sourceIndexKey = 'import_history.source_index';
   static const String _fileIndexKey = 'import_history.file_index';
-  static const String _calendarLastSyncKey = 'import_history.calendar.last_sync';
+  static const String _calendarLastSyncKey =
+      'import_history.calendar.last_sync';
   static const int _maxRecentEntries = 12;
 
   final SharedPreferences sharedPreferences;
@@ -92,17 +91,9 @@ class ImportHistoryService {
     );
   }
 
-  Future<bool> hasImportedFile({
-    required String path,
-    required DateTime modifiedAt,
-  }) async {
+  Future<bool> hasImportedFile({required String contentHash}) async {
     final fileIndex = _loadFileIndex();
-    final stored = fileIndex[path];
-    if (stored == null) {
-      return false;
-    }
-
-    return stored['modified_at'] == modifiedAt.toIso8601String();
+    return fileIndex.containsKey(contentHash);
   }
 
   Future<void> recordFileImports(List<FileImportHistoryRecord> records) async {
@@ -115,15 +106,17 @@ class ImportHistoryService {
     final recentEntries = _loadEntries();
 
     for (final record in records) {
-      fileIndex[record.path] = <String, String>{
-        'modified_at': record.modifiedAt.toIso8601String(),
+      fileIndex[record.contentHash] = <String, String>{
+        'content_hash': record.contentHash,
         'imported_at': record.importedAt.toIso8601String(),
         'source_id': record.sourceId,
         'file_name': record.fileName,
       };
-      sourceIndex
-          .putIfAbsent('file', () => <String, String>{})[record.sourceId] =
-          record.importedAt.toIso8601String();
+      sourceIndex.putIfAbsent(
+        'file',
+        () => <String, String>{},
+      )[record.sourceId] = record.importedAt
+          .toIso8601String();
       recentEntries.insert(
         0,
         ImportHistoryEntry(
@@ -186,7 +179,10 @@ class ImportHistoryService {
     final decoded = jsonDecode(rawEntries) as List<dynamic>;
     return decoded
         .whereType<Map<dynamic, dynamic>>()
-        .map((entry) => ImportHistoryEntry.fromJson(Map<String, dynamic>.from(entry)))
+        .map(
+          (entry) =>
+              ImportHistoryEntry.fromJson(Map<String, dynamic>.from(entry)),
+        )
         .toList(growable: true);
   }
 
@@ -199,7 +195,9 @@ class ImportHistoryService {
     final decoded = jsonDecode(rawIndex) as Map<String, dynamic>;
     return <String, Map<String, String>>{
       for (final entry in decoded.entries)
-        entry.key: Map<String, String>.from(entry.value as Map<dynamic, dynamic>),
+        entry.key: Map<String, String>.from(
+          entry.value as Map<dynamic, dynamic>,
+        ),
     };
   }
 
@@ -212,7 +210,9 @@ class ImportHistoryService {
     final decoded = jsonDecode(rawIndex) as Map<String, dynamic>;
     return <String, Map<String, String>>{
       for (final entry in decoded.entries)
-        entry.key: Map<String, String>.from(entry.value as Map<dynamic, dynamic>),
+        entry.key: Map<String, String>.from(
+          entry.value as Map<dynamic, dynamic>,
+        ),
     };
   }
 
@@ -230,9 +230,9 @@ class ImportHistoryService {
     required Map<String, Map<String, String>> fileIndex,
     DateTime? calendarLastSyncAt,
   }) async {
-    final trimmedEntries = recentEntries.take(_maxRecentEntries).toList(
-      growable: false,
-    );
+    final trimmedEntries = recentEntries
+        .take(_maxRecentEntries)
+        .toList(growable: false);
 
     await sharedPreferences.setString(
       _entriesKey,

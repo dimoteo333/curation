@@ -15,6 +15,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   late final PageController _pageController;
   int _currentPage = 0;
+  bool _loadDemoData = false;
 
   static const List<_OnboardingPageData> _pages = [
     _OnboardingPageData(
@@ -78,7 +79,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                               color: palette.outline.withValues(alpha: 0.28),
                             ),
                           ),
-                          child: Image.asset('assets/branding/curator_mark.png'),
+                          child: Image.asset(
+                            'assets/branding/curator_mark.png',
+                          ),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -124,6 +127,50 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       ],
                     ),
                     const SizedBox(height: 18),
+                    if (isLastPage) ...[
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                        decoration: BoxDecoration(
+                          color: palette.surfaceStrong.withValues(alpha: 0.72),
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(
+                            color: palette.outline.withValues(alpha: 0.24),
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Checkbox(
+                              key: const Key('onboardingLoadDemoDataCheckbox'),
+                              value: _loadDemoData,
+                              onChanged: (value) {
+                                setState(() => _loadDemoData = value ?? false);
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '데모 데이터 함께 시작하기',
+                                    style: theme.textTheme.bodyLarge,
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    '원하면 체험용 기록 14건을 먼저 불러와 바로 질문할 수 있습니다.',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: palette.label,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                    ],
                     Row(
                       children: [
                         if (_currentPage > 0)
@@ -187,6 +234,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Future<void> _completeOnboarding() async {
+    if (_loadDemoData) {
+      await ref.read(lifeRecordStoreProvider).loadDemoData();
+      ref.read(localDataRevisionProvider.notifier).bump();
+    }
     await ref.read(appSettingsProvider.notifier).completeOnboarding();
   }
 }
@@ -226,14 +277,15 @@ class _OnboardingPage extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxHeight < 620;
-        final headlineStyle = (isFirstPage
-                ? theme.textTheme.displayLarge
-                : theme.textTheme.displayMedium)
-            ?.copyWith(
-              fontSize: isFirstPage
-                  ? (isCompact ? 76 : 88)
-                  : (isCompact ? 36 : 42),
-            );
+        final headlineStyle =
+            (isFirstPage
+                    ? theme.textTheme.displayLarge
+                    : theme.textTheme.displayMedium)
+                ?.copyWith(
+                  fontSize: isFirstPage
+                      ? (isCompact ? 76 : 88)
+                      : (isCompact ? 36 : 42),
+                );
 
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
@@ -241,7 +293,9 @@ class _OnboardingPage extends StatelessWidget {
             decoration: BoxDecoration(
               color: palette.surfaceStrong.withValues(alpha: 0.88),
               borderRadius: BorderRadius.circular(34),
-              border: Border.all(color: palette.outline.withValues(alpha: 0.24)),
+              border: Border.all(
+                color: palette.outline.withValues(alpha: 0.24),
+              ),
               boxShadow: [
                 BoxShadow(
                   color: palette.shadowColor.withValues(alpha: 0.08),

@@ -51,6 +51,7 @@ void main() {
     expect(find.textContaining('질문과 맞닿은 기록을 조용히 엮어 보여드립니다.'), findsOneWidget);
     expect(find.text('테스트용 질문과 가장 가까운 기록 두 건을 묶어 보여줍니다.'), findsOneWidget);
     expect(find.text('"테스트용 발췌문입니다."'), findsOneWidget);
+    expect(find.text('템플릿 응답'), findsOneWidget);
     expect(find.byKey(const Key('askAnotherQuestionButton')), findsOneWidget);
     expect(find.byKey(const Key('responseSection')), findsOneWidget);
   });
@@ -213,6 +214,7 @@ Future<void> _pumpApp(
         databaseEncryptionProvider.overrideWithValue(
           createTestDatabaseEncryption(),
         ),
+        localDataInitializationProvider.overrideWith((ref) async {}),
       ],
       child: const CuratorApp(),
     ),

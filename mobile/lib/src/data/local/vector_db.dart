@@ -48,6 +48,11 @@ class VectorDb {
     await _open();
   }
 
+  Future<int> cleanOrphanEmbeddings() async {
+    final db = await _open();
+    return _cleanOrphanEmbeddings(db);
+  }
+
   Future<int> documentCount() async {
     final db = await _open();
     final result = await db.rawQuery('SELECT COUNT(*) AS count FROM documents');
@@ -259,6 +264,9 @@ class VectorDb {
       path,
       options: OpenDatabaseOptions(
         version: schemaVersion,
+        onConfigure: (Database db) async {
+          await db.execute('PRAGMA foreign_keys = ON');
+        },
         onCreate: (Database db, int version) async {
           await _createSchema(db);
         },
@@ -308,8 +316,60 @@ class VectorDb {
       ),
     );
 
+    await _ensureEncryptionState(database);
+    await _cleanOrphanEmbeddings(database);
     _database = database;
     return database;
+  }
+
+  Future<void> _ensureEncryptionState(Database db) async {
+    final encryptedDataExists = await _encryptedDataExists(db);
+    await databaseEncryption.ensureKeyAvailableForEncryptedData(
+      encryptedDataExists: encryptedDataExists,
+    );
+    if (!encryptedDataExists) {
+      await databaseEncryption.ensureMasterKey();
+      return;
+    }
+
+    final rows = await db.query(
+      'documents',
+      columns: <String>['title', 'content', 'tags_json', 'metadata_json'],
+      where:
+          'title LIKE ? OR content LIKE ? OR tags_json LIKE ? OR metadata_json LIKE ?',
+      whereArgs: List<Object>.filled(4, '${DatabaseEncryption.cipherPrefix}:%'),
+      limit: 1,
+    );
+    if (rows.isEmpty) {
+      return;
+    }
+
+    final row = rows.first;
+    for (final column in const <String>[
+      'title',
+      'content',
+      'tags_json',
+      'metadata_json',
+    ]) {
+      final value = row[column] as String? ?? '';
+      if (value.isEmpty || !databaseEncryption.isEncryptedValue(value)) {
+        continue;
+      }
+      await databaseEncryption.decryptValue(value);
+    }
+  }
+
+  Future<bool> _encryptedDataExists(Database db) async {
+    final rows = await db.rawQuery('''
+      SELECT 1
+      FROM documents
+      WHERE title LIKE ?
+        OR content LIKE ?
+        OR tags_json LIKE ?
+        OR metadata_json LIKE ?
+      LIMIT 1
+    ''', List<Object>.filled(4, '${DatabaseEncryption.cipherPrefix}:%'));
+    return rows.isNotEmpty;
   }
 
   Future<void> _encryptExistingPersonalData(Database db) async {
@@ -572,12 +632,28 @@ class VectorDb {
     ''');
   }
 
+  Future<int> _cleanOrphanEmbeddings(DatabaseExecutor db) async {
+    return db.rawDelete('''
+      DELETE FROM embeddings
+      WHERE doc_id NOT IN (SELECT id FROM documents)
+    ''');
+  }
+
   Future<void> _upsertRecords(
     Transaction txn,
     List<LifeRecord> records,
     TextEmbeddingService embeddingService,
   ) async {
     for (final record in records) {
+      final existing = await _findDocBySourceId(
+        txn,
+        record.importSource,
+        record.sourceId,
+      );
+      if (existing != null) {
+        await _deleteEmbeddingsByDocId(txn, existing['id']! as String);
+      }
+
       final encryptedTitle = await databaseEncryption.encryptValue(
         record.title,
       );
@@ -611,6 +687,35 @@ class VectorDb {
         'normalized': 1,
       }, conflictAlgorithm: ConflictAlgorithm.replace);
     }
+  }
+
+  Future<Map<String, Object?>?> _findDocBySourceId(
+    DatabaseExecutor db,
+    String importSource,
+    String sourceId,
+  ) async {
+    final rows = await db.query(
+      'documents',
+      columns: <String>['id'],
+      where: 'import_source = ? AND source_id = ?',
+      whereArgs: <Object>[importSource, sourceId],
+      limit: 1,
+    );
+    if (rows.isEmpty) {
+      return null;
+    }
+    return rows.first;
+  }
+
+  Future<void> _deleteEmbeddingsByDocId(
+    DatabaseExecutor db,
+    String docId,
+  ) async {
+    await db.delete(
+      'embeddings',
+      where: 'doc_id = ?',
+      whereArgs: <Object>[docId],
+    );
   }
 
   Future<void> _normalizeStoredEmbeddings(Database db) async {

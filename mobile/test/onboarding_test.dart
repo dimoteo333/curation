@@ -19,6 +19,7 @@ void main() {
           onDeviceLlmBridgeProvider.overrideWithValue(
             const _FakeOnDeviceLlmBridge(),
           ),
+          localDataInitializationProvider.overrideWith((ref) async {}),
         ],
         child: const CuratorApp(),
       ),
@@ -38,7 +39,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('파일을 불러와주세요'), findsOneWidget);
-    await tester.ensureVisible(find.byKey(const Key('completeOnboardingButton')));
+    await tester.ensureVisible(
+      find.byKey(const Key('completeOnboardingButton')),
+    );
     await tester.tap(
       find.byKey(const Key('completeOnboardingButton')),
       warnIfMissed: false,
@@ -63,6 +66,7 @@ void main() {
           onDeviceLlmBridgeProvider.overrideWithValue(
             const _FakeOnDeviceLlmBridge(),
           ),
+          localDataInitializationProvider.overrideWith((ref) async {}),
         ],
         child: const CuratorApp(),
       ),

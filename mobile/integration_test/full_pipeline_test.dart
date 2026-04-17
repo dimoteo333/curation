@@ -48,15 +48,17 @@ void main() {
     );
     await diaryFile.setLastModified(DateTime(2026, 1, 12, 23, 10));
 
+    final encryption = createTestDatabaseEncryption();
     final vectorDb = VectorDb(
       databaseFactory: databaseFactoryFfi,
       databasePathResolver: () async => path.join(tempDirectory.path, 'rag.db'),
-      databaseEncryption: createTestDatabaseEncryption(),
+      databaseEncryption: encryption,
     );
     final embeddingService = const SemanticEmbeddingService();
     final preferences = await SharedPreferences.getInstance();
     final recordStore = LifeRecordStore(
       vectorDb: vectorDb,
+      databaseEncryption: encryption,
       embeddingService: embeddingService,
       seedRecords: const [],
       sharedPreferences: preferences,

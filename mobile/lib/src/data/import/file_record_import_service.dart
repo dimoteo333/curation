@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as path;
 
 import '../../core/security/input_sanitizer.dart';
@@ -58,8 +59,7 @@ class FileRecordImportService {
         continue;
       }
       final alreadyImported = await importHistoryService.hasImportedFile(
-        path: parsedRecord.path,
-        modifiedAt: parsedRecord.modifiedAt,
+        contentHash: parsedRecord.contentHash,
       );
       if (alreadyImported || !seenSourceIds.add(parsedRecord.record.sourceId)) {
         duplicateFiles.add(file.name);
@@ -69,9 +69,8 @@ class FileRecordImportService {
       records.add(parsedRecord.record);
       importedFiles.add(
         FileImportHistoryRecord(
-          path: parsedRecord.path,
+          contentHash: parsedRecord.contentHash,
           fileName: file.name,
-          modifiedAt: parsedRecord.modifiedAt,
           sourceId: parsedRecord.record.sourceId,
           importedAt: _nowProvider(),
         ),
@@ -111,6 +110,7 @@ class FileRecordImportService {
       }
 
       final rawBytes = await file.readAsBytes();
+      final contentHash = sha256.convert(rawBytes).toString();
       final normalizedText = _decodeUtf8(rawBytes);
       if (normalizedText == null) {
         return null;
@@ -124,17 +124,9 @@ class FileRecordImportService {
       final tags = SemanticEmbeddingService.suggestTags(
         '$sanitizedTitle $sanitizedContent',
       );
-      final fileNameFingerprint = InputSanitizer.buildFileNameFingerprint(
-        pickedFile.name,
-      );
-
-      final sourceId = _buildRecordId(
-          fileNameFingerprint: fileNameFingerprint,
-          modifiedAt: stat.modified,
-      );
+      final sourceId = 'file-$contentHash';
       return _ParsedImportFile(
-        path: pickedFile.path,
-        modifiedAt: stat.modified,
+        contentHash: contentHash,
         record: LifeRecord(
           id: sourceId,
           sourceId: sourceId,
@@ -145,7 +137,8 @@ class FileRecordImportService {
           createdAt: stat.modified,
           tags: tags,
           metadata: <String, dynamic>{
-            'file_name_fingerprint': fileNameFingerprint,
+            'content_hash': contentHash,
+            'original_file_name': pickedFile.name,
             'file_extension': extension.replaceFirst('.', ''),
             'modified_at': stat.modified.toIso8601String(),
             'imported_at': _nowProvider().toIso8601String(),
@@ -157,13 +150,6 @@ class FileRecordImportService {
     } on InputValidationException {
       return null;
     }
-  }
-
-  String _buildRecordId({
-    required String fileNameFingerprint,
-    required DateTime modifiedAt,
-  }) {
-    return 'file-${modifiedAt.millisecondsSinceEpoch}-$fileNameFingerprint';
   }
 
   String? _decodeUtf8(List<int> bytes) {
@@ -283,13 +269,8 @@ class _ParsedImportRecord {
 }
 
 class _ParsedImportFile {
-  const _ParsedImportFile({
-    required this.path,
-    required this.modifiedAt,
-    required this.record,
-  });
+  const _ParsedImportFile({required this.contentHash, required this.record});
 
-  final String path;
-  final DateTime modifiedAt;
+  final String contentHash;
   final LifeRecord record;
 }

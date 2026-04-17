@@ -210,9 +210,7 @@ class CalendarImportService {
       end: now,
     );
     final dedupedEvents = _dedupeEvents(rawEvents);
-    final records = dedupedEvents
-        .map(toLifeRecord)
-        .toList(growable: false);
+    final records = dedupedEvents.map(toLifeRecord).toList(growable: false);
 
     if (records.isNotEmpty) {
       await recordStore.importRecords(records);

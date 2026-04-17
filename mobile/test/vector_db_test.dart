@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:curator_mobile/src/core/security/database_encryption.dart';
 import 'package:curator_mobile/src/data/local/seed_records.dart';
 import 'package:curator_mobile/src/data/local/vector_db.dart';
 import 'package:curator_mobile/src/data/ondevice/semantic_embedding_service.dart';
@@ -186,6 +187,40 @@ void main() {
     expect(await vectorDb.documentCount(), 0);
   });
 
+  test('secure storage 키가 사라진 상태에서 encrypted DB를 열면 복구 예외를 던진다', () async {
+    final databasePath = path.join(tempDirectory.path, 'missing-key.db');
+    final sharedStore = InMemorySecureKeyStore();
+    final vectorDb = VectorDb(
+      databaseFactory: databaseFactoryFfi,
+      databasePathResolver: () async => databasePath,
+      databaseEncryption: createTestDatabaseEncryption(
+        secureKeyStore: sharedStore,
+      ),
+    );
+
+    await vectorDb.replaceAllRecords(
+      seededLifeRecords.take(1).toList(),
+      const SemanticEmbeddingService(),
+    );
+
+    final recoveryVectorDb = VectorDb(
+      databaseFactory: databaseFactoryFfi,
+      databasePathResolver: () async => databasePath,
+      databaseEncryption: createTestDatabaseEncryption(),
+    );
+
+    await expectLater(
+      recoveryVectorDb.initialize,
+      throwsA(
+        isA<DatabaseEncryptionResetRequiredException>().having(
+          (error) => error.reason,
+          'reason',
+          DatabaseEncryptionFailureReason.missingMasterKey,
+        ),
+      ),
+    );
+  });
+
   test('v1 스키마는 v4로 마이그레이션되며 기존 개인 필드를 암호화한다', () async {
     final databasePath = path.join(tempDirectory.path, 'migration.db');
     final legacyDb = await databaseFactoryFfi.openDatabase(
@@ -230,10 +265,12 @@ void main() {
     });
     await legacyDb.close();
 
+    final encryption = createTestDatabaseEncryption();
+    await encryption.ensureMasterKey();
     final vectorDb = VectorDb(
       databaseFactory: databaseFactoryFfi,
       databasePathResolver: () async => databasePath,
-      databaseEncryption: createTestDatabaseEncryption(),
+      databaseEncryption: encryption,
     );
     await vectorDb.initialize();
 
@@ -412,6 +449,110 @@ void main() {
     expect(rows, hasLength(1));
     expect(rows.single['id'], 'calendar-doc-2');
     expect(rows.single['source_id'], 'event-123');
+  });
+
+  test(
+    '같은 import_source/source_id를 upsert해도 orphan embedding이 남지 않는다',
+    () async {
+      final databasePath = path.join(tempDirectory.path, 'orphan-cleanup.db');
+      final vectorDb = VectorDb(
+        databaseFactory: databaseFactoryFfi,
+        databasePathResolver: () async => databasePath,
+        databaseEncryption: createTestDatabaseEncryption(),
+      );
+      const embeddingService = _DeterministicEmbeddingService();
+
+      await vectorDb.upsertRecords(<LifeRecord>[
+        LifeRecord(
+          id: 'calendar-doc-1',
+          sourceId: 'event-123',
+          source: '캘린더',
+          importSource: 'calendar',
+          title: '첫 일정 제목',
+          content: '첫 일정 내용',
+          createdAt: DateTime(2026, 4, 10, 9),
+          tags: <String>['일정'],
+        ),
+      ], embeddingService);
+
+      await vectorDb.upsertRecords(<LifeRecord>[
+        LifeRecord(
+          id: 'calendar-doc-2',
+          sourceId: 'event-123',
+          source: '캘린더',
+          importSource: 'calendar',
+          title: '업데이트된 일정 제목',
+          content: '업데이트된 일정 내용',
+          createdAt: DateTime(2026, 4, 12, 9),
+          tags: <String>['일정', '업데이트'],
+        ),
+      ], embeddingService);
+
+      final rawDb = await databaseFactoryFfi.openDatabase(databasePath);
+      final embeddings = await rawDb.query('embeddings');
+      await rawDb.close();
+
+      expect(embeddings, hasLength(1));
+      expect(embeddings.single['doc_id'], 'calendar-doc-2');
+    },
+  );
+
+  test('초기화 시 orphan embedding을 정리한다', () async {
+    final databasePath = path.join(
+      tempDirectory.path,
+      'orphan-init-cleanup.db',
+    );
+    final sharedStore = InMemorySecureKeyStore();
+    final encryption = createTestDatabaseEncryption(
+      secureKeyStore: sharedStore,
+    );
+    final vectorDb = VectorDb(
+      databaseFactory: databaseFactoryFfi,
+      databasePathResolver: () async => databasePath,
+      databaseEncryption: encryption,
+    );
+    const embeddingService = _DeterministicEmbeddingService();
+
+    await vectorDb.upsertRecords(<LifeRecord>[
+      _buildRecord(
+        id: 'note-1',
+        title: '메모 1',
+        content: '정상 문서',
+        tags: const <String>['메모'],
+        createdAt: DateTime(2026, 4, 10),
+      ),
+    ], embeddingService);
+
+    final rawDb = await databaseFactoryFfi.openDatabase(
+      databasePath,
+      options: OpenDatabaseOptions(singleInstance: false),
+    );
+    await rawDb.insert('embeddings', <String, Object?>{
+      'doc_id': 'orphan-doc',
+      'dim': 3,
+      'vector_json': '[0.1, 0.2, 0.3]',
+      'normalized': 1,
+    });
+    await rawDb.close();
+
+    final reopenedVectorDb = VectorDb(
+      databaseFactory: databaseFactoryFfi,
+      databasePathResolver: () async => databasePath,
+      databaseEncryption: createTestDatabaseEncryption(
+        secureKeyStore: sharedStore,
+      ),
+    );
+    await reopenedVectorDb.initialize();
+
+    final reopenedDb = await databaseFactoryFfi.openDatabase(
+      databasePath,
+      options: OpenDatabaseOptions(singleInstance: false),
+    );
+    final embeddings = await reopenedDb.query('embeddings');
+    await reopenedDb.close();
+
+    expect(embeddings, hasLength(1));
+    expect(embeddings.single['doc_id'], 'note-1');
   });
 
   test('100건 검색은 ANN prefilter로 100ms 안에 끝난다', () async {

@@ -44,16 +44,18 @@ void main() {
     await textFile.writeAsString('회의 뒤 메모\n생각보다 피로가 오래 남았다.');
     await textFile.setLastModified(DateTime(2026, 4, 16, 8, 40));
 
+    final encryption = createTestDatabaseEncryption();
     final vectorDb = VectorDb(
       databaseFactory: databaseFactoryFfi,
       databasePathResolver: () async =>
           path.join(tempDirectory.path, 'vector.db'),
-      databaseEncryption: createTestDatabaseEncryption(),
+      databaseEncryption: encryption,
     );
     final embeddingService = const SemanticEmbeddingService();
     final preferences = await SharedPreferences.getInstance();
     final recordStore = LifeRecordStore(
       vectorDb: vectorDb,
+      databaseEncryption: encryption,
       embeddingService: embeddingService,
       seedRecords: const [],
       sharedPreferences: preferences,
@@ -88,6 +90,7 @@ void main() {
     expect(record.metadata['file_extension'], 'md');
     expect(record.metadata['parser'], 'markdown-header');
     expect(record.metadata['tag_count'], greaterThanOrEqualTo(2));
+    expect(record.metadata['content_hash'], isNotEmpty);
   });
 
   test('비어 있거나 지원하지 않는 파일은 건너뛴다', () async {
@@ -96,15 +99,17 @@ void main() {
     final unsupportedFile = File(path.join(tempDirectory.path, 'image.png'));
     await unsupportedFile.writeAsString('not-really-an-image');
 
+    final encryption = createTestDatabaseEncryption();
     final vectorDb = VectorDb(
       databaseFactory: databaseFactoryFfi,
       databasePathResolver: () async =>
           path.join(tempDirectory.path, 'vector.db'),
-      databaseEncryption: createTestDatabaseEncryption(),
+      databaseEncryption: encryption,
     );
     final preferences = await SharedPreferences.getInstance();
     final recordStore = LifeRecordStore(
       vectorDb: vectorDb,
+      databaseEncryption: encryption,
       embeddingService: const SemanticEmbeddingService(),
       seedRecords: const [],
       sharedPreferences: preferences,
@@ -132,20 +137,25 @@ void main() {
     expect(await vectorDb.documentCount(), 0);
   });
 
-  test('같은 파일을 다시 가져오면 import history 기준으로 중복 처리한다', () async {
+  test('같은 내용의 파일은 이름이 달라도 content hash 기준으로 중복 처리한다', () async {
     final textFile = File(path.join(tempDirectory.path, 'memo.txt'));
     await textFile.writeAsString('회의 뒤 메모\n생각보다 피로가 오래 남았다.');
     await textFile.setLastModified(DateTime(2026, 4, 16, 8, 40));
+    final renamedFile = File(path.join(tempDirectory.path, 'memo-copy.txt'));
+    await renamedFile.writeAsString('회의 뒤 메모\n생각보다 피로가 오래 남았다.');
+    await renamedFile.setLastModified(DateTime(2026, 4, 17, 8, 40));
 
+    final encryption = createTestDatabaseEncryption();
     final vectorDb = VectorDb(
       databaseFactory: databaseFactoryFfi,
       databasePathResolver: () async =>
           path.join(tempDirectory.path, 'vector.db'),
-      databaseEncryption: createTestDatabaseEncryption(),
+      databaseEncryption: encryption,
     );
     final preferences = await SharedPreferences.getInstance();
     final recordStore = LifeRecordStore(
       vectorDb: vectorDb,
+      databaseEncryption: encryption,
       embeddingService: const SemanticEmbeddingService(),
       seedRecords: const [],
       sharedPreferences: preferences,
@@ -163,11 +173,13 @@ void main() {
     );
 
     final firstResult = await service.pickAndImport();
-    final secondResult = await service.pickAndImport();
+    final secondResult = await service.importFiles(<PickedImportFile>[
+      PickedImportFile(path: renamedFile.path, name: 'memo-copy.txt'),
+    ]);
 
     expect(firstResult.importedCount, 1);
     expect(secondResult.importedCount, 0);
-    expect(secondResult.duplicateFiles, <String>['memo.txt']);
+    expect(secondResult.duplicateFiles, <String>['memo-copy.txt']);
     expect(await vectorDb.documentCount(), 1);
   });
 
@@ -177,15 +189,17 @@ void main() {
     final invalidUtf8File = File(path.join(tempDirectory.path, 'broken.txt'));
     await invalidUtf8File.writeAsBytes(const <int>[0xFF, 0xFE, 0x00]);
 
+    final encryption = createTestDatabaseEncryption();
     final vectorDb = VectorDb(
       databaseFactory: databaseFactoryFfi,
       databasePathResolver: () async =>
           path.join(tempDirectory.path, 'vector.db'),
-      databaseEncryption: createTestDatabaseEncryption(),
+      databaseEncryption: encryption,
     );
     final preferences = await SharedPreferences.getInstance();
     final recordStore = LifeRecordStore(
       vectorDb: vectorDb,
+      databaseEncryption: encryption,
       embeddingService: const SemanticEmbeddingService(),
       seedRecords: const [],
       sharedPreferences: preferences,

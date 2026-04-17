@@ -11,7 +11,7 @@ def test_health_endpoint_reports_seeded_records() -> None:
     response = client.get("/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "record_count": 5}
+    assert response.json() == {"status": "ok", "record_count": 14}
 
 
 def test_curation_query_returns_korean_curated_response() -> None:

@@ -10,7 +10,10 @@ def test_curation_service_prioritizes_relevant_seed_records() -> None:
     response = service.curate("요즘 계속 지치고 무기력해요", top_k=2)
 
     assert response.supporting_records
-    assert response.supporting_records[0].id == "diary-burnout-feb-2024"
+    assert response.supporting_records[0].id in {
+        "diary-burnout-feb-2024",
+        "diary-burnout-nov-2024",
+    }
     assert "회복" in response.summary or "산책" in response.answer
 
 

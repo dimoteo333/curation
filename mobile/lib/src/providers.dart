@@ -1,6 +1,3 @@
-import 'dart:io';
-
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -45,52 +42,10 @@ final appBuildInfoProvider = Provider<AppBuildInfo>((ref) {
 final secureKeyStoreProvider = Provider<SecureKeyStore>((ref) {
   return FlutterSecureKeyStore(storage: const FlutterSecureStorage());
 });
-final deviceContextResolverProvider = Provider<DeviceContextResolver>((ref) {
-  final buildInfo = ref.watch(appBuildInfoProvider);
-  return () async {
-    final plugin = DeviceInfoPlugin();
-    if (Platform.isAndroid) {
-      final info = await plugin.androidInfo;
-      return [
-        'android',
-        buildInfo.packageName,
-        info.brand,
-        info.device,
-        info.fingerprint,
-        info.id,
-        info.manufacturer,
-        info.model,
-        info.product,
-        '${info.version.sdkInt}',
-      ].join('|');
-    }
-    if (Platform.isIOS) {
-      final info = await plugin.iosInfo;
-      return [
-        'ios',
-        buildInfo.packageName,
-        info.identifierForVendor ?? '',
-        info.model,
-        info.modelName,
-        info.localizedModel,
-        info.systemName,
-        info.systemVersion,
-        info.utsname.machine,
-      ].join('|');
-    }
-    return [
-      Platform.operatingSystem,
-      buildInfo.packageName,
-      Platform.localHostname,
-      Platform.operatingSystemVersion,
-    ].join('|');
-  };
-});
 final databaseEncryptionProvider = Provider<DatabaseEncryption>((ref) {
   final buildInfo = ref.watch(appBuildInfoProvider);
   return DatabaseEncryption(
     secureKeyStore: ref.watch(secureKeyStoreProvider),
-    deviceContextResolver: ref.watch(deviceContextResolverProvider),
     appNamespace: buildInfo.packageName,
   );
 });
@@ -177,6 +132,7 @@ final llmEngineProvider = Provider<LlmEngine>((ref) {
 final lifeRecordStoreProvider = Provider<LifeRecordStore>((ref) {
   return LifeRecordStore(
     vectorDb: ref.watch(vectorDbProvider),
+    databaseEncryption: ref.watch(databaseEncryptionProvider),
     embeddingService: ref.watch(textEmbeddingServiceProvider),
     seedRecords: ref.watch(seedRecordsProvider),
     sharedPreferences: ref.watch(sharedPreferencesProvider),
@@ -222,12 +178,14 @@ final importHistorySnapshotProvider = FutureProvider<ImportHistorySnapshot>((
   return ref.watch(importHistoryServiceProvider).loadSnapshot();
 });
 
-final calendarSyncStatusProvider = FutureProvider<CalendarSyncStatus>((ref) async {
+final calendarSyncStatusProvider = FutureProvider<CalendarSyncStatus>((
+  ref,
+) async {
   ref.watch(localDataRevisionProvider);
   final settings = ref.watch(appSettingsProvider);
-  return ref.watch(calendarImportServiceProvider).loadStatus(
-    syncEnabled: settings.calendarSyncEnabled,
-  );
+  return ref
+      .watch(calendarImportServiceProvider)
+      .loadStatus(syncEnabled: settings.calendarSyncEnabled);
 });
 
 final localDataRevisionProvider =
@@ -238,6 +196,11 @@ final localDataRevisionProvider =
 final localDataStatsProvider = FutureProvider<LocalDataStats>((ref) async {
   ref.watch(localDataRevisionProvider);
   return ref.watch(lifeRecordStoreProvider).loadStats();
+});
+
+final localDataInitializationProvider = FutureProvider<void>((ref) async {
+  ref.watch(localDataRevisionProvider);
+  await ref.watch(lifeRecordStoreProvider).initialize();
 });
 
 final remoteCurationRepositoryProvider = Provider<CurationRepository>((ref) {

@@ -376,6 +376,10 @@ class _ResponseInsightSection extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (response.runtimeInfo != null) ...[
+                  _RuntimePathBadge(runtimeInfo: response.runtimeInfo!),
+                  const SizedBox(height: 12),
+                ],
                 Text(
                   response.insightTitle,
                   style: theme.textTheme.labelSmall?.copyWith(
@@ -450,6 +454,56 @@ class _ResponseInsightSection extends StatelessWidget {
 
   String _formatAbsoluteDate(DateTime value) {
     return '${value.year}년 ${value.month}월 ${value.day}일';
+  }
+}
+
+class _RuntimePathBadge extends StatelessWidget {
+  const _RuntimePathBadge({required this.runtimeInfo});
+
+  final CurationRuntimeInfo runtimeInfo;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
+    final (label, color) = switch (runtimeInfo.path) {
+      CurationRuntimePath.onDeviceNative => (
+        '온디바이스 AI',
+        const Color(0xFF2E8B57),
+      ),
+      CurationRuntimePath.onDeviceFallback => (
+        '템플릿 응답',
+        const Color(0xFFC69314),
+      ),
+      CurationRuntimePath.remoteHarness => ('서버 응답', const Color(0xFF2B6CB0)),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: palette.surfaceStrong.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: palette.outline.withValues(alpha: 0.24)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: palette.label,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

@@ -24,7 +24,8 @@ class AppSettingsController extends Notifier<AppSettings> {
           _storedPath(_embedderModelPathKey) ?? _config.embedderModelPath,
       onboardingCompleted:
           _preferences.getBool(_onboardingCompletedKey) ?? false,
-      calendarSyncEnabled: _preferences.getBool(_calendarSyncEnabledKey) ?? false,
+      calendarSyncEnabled:
+          _preferences.getBool(_calendarSyncEnabledKey) ?? false,
     );
   }
 

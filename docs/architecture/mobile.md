@@ -38,14 +38,14 @@ Rules
 
 ## On-device flow
 
-- On first launch, a minimal onboarding screen explains the service, file import entry point, and privacy posture. Completion is persisted with SharedPreferences.
+- On first launch, a minimal onboarding screen explains the service, file import entry point, privacy posture, and optional demo-data loading. Completion is persisted with SharedPreferences.
 - Runtime mode and developer model paths are stored as local settings and can override compile-time defaults without changing the API contract.
-- Seeded or imported records are indexed into a local encrypted SQLite vector store.
+- Imported records and explicitly loaded demo records are indexed into a local encrypted SQLite vector store.
 - `.txt` and `.md` files can be imported through the settings screen, parsed into local `LifeRecord` records, and embedded into the local vector DB.
 - Device calendar events from the last 30 days can be imported on demand after a settings-screen permission grant and are stored as local `calendar` records for curation context.
 - Apple Notes is not read directly; iOS users are guided to export note text to `.txt` and then reuse the file import path.
-- Personal text fields in the local store are encrypted at the application layer with a device-local key from secure storage, while embedding vectors remain plaintext for retrieval.
-- Settings now expose a privacy policy reference and a destructive delete-all flow that removes the SQLite files and clears local app preferences.
+- Personal text fields in the local store are encrypted at the application layer with a per-install master key stored in secure storage, while embedding vectors remain plaintext for retrieval.
+- Settings now expose a privacy policy reference, an explicit demo-data load action when the local DB is empty, and a destructive delete-all flow that removes the SQLite files, clears the secure-stored master key, and clears local app preferences.
 - Settings also expose calendar sync status, last sync time, import history, and a data-source summary so local ingest state is visible to the user.
 - Query embeddings currently use the pure Dart `SemanticEmbeddingService` fallback on both iOS and Android.
 - Local retrieval now keeps a tag-cluster ANN-style prefilter, persisted normalized embedding state, and an LRU repeated-question cache so searches do not rescore the full local corpus on every query.
