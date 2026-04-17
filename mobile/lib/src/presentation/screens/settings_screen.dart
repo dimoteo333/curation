@@ -160,8 +160,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         const _HairlineDivider(),
                         _ActionRow(
                           key: const Key('settingsClearDataButton'),
-                          title: '전체 데이터 삭제',
-                          subtitle: '로컬 기록과 인덱스를 제거합니다.',
+                          title: '모든 데이터 삭제',
+                          subtitle: '로컬 기록, 인덱스, 앱 설정을 모두 제거합니다.',
                           actionLabel: '삭제',
                           destructive: true,
                           onTap: _clearAllData,
@@ -210,17 +210,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       children: [
                         _ValueRow(
                           title: '저장 위치',
-                          value: '로컬 SQLite `${config.vectorDbName}`',
+                          value: '암호화된 로컬 SQLite `${config.vectorDbName}`',
                         ),
                         const _HairlineDivider(),
                         const _ValueRow(
                           title: '외부 전송',
                           value: '온디바이스 모드에서는 기본적으로 외부 전송이 없습니다.',
                         ),
+                        const _HairlineDivider(),
+                        _ActionRow(
+                          key: const Key('privacyPolicyButton'),
+                          title: '개인정보 처리방침',
+                          subtitle: '앱의 데이터 보관과 삭제 기준을 확인합니다.',
+                          actionLabel: '보기',
+                          onTap: _showPrivacyPolicy,
+                        ),
                         const SizedBox(height: 18),
                         const _DescriptionBlock(
                           text:
-                              '큐레이터는 의학·심리 진단 앱이 아니라, 일상 기록을 조용히 정리하고 질문을 돕는 개인 큐레이션 도구입니다.',
+                              '정책 원문은 저장소의 `docs/privacy/PRIVACY_POLICY.md`에 있습니다. 큐레이터는 의학·심리 진단 앱이 아니라, 일상 기록을 조용히 정리하고 질문을 돕는 개인 큐레이션 도구입니다.',
                         ),
                       ],
                     ),
@@ -296,12 +304,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _clearAllData() async {
-    await ref.read(lifeRecordStoreProvider).clearAllRecords();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('모든 데이터를 삭제할까요?'),
+          content: const Text('가져온 기록, 시드 데이터, 로컬 인덱스, 저장된 앱 설정이 모두 삭제됩니다.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('취소'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('삭제'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true) {
+      return;
+    }
+
+    await ref.read(lifeRecordStoreProvider).deleteAllData();
     ref.read(localDataRevisionProvider.notifier).bump();
+    ref.invalidate(appSettingsProvider);
+    ref.invalidate(onDeviceRuntimeStatusProvider);
     if (!mounted) {
       return;
     }
-    _showMessage('로컬 데이터를 모두 삭제했습니다.');
+    _llmPathController.clear();
+    _embedderPathController.clear();
+    _showMessage('모든 로컬 데이터를 삭제했습니다.');
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   Future<void> _saveModelPaths() async {
@@ -322,6 +358,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _showPrivacyPolicy() {
+    return showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('개인정보 처리방침'),
+          content: const SingleChildScrollView(
+            child: Text(
+              '큐레이터는 사용자가 직접 가져온 파일만 처리합니다.\n\n'
+              '개인 기록은 기기 안의 암호화된 SQLite에 저장되며, 온디바이스 모드에서는 기록 내용이 외부로 전송되지 않습니다.\n\n'
+              '데이터는 사용자가 삭제하기 전까지 유지되며, 설정의 "모든 데이터 삭제"로 언제든 제거할 수 있습니다.\n\n'
+              '정책 원문: docs/privacy/PRIVACY_POLICY.md',
+            ),
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('닫기'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   String _formatBytes(int bytes) {

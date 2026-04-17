@@ -40,8 +40,10 @@ Rules
 
 - On first launch, a minimal onboarding screen explains the service, file import entry point, and privacy posture. Completion is persisted with SharedPreferences.
 - Runtime mode and developer model paths are stored as local settings and can override compile-time defaults without changing the API contract.
-- Seeded or imported records are indexed into a local SQLite vector store.
+- Seeded or imported records are indexed into a local encrypted SQLite vector store.
 - `.txt` and `.md` files can be imported through the settings screen, parsed into `LifeRecord` v2 records, and embedded into the local vector DB.
+- Personal text fields in the local store are encrypted at the application layer with a device-local key from secure storage, while embedding vectors remain plaintext for retrieval.
+- Settings now expose a privacy policy reference and a destructive delete-all flow that removes the SQLite files and clears local app preferences.
 - Query embeddings currently use the pure Dart `SemanticEmbeddingService` fallback on both iOS and Android.
 - Native `embed` bridge calls are intentionally unavailable on both platforms until the MediaPipe text embedding path is stabilized.
 - The local vector store keeps normalized embedding and repeated-query caches so small datasets stay responsive without changing the retrieval contract.

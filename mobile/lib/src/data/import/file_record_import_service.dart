@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:path/path.dart' as path;
 
+import '../../core/security/input_sanitizer.dart';
 import '../../domain/entities/life_record.dart';
 import '../local/life_record_store.dart';
 import '../ondevice/semantic_embedding_service.dart';
@@ -62,60 +64,91 @@ class FileRecordImportService {
   }
 
   Future<LifeRecord?> _parseFile(PickedImportFile pickedFile) async {
-    final extension = path.extension(pickedFile.path).toLowerCase();
-    if (extension != '.txt' && extension != '.md') {
+    try {
+      InputSanitizer.validateFileName(pickedFile.name);
+
+      final extension = path.extension(pickedFile.path).toLowerCase();
+      if (extension != '.txt' && extension != '.md') {
+        return null;
+      }
+
+      final file = File(pickedFile.path);
+      if (!await file.exists()) {
+        return null;
+      }
+
+      final stat = await file.stat();
+      if (stat.size > InputSanitizer.maxFileSizeBytes) {
+        return null;
+      }
+
+      final rawBytes = await file.readAsBytes();
+      final normalizedText = _decodeUtf8(rawBytes);
+      if (normalizedText == null) {
+        return null;
+      }
+
+      final parser = extension == '.md'
+          ? _parseMarkdown(pickedFile.name, normalizedText)
+          : _parsePlainText(pickedFile.name, normalizedText);
+      final sanitizedTitle = InputSanitizer.sanitizeTitle(parser.title);
+      final sanitizedContent = InputSanitizer.sanitizeContent(parser.content);
+      final tags = SemanticEmbeddingService.suggestTags(
+        '$sanitizedTitle $sanitizedContent',
+      );
+      final fileNameFingerprint = InputSanitizer.buildFileNameFingerprint(
+        pickedFile.name,
+      );
+
+      return LifeRecord(
+        id: _buildRecordId(
+          fileNameFingerprint: fileNameFingerprint,
+          modifiedAt: stat.modified,
+        ),
+        source: '파일',
+        importSource: 'file',
+        title: sanitizedTitle,
+        content: sanitizedContent,
+        createdAt: stat.modified,
+        tags: tags,
+        metadata: <String, dynamic>{
+          'file_name_fingerprint': fileNameFingerprint,
+          'file_extension': extension.replaceFirst('.', ''),
+          'modified_at': stat.modified.toIso8601String(),
+          'imported_at': _nowProvider().toIso8601String(),
+          'parser': parser.parser,
+          'tag_count': tags.length,
+        },
+      );
+    } on InputValidationException {
       return null;
     }
-
-    final file = File(pickedFile.path);
-    if (!await file.exists()) {
-      return null;
-    }
-
-    final rawText = await file.readAsString();
-    final normalizedText = rawText.replaceAll('\r\n', '\n').trim();
-    if (normalizedText.isEmpty) {
-      return null;
-    }
-
-    final stat = await file.stat();
-    final parser = extension == '.md'
-        ? _parseMarkdown(pickedFile.name, normalizedText)
-        : _parsePlainText(pickedFile.name, normalizedText);
-    final tags = SemanticEmbeddingService.suggestTags(
-      '${parser.title} ${parser.content}',
-    );
-
-    return LifeRecord(
-      id: _buildRecordId(fileName: pickedFile.name, modifiedAt: stat.modified),
-      source: '파일',
-      importSource: 'file',
-      title: parser.title,
-      content: parser.content,
-      createdAt: stat.modified,
-      tags: tags,
-      metadata: <String, dynamic>{
-        'file_name': pickedFile.name,
-        'file_extension': extension.replaceFirst('.', ''),
-        'modified_at': stat.modified.toIso8601String(),
-        'imported_at': _nowProvider().toIso8601String(),
-        'parser': parser.parser,
-        'tag_count': tags.length,
-      },
-    );
   }
 
   String _buildRecordId({
-    required String fileName,
+    required String fileNameFingerprint,
     required DateTime modifiedAt,
   }) {
-    final sanitizedName = path
-        .basenameWithoutExtension(fileName)
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9가-힣]+'), '-')
-        .replaceAll(RegExp(r'-{2,}'), '-')
-        .replaceAll(RegExp(r'^-|-$'), '');
-    return 'file-$sanitizedName-${modifiedAt.millisecondsSinceEpoch}';
+    return 'file-${modifiedAt.millisecondsSinceEpoch}-$fileNameFingerprint';
+  }
+
+  String? _decodeUtf8(List<int> bytes) {
+    try {
+      final normalizedBytes =
+          bytes.length >= 3 &&
+              bytes[0] == 0xEF &&
+              bytes[1] == 0xBB &&
+              bytes[2] == 0xBF
+          ? bytes.sublist(3)
+          : bytes;
+      final decoded = utf8.decode(normalizedBytes, allowMalformed: false);
+      final sanitized = InputSanitizer.sanitizeContent(decoded);
+      return sanitized.isEmpty ? null : sanitized;
+    } on FormatException {
+      return null;
+    } on InputValidationException {
+      return null;
+    }
   }
 
   _ParsedImportRecord _parseMarkdown(String fileName, String content) {

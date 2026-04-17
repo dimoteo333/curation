@@ -56,9 +56,13 @@ class LifeRecordStore {
   }
 
   Future<void> clearAllRecords() async {
+    await deleteAllData();
+  }
+
+  Future<void> deleteAllData() async {
     await vectorDb.initialize();
-    await vectorDb.clearAllRecords();
-    await sharedPreferences.setBool(_bootstrapKey, true);
+    await vectorDb.deleteAllData();
+    await sharedPreferences.clear();
   }
 
   Future<LocalDataStats> loadStats() async {

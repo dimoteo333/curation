@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../core/security/database_encryption.dart';
 import '../../domain/entities/life_record.dart';
 import '../../domain/services/text_embedding_service.dart';
 
@@ -18,14 +19,19 @@ class VectorSearchMatch {
 }
 
 class VectorDb {
-  VectorDb({required this.databaseFactory, required this.databasePathResolver});
+  VectorDb({
+    required this.databaseFactory,
+    required this.databasePathResolver,
+    required this.databaseEncryption,
+  });
 
   final DatabaseFactory databaseFactory;
   final DatabasePathResolver databasePathResolver;
+  final DatabaseEncryption databaseEncryption;
 
   static const int _queryNormalizationCacheLimit = 48;
   static const int _searchResultCacheLimit = 24;
-  static const int schemaVersion = 2;
+  static const int schemaVersion = 3;
 
   Database? _database;
   String? _resolvedDatabasePath;
@@ -80,19 +86,37 @@ class VectorDb {
   }
 
   Future<void> clearAllRecords() async {
-    final db = await _open();
-    _invalidateCaches();
+    await deleteAllData();
+  }
 
-    await db.transaction((txn) async {
-      await txn.delete('embeddings');
-      await txn.delete('documents');
-    });
-
+  Future<void> deleteAllData() async {
     _invalidateCaches();
+    final existing = _database;
+    _database = null;
+
+    if (existing != null) {
+      await existing.close();
+    }
+
+    final path = _resolvedDatabasePath ?? await databasePathResolver();
+    _resolvedDatabasePath = path;
+    await databaseFactory.deleteDatabase(path);
+    await _deleteSidecarFiles(path);
+  }
+
+  Future<void> _deleteSidecarFiles(String path) async {
+    for (final suffix in const <String>['-wal', '-shm', '-journal']) {
+      final file = File('$path$suffix');
+      if (await file.exists()) {
+        await file.delete();
+      }
+    }
   }
 
   Future<int> databaseSizeBytes() async {
-    await _open();
+    final db = await _open();
+    final dbPath = db.path;
+    _resolvedDatabasePath = dbPath;
     final path = _resolvedDatabasePath;
     if (path == null) {
       return 0;
@@ -181,6 +205,9 @@ class VectorDb {
               END
             ''');
           }
+          if (oldVersion < 3) {
+            await _encryptExistingPersonalData(db);
+          }
         },
       ),
     );
@@ -189,21 +216,67 @@ class VectorDb {
     return database;
   }
 
-  LifeRecord _recordFromRow(Map<String, Object?> row) {
-    final tags = (jsonDecode(row['tags_json']! as String) as List<dynamic>)
+  Future<void> _encryptExistingPersonalData(Database db) async {
+    final rows = await db.query(
+      'documents',
+      columns: <String>['id', 'title', 'content', 'tags_json', 'metadata_json'],
+    );
+    final batch = db.batch();
+
+    for (final row in rows) {
+      final id = row['id']! as String;
+      final updates = <String, Object?>{};
+
+      Future<void> encryptField(String column) async {
+        final value = row[column] as String? ?? '';
+        if (_needsEncryption(value)) {
+          updates[column] = await databaseEncryption.encryptValue(value);
+        }
+      }
+
+      await encryptField('title');
+      await encryptField('content');
+      await encryptField('tags_json');
+      await encryptField('metadata_json');
+
+      if (updates.isNotEmpty) {
+        batch.update(
+          'documents',
+          updates,
+          where: 'id = ?',
+          whereArgs: <Object>[id],
+        );
+      }
+    }
+
+    await batch.commit(noResult: true);
+  }
+
+  bool _needsEncryption(String value) {
+    return value.isNotEmpty && !databaseEncryption.isEncryptedValue(value);
+  }
+
+  Future<LifeRecord> _recordFromRow(Map<String, Object?> row) async {
+    final decryptedTagsJson = await databaseEncryption.decryptValue(
+      row['tags_json']! as String,
+    );
+    final tags = (jsonDecode(decryptedTagsJson) as List<dynamic>)
         .map((dynamic value) => value.toString())
         .toList(growable: false);
+    final decryptedMetadataJson = await databaseEncryption.decryptValue(
+      row['metadata_json']! as String,
+    );
 
     return LifeRecord(
       id: row['id']! as String,
       source: row['source']! as String,
       importSource: row['import_source']! as String,
-      title: row['title']! as String,
-      content: row['content']! as String,
+      title: await databaseEncryption.decryptValue(row['title']! as String),
+      content: await databaseEncryption.decryptValue(row['content']! as String),
       createdAt: DateTime.fromMillisecondsSinceEpoch(row['created_at']! as int),
       tags: tags,
       metadata: Map<String, dynamic>.from(
-        jsonDecode(row['metadata_json']! as String) as Map<dynamic, dynamic>,
+        jsonDecode(decryptedMetadataJson) as Map<dynamic, dynamic>,
       ),
     );
   }
@@ -235,13 +308,15 @@ class VectorDb {
       INNER JOIN embeddings ON documents.id = embeddings.doc_id
     ''');
 
-    final indexedDocuments = <_IndexedDocument>[
-      for (final row in rows)
+    final indexedDocuments = <_IndexedDocument>[];
+    for (final row in rows) {
+      indexedDocuments.add(
         _IndexedDocument(
-          record: _recordFromRow(row),
+          record: await _recordFromRow(row),
           vector: _normalize(_vectorFromJson(row['vector_json']! as String)),
         ),
-    ];
+      );
+    }
 
     _indexedDocumentsCache = indexedDocuments;
     return indexedDocuments;
@@ -313,15 +388,27 @@ class VectorDb {
     TextEmbeddingService embeddingService,
   ) async {
     for (final record in records) {
+      final encryptedTitle = await databaseEncryption.encryptValue(
+        record.title,
+      );
+      final encryptedContent = await databaseEncryption.encryptValue(
+        record.content,
+      );
+      final encryptedTags = await databaseEncryption.encryptValue(
+        jsonEncode(record.tags),
+      );
+      final encryptedMetadata = await databaseEncryption.encryptValue(
+        jsonEncode(record.metadata),
+      );
       await txn.insert('documents', <String, Object?>{
         'id': record.id,
         'source': record.source,
         'import_source': record.importSource,
-        'title': record.title,
-        'content': record.content,
+        'title': encryptedTitle,
+        'content': encryptedContent,
         'created_at': record.createdAt.millisecondsSinceEpoch,
-        'tags_json': jsonEncode(record.tags),
-        'metadata_json': jsonEncode(record.metadata),
+        'tags_json': encryptedTags,
+        'metadata_json': encryptedMetadata,
       }, conflictAlgorithm: ConflictAlgorithm.replace);
 
       final embedding = await embeddingService.embed(record.searchableText);

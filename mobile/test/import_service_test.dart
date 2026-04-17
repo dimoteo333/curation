@@ -10,6 +10,8 @@ import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'test_support.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -45,6 +47,7 @@ void main() {
       databaseFactory: databaseFactoryFfi,
       databasePathResolver: () async =>
           path.join(tempDirectory.path, 'vector.db'),
+      databaseEncryption: createTestDatabaseEncryption(),
     );
     final embeddingService = const SemanticEmbeddingService();
     final preferences = await SharedPreferences.getInstance();
@@ -93,6 +96,7 @@ void main() {
       databaseFactory: databaseFactoryFfi,
       databasePathResolver: () async =>
           path.join(tempDirectory.path, 'vector.db'),
+      databaseEncryption: createTestDatabaseEncryption(),
     );
     final preferences = await SharedPreferences.getInstance();
     final recordStore = LifeRecordStore(
@@ -119,6 +123,44 @@ void main() {
       containsAll(<String>['empty.txt', 'image.png']),
     );
     expect(await vectorDb.documentCount(), 0);
+  });
+
+  test('경로 순회 파일명과 잘못된 UTF-8 파일은 건너뛴다', () async {
+    final invalidNameFile = File(path.join(tempDirectory.path, 'unsafe.txt'));
+    await invalidNameFile.writeAsString('메모 제목\n본문');
+    final invalidUtf8File = File(path.join(tempDirectory.path, 'broken.txt'));
+    await invalidUtf8File.writeAsBytes(const <int>[0xFF, 0xFE, 0x00]);
+
+    final vectorDb = VectorDb(
+      databaseFactory: databaseFactoryFfi,
+      databasePathResolver: () async =>
+          path.join(tempDirectory.path, 'vector.db'),
+      databaseEncryption: createTestDatabaseEncryption(),
+    );
+    final preferences = await SharedPreferences.getInstance();
+    final recordStore = LifeRecordStore(
+      vectorDb: vectorDb,
+      embeddingService: const SemanticEmbeddingService(),
+      seedRecords: const [],
+      sharedPreferences: preferences,
+    );
+    final service = FileRecordImportService(
+      recordStore: recordStore,
+      filePicker: _FakeImportFilePicker(
+        files: [
+          PickedImportFile(path: invalidNameFile.path, name: '../unsafe.txt'),
+          PickedImportFile(path: invalidUtf8File.path, name: 'broken.txt'),
+        ],
+      ),
+    );
+
+    final result = await service.pickAndImport();
+
+    expect(result.importedCount, 0);
+    expect(
+      result.skippedFiles,
+      containsAll(<String>['../unsafe.txt', 'broken.txt']),
+    );
   });
 }
 

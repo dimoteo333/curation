@@ -1,5 +1,4 @@
-# Uncomment this line to define a global platform for your project
-# platform :ios, '13.0'
+platform :ios, '13.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -30,11 +29,13 @@ flutter_ios_podfile_setup
 target 'Runner' do
   use_frameworks!
 
-  pod 'MediaPipeTasksGenAI', '0.10.21'
-  pod 'MediaPipeTasksGenAIC', '0.10.21'
+  mediapipe_genai_version = '0.10.21'
+
+  pod 'MediaPipeTasksGenAI', mediapipe_genai_version
+  pod 'MediaPipeTasksGenAIC', mediapipe_genai_version
   # Text embedder temporarily disabled - MediaPipeTasksTextC not available as CocoaPod
   # Will be re-enabled when model files are ready for on-device use
-  # pod 'MediaPipeTasksText', '0.10.21'
+  # pod 'MediaPipeTasksText', mediapipe_genai_version
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do

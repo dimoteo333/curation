@@ -7,6 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as path;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'test_support.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -31,6 +33,7 @@ void main() {
       databaseFactory: databaseFactoryFfi,
       databasePathResolver: () async =>
           path.join(tempDirectory.path, 'vector.db'),
+      databaseEncryption: createTestDatabaseEncryption(),
     );
     final embeddingService = const SemanticEmbeddingService();
 
@@ -59,6 +62,7 @@ void main() {
       databaseFactory: databaseFactoryFfi,
       databasePathResolver: () async =>
           path.join(tempDirectory.path, 'vector.db'),
+      databaseEncryption: createTestDatabaseEncryption(),
     );
     final embeddingService = const SemanticEmbeddingService();
 
@@ -75,6 +79,7 @@ void main() {
       databaseFactory: databaseFactoryFfi,
       databasePathResolver: () async =>
           path.join(tempDirectory.path, 'vector.db'),
+      databaseEncryption: createTestDatabaseEncryption(),
     );
     final embeddingService = const SemanticEmbeddingService();
 
@@ -91,6 +96,7 @@ void main() {
       databaseFactory: databaseFactoryFfi,
       databasePathResolver: () async =>
           path.join(tempDirectory.path, 'vector.db'),
+      databaseEncryption: createTestDatabaseEncryption(),
     );
     final embeddingService = const SemanticEmbeddingService();
 
@@ -107,7 +113,54 @@ void main() {
     expect(vectorDb.debugSearchResultCacheCount, 1);
   });
 
-  test('v1 스키마는 v2로 마이그레이션되며 import_source와 metadata를 채운다', () async {
+  test('개인 데이터 필드는 평문이 아닌 암호문으로 저장된다', () async {
+    final databasePath = path.join(tempDirectory.path, 'encrypted.db');
+    final vectorDb = VectorDb(
+      databaseFactory: databaseFactoryFfi,
+      databasePathResolver: () async => databasePath,
+      databaseEncryption: createTestDatabaseEncryption(),
+    );
+
+    await vectorDb.replaceAllRecords(
+      seededLifeRecords.take(1).toList(),
+      const SemanticEmbeddingService(),
+    );
+
+    final rawDb = await databaseFactoryFfi.openDatabase(databasePath);
+    final rows = await rawDb.query('documents');
+    await rawDb.close();
+
+    expect(rows, hasLength(1));
+    final row = rows.single;
+    expect(row['title'], isNot(contains('야근')));
+    expect(row['content'], isNot(contains('몸')));
+    expect((row['title']! as String).startsWith('enc:v1:'), isTrue);
+    expect((row['content']! as String).startsWith('enc:v1:'), isTrue);
+    expect((row['tags_json']! as String).startsWith('enc:v1:'), isTrue);
+    expect((row['metadata_json']! as String).startsWith('enc:v1:'), isTrue);
+  });
+
+  test('deleteAllData는 SQLite 파일을 제거한다', () async {
+    final databasePath = path.join(tempDirectory.path, 'delete.db');
+    final vectorDb = VectorDb(
+      databaseFactory: databaseFactoryFfi,
+      databasePathResolver: () async => databasePath,
+      databaseEncryption: createTestDatabaseEncryption(),
+    );
+
+    await vectorDb.replaceAllRecords(
+      seededLifeRecords.take(2).toList(),
+      const SemanticEmbeddingService(),
+    );
+    expect(await File(databasePath).exists(), isTrue);
+
+    await vectorDb.deleteAllData();
+
+    expect(await File(databasePath).exists(), isFalse);
+    expect(await vectorDb.documentCount(), 0);
+  });
+
+  test('v1 스키마는 v3로 마이그레이션되며 기존 개인 필드를 암호화한다', () async {
     final databasePath = path.join(tempDirectory.path, 'migration.db');
     final legacyDb = await databaseFactoryFfi.openDatabase(
       databasePath,
@@ -154,6 +207,7 @@ void main() {
     final vectorDb = VectorDb(
       databaseFactory: databaseFactoryFfi,
       databasePathResolver: () async => databasePath,
+      databaseEncryption: createTestDatabaseEncryption(),
     );
     await vectorDb.initialize();
 
@@ -162,5 +216,18 @@ void main() {
 
     expect(matches.first.record.importSource, 'note');
     expect(matches.first.record.metadata, isEmpty);
+
+    final migratedDb = await databaseFactoryFfi.openDatabase(databasePath);
+    final rows = await migratedDb.query(
+      'documents',
+      where: 'id = ?',
+      whereArgs: <Object>['legacy-record'],
+    );
+    await migratedDb.close();
+    final row = rows.single;
+    expect((row['title']! as String).startsWith('enc:v1:'), isTrue);
+    expect((row['content']! as String).startsWith('enc:v1:'), isTrue);
+    expect((row['tags_json']! as String).startsWith('enc:v1:'), isTrue);
+    expect((row['metadata_json']! as String).startsWith('enc:v1:'), isTrue);
   });
 }

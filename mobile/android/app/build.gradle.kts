@@ -44,8 +44,10 @@ android {
     }
 }
 
+val mediaPipeGenAiVersion = "0.10.21"
+
 dependencies {
-    implementation("com.google.mediapipe:tasks-genai:0.10.21")
+    implementation("com.google.mediapipe:tasks-genai:$mediaPipeGenAiVersion")
 }
 
 flutter {

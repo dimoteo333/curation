@@ -1,3 +1,7 @@
+import 'dart:io';
+
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
@@ -7,6 +11,7 @@ import 'package:sqflite/sqflite.dart';
 import 'core/config/app_build_info.dart';
 import 'core/config/app_config.dart';
 import 'core/config/app_settings.dart';
+import 'core/security/database_encryption.dart';
 import 'core/network/api_client.dart';
 import 'data/import/file_picker_gateway.dart';
 import 'data/import/file_record_import_service.dart';
@@ -34,6 +39,58 @@ final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
 });
 final appBuildInfoProvider = Provider<AppBuildInfo>((ref) {
   return const AppBuildInfo.fallback();
+});
+final secureKeyStoreProvider = Provider<SecureKeyStore>((ref) {
+  return FlutterSecureKeyStore(storage: const FlutterSecureStorage());
+});
+final deviceContextResolverProvider = Provider<DeviceContextResolver>((ref) {
+  final buildInfo = ref.watch(appBuildInfoProvider);
+  return () async {
+    final plugin = DeviceInfoPlugin();
+    if (Platform.isAndroid) {
+      final info = await plugin.androidInfo;
+      return [
+        'android',
+        buildInfo.packageName,
+        info.brand,
+        info.device,
+        info.fingerprint,
+        info.id,
+        info.manufacturer,
+        info.model,
+        info.product,
+        '${info.version.sdkInt}',
+      ].join('|');
+    }
+    if (Platform.isIOS) {
+      final info = await plugin.iosInfo;
+      return [
+        'ios',
+        buildInfo.packageName,
+        info.identifierForVendor ?? '',
+        info.model,
+        info.modelName,
+        info.localizedModel,
+        info.systemName,
+        info.systemVersion,
+        info.utsname.machine,
+      ].join('|');
+    }
+    return [
+      Platform.operatingSystem,
+      buildInfo.packageName,
+      Platform.localHostname,
+      Platform.operatingSystemVersion,
+    ].join('|');
+  };
+});
+final databaseEncryptionProvider = Provider<DatabaseEncryption>((ref) {
+  final buildInfo = ref.watch(appBuildInfoProvider);
+  return DatabaseEncryption(
+    secureKeyStore: ref.watch(secureKeyStoreProvider),
+    deviceContextResolver: ref.watch(deviceContextResolverProvider),
+    appNamespace: buildInfo.packageName,
+  );
 });
 final appSettingsProvider =
     NotifierProvider<AppSettingsController, AppSettings>(
@@ -102,6 +159,7 @@ final vectorDbProvider = Provider<VectorDb>((ref) {
       final databaseDirectory = await getDatabasesPath();
       return path.join(databaseDirectory, config.vectorDbName);
     },
+    databaseEncryption: ref.watch(databaseEncryptionProvider),
   );
 });
 

@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fakes/fake_curation_repository.dart';
+import 'test_support.dart';
 
 void main() {
   testWidgets('홈 화면은 에디토리얼 레이아웃에서 응답을 렌더링한다', (WidgetTester tester) async {
@@ -158,6 +159,35 @@ void main() {
     expect(find.byKey(const Key('questionTextField')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('질문이 너무 길면 제출 전에 오류를 보여 준다', (WidgetTester tester) async {
+    await _pumpApp(
+      tester,
+      bridge: const FakeOnDeviceLlmBridge(
+        runtimeStatus: OnDeviceRuntimeStatus(
+          llmReady: false,
+          embedderReady: false,
+          runtime: 'template-fallback',
+          message: '모델 경로가 없어 템플릿 폴백을 사용합니다.',
+          platform: 'flutter-test',
+          llmModelConfigured: false,
+          embedderModelConfigured: false,
+          llmModelAvailable: false,
+          embedderModelAvailable: false,
+          fallbackActive: true,
+        ),
+      ),
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('questionTextField')),
+      '길다' * 200,
+    );
+    await tester.tap(find.byKey(const Key('submitQuestionButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('입력은 최대 280자까지 가능합니다.'), findsOneWidget);
+  });
 }
 
 Future<void> _pumpApp(
@@ -180,6 +210,9 @@ Future<void> _pumpApp(
         sharedPreferencesProvider.overrideWithValue(preferences),
         curationRepositoryProvider.overrideWithValue(FakeCurationRepository()),
         onDeviceLlmBridgeProvider.overrideWithValue(bridge),
+        databaseEncryptionProvider.overrideWithValue(
+          createTestDatabaseEncryption(),
+        ),
       ],
       child: const CuratorApp(),
     ),

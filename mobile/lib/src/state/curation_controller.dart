@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/security/input_sanitizer.dart';
 import '../domain/entities/curated_response.dart';
 import '../providers.dart';
 
@@ -39,9 +40,14 @@ class CurationController extends Notifier<CurationViewState> {
   }
 
   Future<void> submitQuestion(String question) async {
-    final normalizedQuestion = question.trim();
-    if (normalizedQuestion.isEmpty) {
-      state = state.copyWith(errorMessage: '질문을 먼저 입력해 주세요.');
+    late final String normalizedQuestion;
+    try {
+      normalizedQuestion = InputSanitizer.sanitizeQuestion(question);
+    } on InputValidationException catch (error) {
+      state = state.copyWith(errorMessage: error.message);
+      return;
+    } catch (error) {
+      state = state.copyWith(errorMessage: error.toString());
       return;
     }
 

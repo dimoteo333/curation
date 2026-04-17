@@ -14,6 +14,8 @@ import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import '../test/test_support.dart';
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -48,6 +50,7 @@ void main() {
     final vectorDb = VectorDb(
       databaseFactory: databaseFactoryFfi,
       databasePathResolver: () async => path.join(tempDirectory.path, 'rag.db'),
+      databaseEncryption: createTestDatabaseEncryption(),
     );
     final embeddingService = const SemanticEmbeddingService();
     final preferences = await SharedPreferences.getInstance();
