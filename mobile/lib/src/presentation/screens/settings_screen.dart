@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
+import '../../data/import/calendar_import_service.dart';
+import '../../data/import/import_history_service.dart';
+import '../../data/import/notes_import_guide.dart';
 import '../../data/ondevice/litert_method_channel_bridge.dart';
 import '../../providers.dart';
 import '../../theme/curator_theme.dart';
@@ -39,7 +42,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final palette = theme.extension<CuratorPalette>()!;
     final settings = ref.watch(appSettingsProvider);
     final runtimeStatus = ref.watch(onDeviceRuntimeStatusProvider);
+    final calendarStatus = ref.watch(calendarSyncStatusProvider);
     final dataStats = ref.watch(localDataStatsProvider);
+    final importHistory = ref.watch(importHistorySnapshotProvider);
     final buildInfo = ref.watch(appBuildInfoProvider);
     final config = ref.watch(appConfigProvider);
 
@@ -115,6 +120,81 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   const SizedBox(height: 34),
                   _EditorialSection(
+                    title: '캘린더',
+                    child: calendarStatus.when(
+                      data: (status) => Column(
+                        children: [
+                          _SwitchRow(
+                            key: const Key('settingsCalendarToggle'),
+                            title: '캘린더 동기화',
+                            subtitle: status.syncEnabled
+                                ? '최근 30일 일정에서 큐레이션 문맥을 가져옵니다.'
+                                : '켜면 권한을 요청하고 기기 일정 가져오기를 시작합니다.',
+                            value: settings.calendarSyncEnabled,
+                            onChanged: _toggleCalendarSync,
+                          ),
+                          const _HairlineDivider(),
+                          _ValueRow(
+                            title: '권한',
+                            value: _calendarPermissionLabel(
+                              status.permissionStatus,
+                            ),
+                          ),
+                          const _HairlineDivider(),
+                          _ValueRow(
+                            title: '마지막 동기화',
+                            value: _formatTimestamp(status.lastSyncedAt),
+                          ),
+                          const _HairlineDivider(),
+                          _ValueRow(
+                            title: '가져온 일정',
+                            value: '${status.importedEventCount}건',
+                          ),
+                          const _HairlineDivider(),
+                          _ActionRow(
+                            key: const Key('settingsCalendarSyncButton'),
+                            title: '지금 동기화',
+                            subtitle: '최근 30일 기기 일정에서 중복 없이 다시 가져옵니다.',
+                            actionLabel: '동기화',
+                            onTap: _syncCalendar,
+                          ),
+                          if (status.permissionStatus ==
+                                  CalendarImportPermissionStatus.denied ||
+                              status.permissionStatus ==
+                                  CalendarImportPermissionStatus.writeOnly ||
+                              status.permissionStatus ==
+                                  CalendarImportPermissionStatus.restricted) ...[
+                            const _HairlineDivider(),
+                            _ActionRow(
+                              key: const Key('settingsCalendarPermissionButton'),
+                              title: '권한 설정 열기',
+                              subtitle: '시스템 설정에서 캘린더 접근 권한을 바꿉니다.',
+                              actionLabel: '열기',
+                              onTap: _openCalendarPermissionSettings,
+                            ),
+                          ],
+                          if (!status.syncEnabled)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 18),
+                              child: _DescriptionBlock(
+                                text:
+                                    '동기화를 꺼도 이미 가져온 일정 기록은 로컬 DB에 남아 있습니다.',
+                              ),
+                            ),
+                        ],
+                      ),
+                      loading: () => const Padding(
+                        padding: EdgeInsets.only(bottom: 18),
+                        child: LinearProgressIndicator(minHeight: 1.5),
+                      ),
+                      error: (error, _) => _DescriptionBlock(
+                        text: '캘린더 상태를 읽지 못했습니다: $error',
+                        color: theme.colorScheme.error,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 34),
+                  _EditorialSection(
                     title: '데이터',
                     child: Column(
                       children: [
@@ -129,6 +209,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               _ValueRow(
                                 title: '벡터 DB',
                                 value: _formatBytes(stats.databaseSizeBytes),
+                              ),
+                              const _HairlineDivider(),
+                              _ValueRow(
+                                title: '데이터 소스',
+                                value: _formatDataSourceSummary(
+                                  stats.sourceCounts,
+                                ),
                               ),
                             ],
                           ),
@@ -166,6 +253,56 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           destructive: true,
                           onTap: _clearAllData,
                         ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 34),
+                  _EditorialSection(
+                    title: '가져오기 기록',
+                    child: importHistory.when(
+                      data: (history) {
+                        if (history.recentEntries.isEmpty) {
+                          return const _DescriptionBlock(
+                            text: '아직 가져온 기록이 없습니다.',
+                          );
+                        }
+
+                        return Column(
+                          children: [
+                            for (var index = 0;
+                                index < history.recentEntries.length;
+                                index += 1) ...[
+                              _HistoryRow(entry: history.recentEntries[index]),
+                              if (index != history.recentEntries.length - 1)
+                                const _HairlineDivider(),
+                            ],
+                          ],
+                        );
+                      },
+                      loading: () => const Padding(
+                        padding: EdgeInsets.only(bottom: 18),
+                        child: LinearProgressIndicator(minHeight: 1.5),
+                      ),
+                      error: (error, _) => _DescriptionBlock(
+                        text: '가져오기 기록을 읽지 못했습니다: $error',
+                        color: theme.colorScheme.error,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 34),
+                  _EditorialSection(
+                    title: '노트 가져오기',
+                    child: Column(
+                      children: [
+                        _ActionRow(
+                          key: const Key('settingsNotesGuideButton'),
+                          title: 'Apple Notes 가져오기 안내',
+                          subtitle: '직접 연동 대신 `.txt` export 후 파일 가져오기를 안내합니다.',
+                          actionLabel: '가이드 보기',
+                          onTap: _showNotesImportGuide,
+                        ),
+                        const SizedBox(height: 18),
+                        const _DescriptionBlock(text: NotesImportGuide.summary),
                       ],
                     ),
                   ),
@@ -277,13 +414,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _importFiles() async {
     final service = ref.read(fileRecordImportServiceProvider);
     final result = await service.pickAndImport();
-    ref.read(localDataRevisionProvider.notifier).bump();
+    if (result.importedCount > 0) {
+      ref.read(localDataRevisionProvider.notifier).bump();
+    }
 
     if (!mounted) {
       return;
     }
 
-    if (!result.hasImportedRecords && result.skippedFiles.isEmpty) {
+    if (!result.hasImportedRecords &&
+        result.skippedFiles.isEmpty &&
+        result.duplicateFiles.isEmpty) {
       _showMessage('선택한 파일이 없습니다.');
       return;
     }
@@ -291,7 +432,76 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final skippedSummary = result.skippedFiles.isEmpty
         ? ''
         : ' 건너뜀 ${result.skippedFiles.length}건';
-    _showMessage('파일 ${result.importedCount}건을 가져왔습니다.$skippedSummary');
+    final duplicateSummary = result.duplicateFiles.isEmpty
+        ? ''
+        : ' 중복 ${result.duplicateFiles.length}건';
+    _showMessage(
+      '파일 ${result.importedCount}건을 가져왔습니다.$duplicateSummary$skippedSummary',
+    );
+  }
+
+  Future<void> _toggleCalendarSync(bool enabled) async {
+    final controller = ref.read(appSettingsProvider.notifier);
+    if (!enabled) {
+      await controller.setCalendarSyncEnabled(false);
+      ref.invalidate(calendarSyncStatusProvider);
+      if (!mounted) {
+        return;
+      }
+      _showMessage('캘린더 자동 동기화를 껐습니다.');
+      return;
+    }
+
+    final permissionStatus = await ref
+        .read(calendarImportServiceProvider)
+        .requestPermission();
+    if (permissionStatus != CalendarImportPermissionStatus.granted) {
+      await controller.setCalendarSyncEnabled(false);
+      ref.invalidate(calendarSyncStatusProvider);
+      if (!mounted) {
+        return;
+      }
+      _showMessage(_calendarPermissionErrorMessage(permissionStatus));
+      return;
+    }
+
+    await controller.setCalendarSyncEnabled(true);
+    ref.invalidate(calendarSyncStatusProvider);
+    await _syncCalendar();
+  }
+
+  Future<void> _syncCalendar() async {
+    final result = await ref.read(calendarImportServiceProvider).syncRecentEvents();
+    if (result.permissionStatus != CalendarImportPermissionStatus.granted) {
+      ref.invalidate(calendarSyncStatusProvider);
+      if (!mounted) {
+        return;
+      }
+      _showMessage(_calendarPermissionErrorMessage(result.permissionStatus));
+      return;
+    }
+
+    ref.read(localDataRevisionProvider.notifier).bump();
+    ref.invalidate(calendarSyncStatusProvider);
+    if (!mounted) {
+      return;
+    }
+
+    if (!result.hasImportedRecords) {
+      _showMessage('최근 30일 내 가져올 일정이 없습니다.');
+      return;
+    }
+    _showMessage(
+      '캘린더 일정 ${result.importedCount}건을 동기화했습니다. 조회 ${result.scannedCount}건',
+    );
+  }
+
+  Future<void> _openCalendarPermissionSettings() async {
+    await ref.read(calendarImportServiceProvider).openAppSettings();
+    if (!mounted) {
+      return;
+    }
+    _showMessage('시스템 설정에서 캘린더 권한을 확인해 주세요.');
   }
 
   Future<void> _resetToSeedRecords() async {
@@ -354,6 +564,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _showMessage('모델 경로를 저장했습니다.');
   }
 
+  Future<void> _showNotesImportGuide() {
+    return showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text(NotesImportGuide.title),
+          content: SingleChildScrollView(
+            child: Text(
+              [
+                NotesImportGuide.summary,
+                '',
+                for (var index = 0; index < NotesImportGuide.steps.length; index += 1)
+                  '${index + 1}. ${NotesImportGuide.steps[index]}',
+                '',
+                NotesImportGuide.fallbackTip,
+              ].join('\n'),
+            ),
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('닫기'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _showMessage(String message) {
     ScaffoldMessenger.of(
       context,
@@ -396,6 +635,51 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final megabytes = kilobytes / 1024;
     return '${megabytes.toStringAsFixed(2)} MB';
   }
+
+  String _formatTimestamp(DateTime? value) {
+    if (value == null) {
+      return '없음';
+    }
+
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '${value.year}.$month.$day $hour:$minute';
+  }
+
+  String _calendarPermissionLabel(CalendarImportPermissionStatus status) {
+    return switch (status) {
+      CalendarImportPermissionStatus.granted => '허용됨',
+      CalendarImportPermissionStatus.denied => '거부됨',
+      CalendarImportPermissionStatus.writeOnly => '쓰기 전용',
+      CalendarImportPermissionStatus.restricted => '제한됨',
+      CalendarImportPermissionStatus.notDetermined => '아직 요청하지 않음',
+    };
+  }
+
+  String _calendarPermissionErrorMessage(
+    CalendarImportPermissionStatus status,
+  ) {
+    return switch (status) {
+      CalendarImportPermissionStatus.granted => '캘린더 권한이 허용되었습니다.',
+      CalendarImportPermissionStatus.denied =>
+        '캘린더 권한이 거부되었습니다. 설정에서 접근을 허용해 주세요.',
+      CalendarImportPermissionStatus.writeOnly =>
+        '쓰기 전용 권한만 허용되어 기존 일정을 읽을 수 없습니다. 전체 접근 권한이 필요합니다.',
+      CalendarImportPermissionStatus.restricted =>
+        '이 기기에서는 캘린더 접근이 제한되어 있습니다.',
+      CalendarImportPermissionStatus.notDetermined =>
+        '캘린더 권한을 먼저 허용해 주세요.',
+    };
+  }
+
+  String _formatDataSourceSummary(Map<String, int> sourceCounts) {
+    final fileCount = sourceCounts['file'] ?? 0;
+    final calendarCount = sourceCounts['calendar'] ?? 0;
+    final manualCount = sourceCounts['manual'] ?? 0;
+    return '파일 $fileCount건 · 캘린더 $calendarCount건 · 수동 $manualCount건';
+  }
 }
 
 class _EditorialSection extends StatelessWidget {
@@ -421,6 +705,7 @@ class _EditorialSection extends StatelessWidget {
 
 class _SwitchRow extends StatelessWidget {
   const _SwitchRow({
+    super.key,
     required this.title,
     required this.subtitle,
     required this.value,
@@ -465,6 +750,57 @@ class _SwitchRow extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _HistoryRow extends StatelessWidget {
+  const _HistoryRow({required this.entry});
+
+  final ImportHistoryEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
+    final importedAt = entry.importedAt;
+    final month = importedAt.month.toString().padLeft(2, '0');
+    final day = importedAt.day.toString().padLeft(2, '0');
+    final hour = importedAt.hour.toString().padLeft(2, '0');
+    final minute = importedAt.minute.toString().padLeft(2, '0');
+    final detail = entry.detail == null ? '' : '\n${entry.detail}';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 18),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 92,
+            child: Text(
+              _historySourceLabel(entry.importSource),
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              '${entry.label}$detail\n${importedAt.year}.$month.$day $hour:$minute',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: palette.label,
+                height: 1.45,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _historySourceLabel(String importSource) {
+    return switch (importSource) {
+      'calendar' => '캘린더',
+      'file' => '파일',
+      _ => '기타',
+    };
   }
 }
 

@@ -8,10 +8,12 @@ class LocalDataStats {
   const LocalDataStats({
     required this.recordCount,
     required this.databaseSizeBytes,
+    required this.sourceCounts,
   });
 
   final int recordCount;
   final int databaseSizeBytes;
+  final Map<String, int> sourceCounts;
 }
 
 class LifeRecordStore {
@@ -70,6 +72,7 @@ class LifeRecordStore {
     return LocalDataStats(
       recordCount: await vectorDb.documentCount(),
       databaseSizeBytes: await vectorDb.databaseSizeBytes(),
+      sourceCounts: await vectorDb.importSourceCounts(),
     );
   }
 }

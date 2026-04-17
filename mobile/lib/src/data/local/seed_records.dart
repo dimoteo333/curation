@@ -12,6 +12,7 @@ LifeRecord _seedRecord({
 }) {
   return LifeRecord(
     id: id,
+    sourceId: id,
     source: source,
     importSource: importSource,
     title: title,

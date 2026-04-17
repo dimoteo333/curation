@@ -22,6 +22,10 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>큐레이션 문맥에 최근 일정을 반영하기 위해 캘린더 접근이 필요합니다.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>최근 일정 내용을 읽어 개인 큐레이션 문맥으로 사용하기 위해 전체 캘린더 접근이 필요합니다.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

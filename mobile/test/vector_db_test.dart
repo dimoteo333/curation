@@ -368,6 +368,52 @@ void main() {
     expect(vectorDb.debugSearchResultCacheCount, 1);
   });
 
+  test('같은 import_source/source_id는 upsert로 한 건만 유지한다', () async {
+    final databasePath = path.join(tempDirectory.path, 'dedupe.db');
+    final vectorDb = VectorDb(
+      databaseFactory: databaseFactoryFfi,
+      databasePathResolver: () async => databasePath,
+      databaseEncryption: createTestDatabaseEncryption(),
+    );
+    const embeddingService = _DeterministicEmbeddingService();
+
+    await vectorDb.upsertRecords(<LifeRecord>[
+      LifeRecord(
+        id: 'calendar-doc-1',
+        sourceId: 'event-123',
+        source: '캘린더',
+        importSource: 'calendar',
+        title: '첫 일정 제목',
+        content: '첫 일정 내용',
+        createdAt: DateTime(2026, 4, 10, 9),
+        tags: <String>['일정'],
+      ),
+    ], embeddingService);
+
+    await vectorDb.upsertRecords(<LifeRecord>[
+      LifeRecord(
+        id: 'calendar-doc-2',
+        sourceId: 'event-123',
+        source: '캘린더',
+        importSource: 'calendar',
+        title: '업데이트된 일정 제목',
+        content: '업데이트된 일정 내용',
+        createdAt: DateTime(2026, 4, 12, 9),
+        tags: <String>['일정', '업데이트'],
+      ),
+    ], embeddingService);
+
+    expect(await vectorDb.documentCount(), 1);
+
+    final rawDb = await databaseFactoryFfi.openDatabase(databasePath);
+    final rows = await rawDb.query('documents');
+    await rawDb.close();
+
+    expect(rows, hasLength(1));
+    expect(rows.single['id'], 'calendar-doc-2');
+    expect(rows.single['source_id'], 'event-123');
+  });
+
   test('100건 검색은 ANN prefilter로 100ms 안에 끝난다', () async {
     final vectorDb = VectorDb(
       databaseFactory: databaseFactoryFfi,
@@ -417,6 +463,7 @@ LifeRecord _buildRecord({
 }) {
   return LifeRecord(
     id: id,
+    sourceId: id,
     source: '메모',
     importSource: 'note',
     title: title,

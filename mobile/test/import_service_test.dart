@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:curator_mobile/src/data/import/file_picker_gateway.dart';
 import 'package:curator_mobile/src/data/import/file_record_import_service.dart';
+import 'package:curator_mobile/src/data/import/import_history_service.dart';
 import 'package:curator_mobile/src/data/local/life_record_store.dart';
 import 'package:curator_mobile/src/data/local/vector_db.dart';
 import 'package:curator_mobile/src/data/ondevice/semantic_embedding_service.dart';
@@ -65,6 +66,9 @@ void main() {
           PickedImportFile(path: textFile.path, name: 'memo.txt'),
         ],
       ),
+      importHistoryService: ImportHistoryService(
+        sharedPreferences: preferences,
+      ),
       nowProvider: () => DateTime(2026, 4, 17, 9),
     );
 
@@ -113,6 +117,9 @@ void main() {
           PickedImportFile(path: unsupportedFile.path, name: 'image.png'),
         ],
       ),
+      importHistoryService: ImportHistoryService(
+        sharedPreferences: preferences,
+      ),
     );
 
     final result = await service.pickAndImport();
@@ -123,6 +130,45 @@ void main() {
       containsAll(<String>['empty.txt', 'image.png']),
     );
     expect(await vectorDb.documentCount(), 0);
+  });
+
+  test('같은 파일을 다시 가져오면 import history 기준으로 중복 처리한다', () async {
+    final textFile = File(path.join(tempDirectory.path, 'memo.txt'));
+    await textFile.writeAsString('회의 뒤 메모\n생각보다 피로가 오래 남았다.');
+    await textFile.setLastModified(DateTime(2026, 4, 16, 8, 40));
+
+    final vectorDb = VectorDb(
+      databaseFactory: databaseFactoryFfi,
+      databasePathResolver: () async =>
+          path.join(tempDirectory.path, 'vector.db'),
+      databaseEncryption: createTestDatabaseEncryption(),
+    );
+    final preferences = await SharedPreferences.getInstance();
+    final recordStore = LifeRecordStore(
+      vectorDb: vectorDb,
+      embeddingService: const SemanticEmbeddingService(),
+      seedRecords: const [],
+      sharedPreferences: preferences,
+    );
+    final importHistoryService = ImportHistoryService(
+      sharedPreferences: preferences,
+    );
+    final service = FileRecordImportService(
+      recordStore: recordStore,
+      filePicker: _FakeImportFilePicker(
+        files: [PickedImportFile(path: textFile.path, name: 'memo.txt')],
+      ),
+      importHistoryService: importHistoryService,
+      nowProvider: () => DateTime(2026, 4, 17, 9),
+    );
+
+    final firstResult = await service.pickAndImport();
+    final secondResult = await service.pickAndImport();
+
+    expect(firstResult.importedCount, 1);
+    expect(secondResult.importedCount, 0);
+    expect(secondResult.duplicateFiles, <String>['memo.txt']);
+    expect(await vectorDb.documentCount(), 1);
   });
 
   test('경로 순회 파일명과 잘못된 UTF-8 파일은 건너뛴다', () async {
@@ -151,6 +197,9 @@ void main() {
           PickedImportFile(path: invalidNameFile.path, name: '../unsafe.txt'),
           PickedImportFile(path: invalidUtf8File.path, name: 'broken.txt'),
         ],
+      ),
+      importHistoryService: ImportHistoryService(
+        sharedPreferences: preferences,
       ),
     );
 

@@ -4,6 +4,7 @@ class AppSettings {
   const AppSettings({
     required this.runtimeMode,
     required this.onboardingCompleted,
+    required this.calendarSyncEnabled,
     this.llmModelPath,
     this.embedderModelPath,
   });
@@ -12,6 +13,7 @@ class AppSettings {
   final String? llmModelPath;
   final String? embedderModelPath;
   final bool onboardingCompleted;
+  final bool calendarSyncEnabled;
 
   AppSettings copyWith({
     CurationRuntimeMode? runtimeMode,
@@ -20,6 +22,7 @@ class AppSettings {
     String? embedderModelPath,
     bool clearEmbedderModelPath = false,
     bool? onboardingCompleted,
+    bool? calendarSyncEnabled,
   }) {
     return AppSettings(
       runtimeMode: runtimeMode ?? this.runtimeMode,
@@ -30,6 +33,7 @@ class AppSettings {
           ? null
           : embedderModelPath ?? this.embedderModelPath,
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
+      calendarSyncEnabled: calendarSyncEnabled ?? this.calendarSyncEnabled,
     );
   }
 }

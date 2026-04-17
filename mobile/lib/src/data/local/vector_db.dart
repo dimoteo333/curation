@@ -34,7 +34,7 @@ class VectorDb {
   static const int _queryNormalizationCacheLimit = 48;
   static const int _searchResultCacheLimit = 50;
   static const int _fallbackFullScanWindow = 24;
-  static const int schemaVersion = 4;
+  static const int schemaVersion = 5;
 
   Database? _database;
   String? _resolvedDatabasePath;
@@ -52,6 +52,20 @@ class VectorDb {
     final db = await _open();
     final result = await db.rawQuery('SELECT COUNT(*) AS count FROM documents');
     return (result.first['count'] as int?) ?? 0;
+  }
+
+  Future<Map<String, int>> importSourceCounts() async {
+    final db = await _open();
+    final rows = await db.rawQuery('''
+      SELECT import_source, COUNT(*) AS count
+      FROM documents
+      GROUP BY import_source
+    ''');
+
+    return <String, int>{
+      for (final row in rows)
+        row['import_source']! as String: ((row['count'] as num?)?.toInt()) ?? 0,
+    };
   }
 
   Future<void> replaceAllRecords(
@@ -278,6 +292,18 @@ class VectorDb {
             ''');
             await _normalizeStoredEmbeddings(db);
           }
+          if (oldVersion < 5) {
+            await db.execute('''
+              ALTER TABLE documents
+              ADD COLUMN source_id TEXT NOT NULL DEFAULT ''
+            ''');
+            await db.execute('''
+              UPDATE documents
+              SET source_id = id
+              WHERE source_id = ''
+            ''');
+            await _ensureSourceIdUniqueIndex(db);
+          }
         },
       ),
     );
@@ -340,6 +366,7 @@ class VectorDb {
     return LifeRecord(
       id: row['id']! as String,
       source: row['source']! as String,
+      sourceId: row['source_id']! as String,
       importSource: row['import_source']! as String,
       title: await databaseEncryption.decryptValue(row['title']! as String),
       content: await databaseEncryption.decryptValue(row['content']! as String),
@@ -367,6 +394,7 @@ class VectorDb {
       SELECT
         documents.id,
         documents.source,
+        documents.source_id,
         documents.import_source,
         documents.title,
         documents.content,
@@ -516,6 +544,7 @@ class VectorDb {
       CREATE TABLE documents (
         id TEXT PRIMARY KEY,
         source TEXT NOT NULL,
+        source_id TEXT NOT NULL,
         import_source TEXT NOT NULL,
         title TEXT NOT NULL,
         content TEXT NOT NULL,
@@ -532,6 +561,14 @@ class VectorDb {
         normalized INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY(doc_id) REFERENCES documents(id) ON DELETE CASCADE
       )
+    ''');
+    await _ensureSourceIdUniqueIndex(db);
+  }
+
+  Future<void> _ensureSourceIdUniqueIndex(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE UNIQUE INDEX IF NOT EXISTS documents_import_source_source_id_idx
+      ON documents(import_source, source_id)
     ''');
   }
 
@@ -556,6 +593,7 @@ class VectorDb {
       await txn.insert('documents', <String, Object?>{
         'id': record.id,
         'source': record.source,
+        'source_id': record.sourceId,
         'import_source': record.importSource,
         'title': encryptedTitle,
         'content': encryptedContent,

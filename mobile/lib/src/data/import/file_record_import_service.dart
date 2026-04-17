@@ -8,15 +8,18 @@ import '../../domain/entities/life_record.dart';
 import '../local/life_record_store.dart';
 import '../ondevice/semantic_embedding_service.dart';
 import 'file_picker_gateway.dart';
+import 'import_history_service.dart';
 
 class FileImportResult {
   const FileImportResult({
     required this.importedCount,
+    required this.duplicateFiles,
     required this.skippedFiles,
     required this.records,
   });
 
   final int importedCount;
+  final List<String> duplicateFiles;
   final List<String> skippedFiles;
   final List<LifeRecord> records;
 
@@ -27,11 +30,13 @@ class FileRecordImportService {
   FileRecordImportService({
     required this.recordStore,
     required this.filePicker,
+    required this.importHistoryService,
     DateTime Function()? nowProvider,
   }) : _nowProvider = nowProvider ?? DateTime.now;
 
   final LifeRecordStore recordStore;
   final ImportFilePicker filePicker;
+  final ImportHistoryService importHistoryService;
   final DateTime Function() _nowProvider;
 
   Future<FileImportResult> pickAndImport() async {
@@ -41,29 +46,52 @@ class FileRecordImportService {
 
   Future<FileImportResult> importFiles(List<PickedImportFile> files) async {
     final skippedFiles = <String>[];
+    final duplicateFiles = <String>[];
     final records = <LifeRecord>[];
+    final importedFiles = <FileImportHistoryRecord>[];
+    final seenSourceIds = <String>{};
 
     for (final file in files) {
-      final record = await _parseFile(file);
-      if (record == null) {
+      final parsedRecord = await _parseFile(file);
+      if (parsedRecord == null) {
         skippedFiles.add(file.name);
         continue;
       }
-      records.add(record);
+      final alreadyImported = await importHistoryService.hasImportedFile(
+        path: parsedRecord.path,
+        modifiedAt: parsedRecord.modifiedAt,
+      );
+      if (alreadyImported || !seenSourceIds.add(parsedRecord.record.sourceId)) {
+        duplicateFiles.add(file.name);
+        continue;
+      }
+
+      records.add(parsedRecord.record);
+      importedFiles.add(
+        FileImportHistoryRecord(
+          path: parsedRecord.path,
+          fileName: file.name,
+          modifiedAt: parsedRecord.modifiedAt,
+          sourceId: parsedRecord.record.sourceId,
+          importedAt: _nowProvider(),
+        ),
+      );
     }
 
     if (records.isNotEmpty) {
       await recordStore.importRecords(records);
+      await importHistoryService.recordFileImports(importedFiles);
     }
 
     return FileImportResult(
       importedCount: records.length,
+      duplicateFiles: duplicateFiles,
       skippedFiles: skippedFiles,
       records: records,
     );
   }
 
-  Future<LifeRecord?> _parseFile(PickedImportFile pickedFile) async {
+  Future<_ParsedImportFile?> _parseFile(PickedImportFile pickedFile) async {
     try {
       InputSanitizer.validateFileName(pickedFile.name);
 
@@ -100,25 +128,31 @@ class FileRecordImportService {
         pickedFile.name,
       );
 
-      return LifeRecord(
-        id: _buildRecordId(
+      final sourceId = _buildRecordId(
           fileNameFingerprint: fileNameFingerprint,
           modifiedAt: stat.modified,
+      );
+      return _ParsedImportFile(
+        path: pickedFile.path,
+        modifiedAt: stat.modified,
+        record: LifeRecord(
+          id: sourceId,
+          sourceId: sourceId,
+          source: '파일',
+          importSource: 'file',
+          title: sanitizedTitle,
+          content: sanitizedContent,
+          createdAt: stat.modified,
+          tags: tags,
+          metadata: <String, dynamic>{
+            'file_name_fingerprint': fileNameFingerprint,
+            'file_extension': extension.replaceFirst('.', ''),
+            'modified_at': stat.modified.toIso8601String(),
+            'imported_at': _nowProvider().toIso8601String(),
+            'parser': parser.parser,
+            'tag_count': tags.length,
+          },
         ),
-        source: '파일',
-        importSource: 'file',
-        title: sanitizedTitle,
-        content: sanitizedContent,
-        createdAt: stat.modified,
-        tags: tags,
-        metadata: <String, dynamic>{
-          'file_name_fingerprint': fileNameFingerprint,
-          'file_extension': extension.replaceFirst('.', ''),
-          'modified_at': stat.modified.toIso8601String(),
-          'imported_at': _nowProvider().toIso8601String(),
-          'parser': parser.parser,
-          'tag_count': tags.length,
-        },
       );
     } on InputValidationException {
       return null;
@@ -246,4 +280,16 @@ class _ParsedImportRecord {
   final String title;
   final String content;
   final String parser;
+}
+
+class _ParsedImportFile {
+  const _ParsedImportFile({
+    required this.path,
+    required this.modifiedAt,
+    required this.record,
+  });
+
+  final String path;
+  final DateTime modifiedAt;
+  final LifeRecord record;
 }

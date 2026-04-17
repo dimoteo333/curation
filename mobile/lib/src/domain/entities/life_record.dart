@@ -1,6 +1,7 @@
 class LifeRecord {
   const LifeRecord({
     required this.id,
+    required this.sourceId,
     required this.source,
     required this.importSource,
     required this.title,
@@ -11,6 +12,7 @@ class LifeRecord {
   });
 
   final String id;
+  final String sourceId;
   final String source;
   final String importSource;
   final String title;

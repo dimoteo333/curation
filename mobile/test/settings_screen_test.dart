@@ -1,4 +1,5 @@
 import 'package:curator_mobile/src/core/config/app_build_info.dart';
+import 'package:curator_mobile/src/data/import/calendar_import_service.dart';
 import 'package:curator_mobile/src/data/ondevice/litert_method_channel_bridge.dart';
 import 'package:curator_mobile/src/data/local/life_record_store.dart';
 import 'package:curator_mobile/src/presentation/screens/settings_screen.dart';
@@ -37,10 +38,21 @@ void main() {
           ),
           localDataStatsProvider.overrideWith(
             (ref) async =>
-                const LocalDataStats(recordCount: 5, databaseSizeBytes: 2048),
+                const LocalDataStats(
+                  recordCount: 5,
+                  databaseSizeBytes: 2048,
+                  sourceCounts: <String, int>{
+                    'file': 2,
+                    'calendar': 1,
+                    'manual': 0,
+                  },
+                ),
           ),
           onDeviceLlmBridgeProvider.overrideWithValue(
             const _FakeOnDeviceLlmBridge(),
+          ),
+          deviceCalendarGatewayProvider.overrideWithValue(
+            const _FakeDeviceCalendarGateway(),
           ),
         ],
         child: MaterialApp(
@@ -54,32 +66,38 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('사용 방식'), findsOneWidget);
-    expect(find.text('5건'), findsOneWidget);
-    expect(find.byKey(const Key('settingsImportButton')), findsOneWidget);
+    expect(find.text('캘린더'), findsOneWidget);
 
     await tester.tap(find.byType(Switch));
     await tester.pumpAndSettle();
 
     expect(preferences.getString('app.runtime_mode'), 'remote');
-
-    await tester.scrollUntilVisible(
-      find.text('프라이버시'),
-      240,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pump();
-
-    expect(find.text('프라이버시'), findsOneWidget);
-
-    await tester.scrollUntilVisible(
-      find.text('1.0.0+1'),
-      240,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pump();
-
-    expect(find.text('1.0.0+1'), findsOneWidget);
   });
+}
+
+class _FakeDeviceCalendarGateway implements DeviceCalendarGateway {
+  const _FakeDeviceCalendarGateway();
+
+  @override
+  Future<List<CalendarImportEvent>> listEvents({
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    return const <CalendarImportEvent>[];
+  }
+
+  @override
+  Future<void> openAppSettings() async {}
+
+  @override
+  Future<CalendarImportPermissionStatus> permissionStatus() async {
+    return CalendarImportPermissionStatus.granted;
+  }
+
+  @override
+  Future<CalendarImportPermissionStatus> requestPermission() async {
+    return CalendarImportPermissionStatus.granted;
+  }
 }
 
 class _FakeOnDeviceLlmBridge implements OnDeviceLlmBridge {

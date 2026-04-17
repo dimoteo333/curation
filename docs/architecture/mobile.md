@@ -41,14 +41,17 @@ Rules
 - On first launch, a minimal onboarding screen explains the service, file import entry point, and privacy posture. Completion is persisted with SharedPreferences.
 - Runtime mode and developer model paths are stored as local settings and can override compile-time defaults without changing the API contract.
 - Seeded or imported records are indexed into a local encrypted SQLite vector store.
-- `.txt` and `.md` files can be imported through the settings screen, parsed into `LifeRecord` v2 records, and embedded into the local vector DB.
+- `.txt` and `.md` files can be imported through the settings screen, parsed into local `LifeRecord` records, and embedded into the local vector DB.
+- Device calendar events from the last 30 days can be imported on demand after a settings-screen permission grant and are stored as local `calendar` records for curation context.
+- Apple Notes is not read directly; iOS users are guided to export note text to `.txt` and then reuse the file import path.
 - Personal text fields in the local store are encrypted at the application layer with a device-local key from secure storage, while embedding vectors remain plaintext for retrieval.
 - Settings now expose a privacy policy reference and a destructive delete-all flow that removes the SQLite files and clears local app preferences.
+- Settings also expose calendar sync status, last sync time, import history, and a data-source summary so local ingest state is visible to the user.
 - Query embeddings currently use the pure Dart `SemanticEmbeddingService` fallback on both iOS and Android.
 - Local retrieval now keeps a tag-cluster ANN-style prefilter, persisted normalized embedding state, and an LRU repeated-question cache so searches do not rescore the full local corpus on every query.
 - Native `embed` bridge calls are intentionally unavailable on both platforms until the MediaPipe text embedding path is stabilized.
 - The local vector store keeps normalized embedding and repeated-query caches so small datasets stay responsive without changing the retrieval contract.
-- `LifeRecord` now carries `source` for Korean UI display, `importSource` for extensible source typing, and `metadata` for source-specific details.
+- `LifeRecord` now carries `sourceId` for stable local deduplication, `source` for Korean UI display, `importSource` for extensible source typing, and `metadata` for source-specific details.
 - iOS can use the native LiteRT LLM bridge when a model path is configured on a supported device, but text embedding still falls back to Dart because the current CocoaPods spec set does not resolve `MediaPipeTasksText`.
 - Android can compile and run the native LiteRT LLM bridge with `minSdk >= 24`, pinned MediaPipe GenAI dependencies, and release ProGuard rules that keep MediaPipe/TFLite classes.
 - Both platforms return the same native runtime status shape and fall back to the same Dart semantic embedding path when models are missing or initialization fails.
@@ -61,6 +64,8 @@ Rules
 - Mobile unit tests cover:
   - local vector store search and v1 -> v2 schema migration
   - file import parsing and local persistence
+  - calendar event conversion and import history tracking
+  - local deduplication on `(import_source, source_id)` upsert
   - on-device repository path without network access
   - onboarding and settings widgets
 - Integration test now validates the default on-device rendering path on a supported simulator/device.

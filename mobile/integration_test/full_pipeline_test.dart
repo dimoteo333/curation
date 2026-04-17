@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:curator_mobile/src/data/import/file_picker_gateway.dart';
 import 'package:curator_mobile/src/data/import/file_record_import_service.dart';
+import 'package:curator_mobile/src/data/import/import_history_service.dart';
 import 'package:curator_mobile/src/data/local/life_record_store.dart';
 import 'package:curator_mobile/src/data/local/vector_db.dart';
 import 'package:curator_mobile/src/data/ondevice/litert_method_channel_bridge.dart';
@@ -66,6 +67,9 @@ void main() {
         files: <PickedImportFile>[
           PickedImportFile(path: diaryFile.path, name: 'late-night.md'),
         ],
+      ),
+      importHistoryService: ImportHistoryService(
+        sharedPreferences: preferences,
       ),
       nowProvider: () => DateTime(2026, 4, 17, 9),
     );

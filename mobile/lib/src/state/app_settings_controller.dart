@@ -10,6 +10,7 @@ class AppSettingsController extends Notifier<AppSettings> {
   static const String _llmModelPathKey = 'app.llm_model_path';
   static const String _embedderModelPathKey = 'app.embedder_model_path';
   static const String _onboardingCompletedKey = 'app.onboarding_completed';
+  static const String _calendarSyncEnabledKey = 'app.calendar_sync_enabled';
 
   SharedPreferences get _preferences => ref.read(sharedPreferencesProvider);
   AppConfig get _config => ref.read(appConfigProvider);
@@ -23,6 +24,7 @@ class AppSettingsController extends Notifier<AppSettings> {
           _storedPath(_embedderModelPathKey) ?? _config.embedderModelPath,
       onboardingCompleted:
           _preferences.getBool(_onboardingCompletedKey) ?? false,
+      calendarSyncEnabled: _preferences.getBool(_calendarSyncEnabledKey) ?? false,
     );
   }
 
@@ -64,6 +66,11 @@ class AppSettingsController extends Notifier<AppSettings> {
   Future<void> completeOnboarding() async {
     await _preferences.setBool(_onboardingCompletedKey, true);
     state = state.copyWith(onboardingCompleted: true);
+  }
+
+  Future<void> setCalendarSyncEnabled(bool enabled) async {
+    await _preferences.setBool(_calendarSyncEnabledKey, enabled);
+    state = state.copyWith(calendarSyncEnabled: enabled);
   }
 
   CurationRuntimeMode _runtimeMode() {

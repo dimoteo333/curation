@@ -41,5 +41,5 @@
 - Mobile DTOs in `mobile/lib/src/data/dto/curated_response_dto.dart` remain manually synced to the current OpenAPI contract for remote harness mode.
 - The default mobile runtime now maps local on-device retrieval and generation results into the same domain response shape used by the UI.
 - Sprint 3 does not change backend HTTP request/response shapes. `backend/openapi.json` therefore remains unchanged.
-- The mobile-local `LifeRecord` persistence model is now v2 and includes `importSource` and `metadata`, but those fields are internal to the on-device store and do not alter the FastAPI contract.
+- The mobile-local `LifeRecord` persistence model is internal to the on-device store and now includes `sourceId`, `importSource`, and `metadata` for deduplication and source-specific ingest details; these fields do not alter the FastAPI contract.
 - Any additive response change must update `backend/openapi.json`, mobile DTOs, and backend/mobile tests in the same change.

@@ -13,8 +13,10 @@ import 'core/config/app_config.dart';
 import 'core/config/app_settings.dart';
 import 'core/security/database_encryption.dart';
 import 'core/network/api_client.dart';
+import 'data/import/calendar_import_service.dart';
 import 'data/import/file_picker_gateway.dart';
 import 'data/import/file_record_import_service.dart';
+import 'data/import/import_history_service.dart';
 import 'data/local/life_record_store.dart';
 import 'data/local/seed_records.dart';
 import 'data/local/vector_db.dart';
@@ -181,6 +183,12 @@ final lifeRecordStoreProvider = Provider<LifeRecordStore>((ref) {
   );
 });
 
+final importHistoryServiceProvider = Provider<ImportHistoryService>((ref) {
+  return ImportHistoryService(
+    sharedPreferences: ref.watch(sharedPreferencesProvider),
+  );
+});
+
 final importFilePickerProvider = Provider<ImportFilePicker>((ref) {
   return const FilePickerImportFilePicker();
 });
@@ -191,6 +199,34 @@ final fileRecordImportServiceProvider = Provider<FileRecordImportService>((
   return FileRecordImportService(
     recordStore: ref.watch(lifeRecordStoreProvider),
     filePicker: ref.watch(importFilePickerProvider),
+    importHistoryService: ref.watch(importHistoryServiceProvider),
+  );
+});
+
+final deviceCalendarGatewayProvider = Provider<DeviceCalendarGateway>((ref) {
+  return PluginDeviceCalendarGateway();
+});
+
+final calendarImportServiceProvider = Provider<CalendarImportService>((ref) {
+  return CalendarImportService(
+    recordStore: ref.watch(lifeRecordStoreProvider),
+    importHistoryService: ref.watch(importHistoryServiceProvider),
+    calendarGateway: ref.watch(deviceCalendarGatewayProvider),
+  );
+});
+
+final importHistorySnapshotProvider = FutureProvider<ImportHistorySnapshot>((
+  ref,
+) async {
+  ref.watch(localDataRevisionProvider);
+  return ref.watch(importHistoryServiceProvider).loadSnapshot();
+});
+
+final calendarSyncStatusProvider = FutureProvider<CalendarSyncStatus>((ref) async {
+  ref.watch(localDataRevisionProvider);
+  final settings = ref.watch(appSettingsProvider);
+  return ref.watch(calendarImportServiceProvider).loadStatus(
+    syncEnabled: settings.calendarSyncEnabled,
   );
 });
 
