@@ -1,0 +1,2043 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=1400, initial-scale=0.4"/>
+<title>Curator · 큐레이터</title>
+<style>
+/* Curator — warm cream + terracotta, journal/diary */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&display=swap');
+
+:root {
+  /* warm palette — mood 1: cream + terracotta */
+  --paper: #F5EDE0;
+  --paper-2: #EFE4D2;
+  --paper-3: #E8D9C2;
+  --ink: #2A1F17;
+  --ink-2: #5A463A;
+  --ink-3: #8A725E;
+  --ink-4: #B5A08A;
+  --terra: #C87456;
+  --terra-deep: #A35A3F;
+  --terra-soft: #E8B8A4;
+  --ochre: #B89368;
+  --sage: #8A9B7A;
+  --line: rgba(42, 31, 23, 0.08);
+  --line-2: rgba(42, 31, 23, 0.14);
+
+  --sans: 'Pretendard', -apple-system, system-ui, sans-serif;
+  --serif: 'Noto Serif KR', 'Apple SD Gothic Neo', serif;
+
+  --shadow-soft: 0 1px 2px rgba(74, 47, 28, 0.04), 0 8px 20px rgba(74, 47, 28, 0.06);
+  --shadow-card: 0 1px 2px rgba(74, 47, 28, 0.05), 0 12px 32px rgba(74, 47, 28, 0.09);
+  --shadow-lift: 0 2px 4px rgba(74, 47, 28, 0.06), 0 20px 50px rgba(74, 47, 28, 0.13);
+}
+
+/* mood variants */
+[data-mood="peach"] {
+  --paper: #FBEDE6; --paper-2: #F6E0D4; --paper-3: #F1D2C1;
+  --ink: #3A241F; --ink-2: #6B4A42; --ink-3: #9B7A72; --ink-4: #C4A89F;
+  --terra: #D88172; --terra-deep: #B85D4E; --terra-soft: #F0C4B8;
+  --ochre: #C29A8A;
+}
+[data-mood="beige"] {
+  --paper: #F2E9D8; --paper-2: #EBDEC5; --paper-3: #E3D1AF;
+  --ink: #2D2618; --ink-2: #5E5035; --ink-3: #8C7A58; --ink-4: #BBA682;
+  --terra: #B8894A; --terra-deep: #8F6830; --terra-soft: #DCBB85;
+  --ochre: #A87E3F;
+}
+[data-mood="dusty"] {
+  --paper: #F4E8E6; --paper-2: #EED9D6; --paper-3: #E8CAC5;
+  --ink: #2E1F23; --ink-2: #5C4249; --ink-3: #8B6E75; --ink-4: #B89CA2;
+  --terra: #C68A93; --terra-deep: #A06A72; --terra-soft: #E5C0C5;
+  --ochre: #96A78A;
+}
+
+* { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+html, body { margin: 0; padding: 0; background: #2A1F17; font-family: var(--sans); }
+
+/* page background — warm textured */
+.stage {
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse at 20% 10%, rgba(200, 116, 86, 0.08), transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(184, 147, 104, 0.07), transparent 50%),
+    #1C1510;
+  padding: 40px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+}
+
+/* paper noise */
+.paper {
+  background-color: var(--paper);
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(200, 116, 86, 0.04) 0%, transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(184, 147, 104, 0.05) 0%, transparent 40%);
+}
+
+.paper-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.35;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.16 0 0 0 0 0.12 0 0 0 0 0.09 0 0 0 0.08 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* buttons */
+.btn {
+  font-family: var(--sans);
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.15s ease;
+}
+.btn:active { transform: scale(0.97); }
+
+.btn-terra {
+  background: var(--terra);
+  color: #FDF6EC;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 8px 20px rgba(200, 116, 86, 0.28);
+}
+.btn-terra:hover { background: var(--terra-deep); }
+
+/* chips / citation tags */
+.cite {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px 2px;
+  margin: 0 1px;
+  border-radius: 999px;
+  background: rgba(200, 116, 86, 0.12);
+  color: var(--terra-deep);
+  font-size: 0.82em;
+  font-weight: 600;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  vertical-align: 0.1em;
+  letter-spacing: -0.01em;
+  border: 0.5px solid rgba(200, 116, 86, 0.2);
+}
+.cite:hover { background: rgba(200, 116, 86, 0.22); }
+.cite:active { transform: scale(0.96); }
+.cite.active { background: var(--terra); color: #FDF6EC; }
+
+/* serif body for essay */
+.essay {
+  font-family: var(--serif);
+  font-weight: 400;
+  line-height: 1.85;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  font-size: 16px;
+  word-break: keep-all;
+  text-wrap: pretty;
+}
+.essay p { margin: 0 0 18px; }
+.essay p:last-child { margin-bottom: 0; }
+
+/* subtle shimmer for streaming text */
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0.2; }
+}
+.caret {
+  display: inline-block;
+  width: 6px; height: 1em;
+  background: var(--terra);
+  vertical-align: text-bottom;
+  margin-left: 2px;
+  animation: blink 1s infinite;
+  border-radius: 1px;
+}
+
+/* memory card placeholder */
+.memory-placeholder {
+  position: relative;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      var(--paper-2) 0px, var(--paper-2) 8px,
+      var(--paper-3) 8px, var(--paper-3) 16px
+    );
+  overflow: hidden;
+  color: var(--ink-3);
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+}
+
+/* sheet slide-up */
+@keyframes sheetUp {
+  from { transform: translateY(100%); opacity: 0.6; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes overlayFade {
+  from { opacity: 0; } to { opacity: 1; }
+}
+.sheet { animation: sheetUp 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.overlay { animation: overlayFade 0.25s ease; }
+
+/* pulse for live mic */
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(200, 116, 86, 0.5); }
+  100% { box-shadow: 0 0 0 18px rgba(200, 116, 86, 0); }
+}
+
+/* waveform bars */
+@keyframes bar {
+  0%, 100% { transform: scaleY(0.3); }
+  50% { transform: scaleY(1); }
+}
+
+/* scroll area */
+.scroll { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.scroll::-webkit-scrollbar { display: none; }
+
+/* label chip */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  background: rgba(42, 31, 23, 0.05);
+  color: var(--ink-2);
+  border: 0.5px solid var(--line-2);
+}
+.tag.terra { background: rgba(200, 116, 86, 0.1); color: var(--terra-deep); border-color: rgba(200, 116, 86, 0.18); }
+.tag.ochre { background: rgba(184, 147, 104, 0.14); color: #8a6838; border-color: rgba(184, 147, 104, 0.25); }
+.tag.sage  { background: rgba(138, 155, 122, 0.14); color: #5c6d4a; border-color: rgba(138, 155, 122, 0.25); }
+
+/* divider dots */
+.divider-dot {
+  width: 4px; height: 4px; border-radius: 50%; background: var(--ink-4);
+}
+
+/* tweaks panel */
+.tweaks {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  z-index: 999;
+  background: rgba(42, 31, 23, 0.92);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  padding: 14px 16px;
+  color: #F5EDE0;
+  font-family: var(--sans);
+  font-size: 12px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+  min-width: 220px;
+}
+.tweaks-title {
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: rgba(245, 237, 224, 0.55); margin-bottom: 10px;
+}
+.swatch-row { display: flex; gap: 8px; }
+.swatch {
+  width: 36px; height: 36px; border-radius: 10px; cursor: pointer;
+  border: 2px solid transparent; transition: transform 0.15s, border-color 0.15s;
+  position: relative; overflow: hidden;
+}
+.swatch:hover { transform: translateY(-2px); }
+.swatch.sel { border-color: #F5EDE0; }
+.swatch-label {
+  font-size: 10px; margin-top: 8px; color: rgba(245, 237, 224, 0.65);
+  letter-spacing: -0.01em;
+}
+
+/* nav dock */
+.dock {
+  display: flex; align-items: center; justify-content: space-around;
+  padding: 10px 8px 8px;
+  border-top: 0.5px solid var(--line);
+  background: rgba(245, 237, 224, 0.88);
+  backdrop-filter: blur(20px);
+}
+.dock-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 6px 14px; border-radius: 12px;
+  cursor: pointer; color: var(--ink-3);
+  transition: color 0.15s;
+  font-size: 10px; font-weight: 500; letter-spacing: -0.01em;
+}
+.dock-btn.active { color: var(--terra-deep); }
+.dock-btn svg { opacity: 0.85; }
+
+/* frame label below device */
+.frame-label {
+  color: rgba(245, 237, 224, 0.72);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-align: center;
+  margin-top: 20px;
+}
+.frame-label small { display: block; color: rgba(245, 237, 224, 0.4); font-size: 11px; margin-top: 2px; font-weight: 400; }
+
+/* title */
+.title {
+  font-family: var(--serif);
+  color: var(--ink);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" data-presets="react">
+
+// ==== frames/ios-frame.jsx ====
+
+// iOS.jsx — Simplified iOS 26 (Liquid Glass) device frame
+// Based on the iOS 26 UI Kit + Figma status bar spec. No assets, no deps.
+// Exports: IOSDevice, IOSStatusBar, IOSNavBar, IOSGlassPill, IOSList, IOSListRow, IOSKeyboard
+
+// ─────────────────────────────────────────────────────────────
+// Status bar
+// ─────────────────────────────────────────────────────────────
+function IOSStatusBar({ dark = false, time = '9:41' }) {
+  const c = dark ? '#fff' : '#000';
+  return (
+    <div style={{
+      display: 'flex', gap: 154, alignItems: 'center', justifyContent: 'center',
+      padding: '21px 24px 19px', boxSizing: 'border-box',
+      position: 'relative', zIndex: 20, width: '100%',
+    }}>
+      <div style={{ flex: 1, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 1.5 }}>
+        <span style={{
+          fontFamily: '-apple-system, "SF Pro", system-ui', fontWeight: 590,
+          fontSize: 17, lineHeight: '22px', color: c,
+        }}>{time}</span>
+      </div>
+      <div style={{ flex: 1, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, paddingTop: 1, paddingRight: 1 }}>
+        <svg width="19" height="12" viewBox="0 0 19 12">
+          <rect x="0" y="7.5" width="3.2" height="4.5" rx="0.7" fill={c}/>
+          <rect x="4.8" y="5" width="3.2" height="7" rx="0.7" fill={c}/>
+          <rect x="9.6" y="2.5" width="3.2" height="9.5" rx="0.7" fill={c}/>
+          <rect x="14.4" y="0" width="3.2" height="12" rx="0.7" fill={c}/>
+        </svg>
+        <svg width="17" height="12" viewBox="0 0 17 12">
+          <path d="M8.5 3.2C10.8 3.2 12.9 4.1 14.4 5.6L15.5 4.5C13.7 2.7 11.2 1.5 8.5 1.5C5.8 1.5 3.3 2.7 1.5 4.5L2.6 5.6C4.1 4.1 6.2 3.2 8.5 3.2Z" fill={c}/>
+          <path d="M8.5 6.8C9.9 6.8 11.1 7.3 12 8.2L13.1 7.1C11.8 5.9 10.2 5.1 8.5 5.1C6.8 5.1 5.2 5.9 3.9 7.1L5 8.2C5.9 7.3 7.1 6.8 8.5 6.8Z" fill={c}/>
+          <circle cx="8.5" cy="10.5" r="1.5" fill={c}/>
+        </svg>
+        <svg width="27" height="13" viewBox="0 0 27 13">
+          <rect x="0.5" y="0.5" width="23" height="12" rx="3.5" stroke={c} strokeOpacity="0.35" fill="none"/>
+          <rect x="2" y="2" width="20" height="9" rx="2" fill={c}/>
+          <path d="M25 4.5V8.5C25.8 8.2 26.5 7.2 26.5 6.5C26.5 5.8 25.8 4.8 25 4.5Z" fill={c} fillOpacity="0.4"/>
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Liquid glass pill — blur + tint + shine
+// ─────────────────────────────────────────────────────────────
+function IOSGlassPill({ children, dark = false, style = {} }) {
+  return (
+    <div style={{
+      height: 44, minWidth: 44, borderRadius: 9999,
+      position: 'relative', overflow: 'hidden',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      boxShadow: dark
+        ? '0 2px 6px rgba(0,0,0,0.35), 0 6px 16px rgba(0,0,0,0.2)'
+        : '0 1px 3px rgba(0,0,0,0.07), 0 3px 10px rgba(0,0,0,0.06)',
+      ...style,
+    }}>
+      {/* blur + tint */}
+      <div style={{
+        position: 'absolute', inset: 0, borderRadius: 9999,
+        backdropFilter: 'blur(12px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(12px) saturate(180%)',
+        background: dark ? 'rgba(120,120,128,0.28)' : 'rgba(255,255,255,0.5)',
+      }} />
+      {/* shine */}
+      <div style={{
+        position: 'absolute', inset: 0, borderRadius: 9999,
+        boxShadow: dark
+          ? 'inset 1.5px 1.5px 1px rgba(255,255,255,0.15), inset -1px -1px 1px rgba(255,255,255,0.08)'
+          : 'inset 1.5px 1.5px 1px rgba(255,255,255,0.7), inset -1px -1px 1px rgba(255,255,255,0.4)',
+        border: dark ? '0.5px solid rgba(255,255,255,0.15)' : '0.5px solid rgba(0,0,0,0.06)',
+      }} />
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', padding: '0 4px' }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Navigation bar — glass pills + large title
+// ─────────────────────────────────────────────────────────────
+function IOSNavBar({ title = 'Title', dark = false, trailingIcon = true }) {
+  const muted = dark ? 'rgba(255,255,255,0.6)' : '#404040';
+  const text = dark ? '#fff' : '#000';
+  const pillIcon = (content) => (
+    <IOSGlassPill dark={dark}>
+      <div style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {content}
+      </div>
+    </IOSGlassPill>
+  );
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 10,
+      paddingTop: 62, paddingBottom: 10, position: 'relative', zIndex: 5,
+    }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 16px',
+      }}>
+        {/* back chevron */}
+        {pillIcon(
+          <svg width="12" height="20" viewBox="0 0 12 20" fill="none" style={{ marginLeft: -1 }}>
+            <path d="M10 2L2 10l8 8" stroke={muted} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        )}
+        {/* trailing ellipsis */}
+        {trailingIcon && pillIcon(
+          <svg width="22" height="6" viewBox="0 0 22 6">
+            <circle cx="3" cy="3" r="2.5" fill={muted}/>
+            <circle cx="11" cy="3" r="2.5" fill={muted}/>
+            <circle cx="19" cy="3" r="2.5" fill={muted}/>
+          </svg>
+        )}
+      </div>
+      {/* large title */}
+      <div style={{
+        padding: '0 16px',
+        fontFamily: '-apple-system, system-ui',
+        fontSize: 34, fontWeight: 700, lineHeight: '41px',
+        color: text, letterSpacing: 0.4,
+      }}>{title}</div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Grouped list (inset card, r:26) + row (52px)
+// ─────────────────────────────────────────────────────────────
+function IOSListRow({ title, detail, icon, chevron = true, isLast = false, dark = false }) {
+  const text = dark ? '#fff' : '#000';
+  const sec = dark ? 'rgba(235,235,245,0.6)' : 'rgba(60,60,67,0.6)';
+  const ter = dark ? 'rgba(235,235,245,0.3)' : 'rgba(60,60,67,0.3)';
+  const sep = dark ? 'rgba(84,84,88,0.65)' : 'rgba(60,60,67,0.12)';
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', minHeight: 52,
+      padding: '0 16px', position: 'relative',
+      fontFamily: '-apple-system, system-ui', fontSize: 17,
+      letterSpacing: -0.43,
+    }}>
+      {icon && (
+        <div style={{
+          width: 30, height: 30, borderRadius: 7, background: icon,
+          marginRight: 12, flexShrink: 0,
+        }} />
+      )}
+      <div style={{ flex: 1, color: text }}>{title}</div>
+      {detail && <span style={{ color: sec, marginRight: 6 }}>{detail}</span>}
+      {chevron && (
+        <svg width="8" height="14" viewBox="0 0 8 14" style={{ flexShrink: 0 }}>
+          <path d="M1 1l6 6-6 6" stroke={ter} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )}
+      {!isLast && (
+        <div style={{
+          position: 'absolute', bottom: 0, right: 0,
+          left: icon ? 58 : 16, height: 0.5, background: sep,
+        }} />
+      )}
+    </div>
+  );
+}
+
+function IOSList({ header, children, dark = false }) {
+  const hc = dark ? 'rgba(235,235,245,0.6)' : 'rgba(60,60,67,0.6)';
+  const bg = dark ? '#1C1C1E' : '#fff';
+  return (
+    <div>
+      {header && (
+        <div style={{
+          fontFamily: '-apple-system, system-ui', fontSize: 13,
+          color: hc, textTransform: 'uppercase',
+          padding: '8px 36px 6px', letterSpacing: -0.08,
+        }}>{header}</div>
+      )}
+      <div style={{
+        background: bg, borderRadius: 26,
+        margin: '0 16px', overflow: 'hidden',
+      }}>{children}</div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Device frame
+// ─────────────────────────────────────────────────────────────
+function IOSDevice({
+  children, width = 402, height = 874, dark = false,
+  title, keyboard = false,
+}) {
+  return (
+    <div style={{
+      width, height, borderRadius: 48, overflow: 'hidden',
+      position: 'relative', background: dark ? '#000' : '#F2F2F7',
+      boxShadow: '0 40px 80px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.12)',
+      fontFamily: '-apple-system, system-ui, sans-serif',
+      WebkitFontSmoothing: 'antialiased',
+    }}>
+      {/* dynamic island */}
+      <div style={{
+        position: 'absolute', top: 11, left: '50%', transform: 'translateX(-50%)',
+        width: 126, height: 37, borderRadius: 24, background: '#000', zIndex: 50,
+      }} />
+      {/* status bar (absolute) */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
+        <IOSStatusBar dark={dark} />
+      </div>
+      {/* nav + content */}
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        {title !== undefined && <IOSNavBar title={title} dark={dark} />}
+        <div style={{ flex: 1, overflow: 'auto' }}>{children}</div>
+        {keyboard && <IOSKeyboard dark={dark} />}
+      </div>
+      {/* home indicator — always on top */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 60,
+        height: 34, display: 'flex', justifyContent: 'center', alignItems: 'flex-end',
+        paddingBottom: 8, pointerEvents: 'none',
+      }}>
+        <div style={{
+          width: 139, height: 5, borderRadius: 100,
+          background: dark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.25)',
+        }} />
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Keyboard — iOS 26 liquid glass
+// ─────────────────────────────────────────────────────────────
+function IOSKeyboard({ dark = false }) {
+  const glyph = dark ? 'rgba(255,255,255,0.7)' : '#595959';
+  const sugg = dark ? 'rgba(255,255,255,0.6)' : '#333';
+  const keyBg = dark ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.85)';
+
+  // special-key icons
+  const icons = {
+    shift: <svg width="19" height="17" viewBox="0 0 19 17"><path d="M9.5 1L1 9.5h4.5V16h8V9.5H18L9.5 1z" fill={glyph}/></svg>,
+    del: <svg width="23" height="17" viewBox="0 0 23 17"><path d="M7 1h13a2 2 0 012 2v11a2 2 0 01-2 2H7l-6-7.5L7 1z" fill="none" stroke={glyph} strokeWidth="1.6" strokeLinejoin="round"/><path d="M10 5l7 7M17 5l-7 7" stroke={glyph} strokeWidth="1.6" strokeLinecap="round"/></svg>,
+    ret: <svg width="20" height="14" viewBox="0 0 20 14"><path d="M18 1v6H4m0 0l4-4M4 7l4 4" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  };
+
+  const key = (content, { w, flex, ret, fs = 25, k } = {}) => (
+    <div key={k} style={{
+      height: 42, borderRadius: 8.5,
+      flex: flex ? 1 : undefined, width: w, minWidth: 0,
+      background: ret ? '#08f' : keyBg,
+      boxShadow: '0 1px 0 rgba(0,0,0,0.075)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontFamily: '-apple-system, "SF Compact", system-ui',
+      fontSize: fs, fontWeight: 458, color: ret ? '#fff' : glyph,
+    }}>{content}</div>
+  );
+
+  const row = (keys, pad = 0) => (
+    <div style={{ display: 'flex', gap: 6.5, justifyContent: 'center', padding: `0 ${pad}px` }}>
+      {keys.map(l => key(l, { flex: true, k: l }))}
+    </div>
+  );
+
+  return (
+    <div style={{
+      position: 'relative', zIndex: 15, borderRadius: 27, overflow: 'hidden',
+      padding: '11px 0 2px',
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      boxShadow: dark
+        ? '0 -2px 20px rgba(0,0,0,0.09)'
+        : '0 -1px 6px rgba(0,0,0,0.018), 0 -3px 20px rgba(0,0,0,0.012)',
+    }}>
+      {/* liquid glass bg — same recipe as nav pills */}
+      <div style={{
+        position: 'absolute', inset: 0, borderRadius: 27,
+        backdropFilter: 'blur(12px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(12px) saturate(180%)',
+        background: dark ? 'rgba(120,120,128,0.14)' : 'rgba(255,255,255,0.25)',
+      }} />
+      <div style={{
+        position: 'absolute', inset: 0, borderRadius: 27,
+        boxShadow: dark
+          ? 'inset 1.5px 1.5px 1px rgba(255,255,255,0.15)'
+          : 'inset 1.5px 1.5px 1px rgba(255,255,255,0.7), inset -1px -1px 1px rgba(255,255,255,0.4)',
+        border: dark ? '0.5px solid rgba(255,255,255,0.15)' : '0.5px solid rgba(0,0,0,0.06)',
+        pointerEvents: 'none',
+      }} />
+
+      {/* autocorrect bar */}
+      <div style={{
+        display: 'flex', gap: 20, alignItems: 'center',
+        padding: '8px 22px 13px', width: '100%', boxSizing: 'border-box',
+        position: 'relative',
+      }}>
+        {['"The"', 'the', 'to'].map((w, i) => (
+          <React.Fragment key={i}>
+            {i > 0 && <div style={{ width: 1, height: 25, background: '#ccc', opacity: 0.3 }} />}
+            <div style={{
+              flex: 1, textAlign: 'center',
+              fontFamily: '-apple-system, system-ui', fontSize: 17,
+              color: sugg, letterSpacing: -0.43, lineHeight: '22px',
+            }}>{w}</div>
+          </React.Fragment>
+        ))}
+      </div>
+
+      {/* key layout */}
+      <div style={{
+        display: 'flex', flexDirection: 'column', gap: 13,
+        padding: '0 6.5px', width: '100%', boxSizing: 'border-box',
+        position: 'relative',
+      }}>
+        {row(['q','w','e','r','t','y','u','i','o','p'])}
+        {row(['a','s','d','f','g','h','j','k','l'], 20)}
+        <div style={{ display: 'flex', gap: 14.25, alignItems: 'center' }}>
+          {key(icons.shift, { w: 45, k: 'shift' })}
+          <div style={{ display: 'flex', gap: 6.5, flex: 1 }}>
+            {['z','x','c','v','b','n','m'].map(l => key(l, { flex: true, k: l }))}
+          </div>
+          {key(icons.del, { w: 45, k: 'del' })}
+        </div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {key('ABC', { w: 92.25, fs: 18, k: 'abc' })}
+          {key('', { flex: true, k: 'space' })}
+          {key(icons.ret, { w: 92.25, ret: true, k: 'ret' })}
+        </div>
+      </div>
+
+      {/* bottom spacer (emoji+mic area, icons omitted) */}
+      <div style={{ height: 56, width: '100%', position: 'relative' }} />
+    </div>
+  );
+}
+
+Object.assign(window, {
+  IOSDevice, IOSStatusBar, IOSNavBar, IOSGlassPill, IOSList, IOSListRow, IOSKeyboard,
+});
+
+
+// ==== data.jsx ====
+// Mock data for Curator — Korean life records
+const MEMORIES = {
+  m_2023_02_14: {
+    id: 'm_2023_02_14',
+    source: 'diary',
+    sourceLabel: '일기',
+    date: '2023년 2월 14일',
+    dateShort: '2023.02.14',
+    timeAgo: '3년 전 2월',
+    title: '요즘 너무 지친다',
+    mood: '무기력',
+    location: '서울 · 망원동',
+    content:
+      '아침에 눈을 뜨기가 힘들다. 회사에 도착해서도 멍하니 앉아 있는 시간이 길어졌다. 점심도 건너뛰었고, 퇴근하고는 아무것도 하기 싫어서 누워만 있었다. 이 상태가 2주째 이어지고 있다. 뭐가 문제인지 모르겠다. 그냥 다 귀찮다.',
+    tags: ['무기력', '번아웃', '겨울'],
+  },
+  m_2023_03_21: {
+    id: 'm_2023_03_21',
+    source: 'diary',
+    sourceLabel: '일기',
+    date: '2023년 3월 21일',
+    dateShort: '2023.03.21',
+    timeAgo: '3년 전 봄',
+    title: '작은 사이드 프로젝트를 시작했다',
+    mood: '설렘',
+    location: '서울 · 망원동',
+    content:
+      '주말에 오랜만에 노트북을 열고 예전에 만들고 싶었던 작은 웹사이트를 만들기 시작했다. 아무도 보지 않겠지만, 오랜만에 뭔가를 만든다는 감각이 좋았다. 저녁까지 시간 가는 줄 몰랐고, 자기 전에 오랜만에 기분이 좋았다.',
+    tags: ['사이드 프로젝트', '회복', '창작'],
+  },
+  m_2023_04_09: {
+    id: 'm_2023_04_09',
+    source: 'memo',
+    sourceLabel: '메모',
+    date: '2023년 4월 9일',
+    dateShort: '2023.04.09',
+    timeAgo: '3년 전 봄',
+    title: '한강 산책',
+    mood: '평온',
+    location: '서울 · 한강공원',
+    content:
+      '친구랑 오랜만에 한강 산책을 했다. 날씨가 좋았고, 별 얘기 안 해도 편했다. 걷는 것만으로도 머리가 가벼워진다는 걸 오랜만에 느꼈다. 다음 주에도 나가기로 했다.',
+    tags: ['산책', '친구', '회복'],
+  },
+  m_2024_11_18: {
+    id: 'm_2024_11_18',
+    source: 'diary',
+    sourceLabel: '일기',
+    date: '2024년 11월 18일',
+    dateShort: '2024.11.18',
+    timeAgo: '1년 전 겨울',
+    title: '이직 후 첫 달',
+    mood: '불안',
+    location: '서울 · 성수동',
+    content:
+      '새 회사에 온 지 한 달이 됐다. 아직 적응이 안 된다. 일은 어렵지 않은데 사람들과 거리가 느껴지고, 저녁이 되면 기운이 다 빠진다. 예전 팀이 그립기도 하다.',
+    tags: ['이직', '불안', '겨울'],
+  },
+  m_2025_01_07: {
+    id: 'm_2025_01_07',
+    source: 'calendar',
+    sourceLabel: '캘린더',
+    date: '2025년 1월 7일',
+    dateShort: '2025.01.07',
+    timeAgo: '올해 초',
+    title: '수영 강습 첫날',
+    mood: '의욕',
+    location: '마포구민체육센터',
+    content:
+      '화요일·목요일 저녁 7시 · 3개월 등록. 오래 미뤄온 것. 몸을 움직이는 루틴을 다시 만들어 보기로 했다.',
+    tags: ['운동', '루틴', '새해'],
+  },
+};
+
+const CHAT_HISTORY = [
+  { q: '지난 겨울엔 뭘 하면서 기분이 풀렸지?', when: '4일 전', preview: '그때는 한강 산책과 작은 프로젝트가 도움이 됐어요.' },
+  { q: '이직하고 나서 한 달 동안 어땠지?', when: '1주 전', preview: '적응에 시간이 걸렸지만, 3주차에 변화가 있었어요.' },
+  { q: '책 읽기 루틴이 가장 잘 지켜진 때는?', when: '2주 전', preview: '2024년 9월, 출퇴근 지하철에서 매일 읽으셨네요.' },
+];
+
+const TODAY_SNAPSHOTS = [
+  { label: '오늘의 일기', value: '아직 작성 전', hint: '저녁 9시 · 평소 시간' },
+  { label: '이번 주 기록', value: '12개', hint: '지난주보다 +3' },
+  { label: '연결된 소스', value: '4개', hint: '캘린더 · 일기 · 메모 · 음성' },
+];
+
+window.CURATOR_DATA = { MEMORIES, CHAT_HISTORY, TODAY_SNAPSHOTS };
+
+
+// ==== shared.jsx ====
+// Shared UI helpers for Curator
+
+// Small logo mark — a "book + lens" warm glyph
+function CuratorMark({ size = 24, color }) {
+  const c = color || 'var(--terra)';
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M4 5.5C4 4.67 4.67 4 5.5 4H11V19H5.5C4.67 19 4 18.33 4 17.5V5.5Z" stroke={c} strokeWidth="1.5"/>
+      <path d="M20 5.5C20 4.67 19.33 4 18.5 4H13V19H18.5C19.33 19 20 18.33 20 17.5V5.5Z" stroke={c} strokeWidth="1.5"/>
+      <circle cx="12" cy="11.5" r="2.4" fill={c}/>
+    </svg>
+  );
+}
+
+function SourceIcon({ source, size = 14 }) {
+  const style = { width: size, height: size };
+  const stroke = 'currentColor';
+  switch (source) {
+    case 'diary':
+      return (
+        <svg viewBox="0 0 16 16" style={style} fill="none">
+          <path d="M3 2.5C3 2.22 3.22 2 3.5 2H12.5C12.78 2 13 2.22 13 2.5V13.5C13 13.78 12.78 14 12.5 14H3.5C3.22 14 3 13.78 3 13.5V2.5Z" stroke={stroke} strokeWidth="1.2"/>
+          <path d="M5.5 5H10.5M5.5 7.5H10.5M5.5 10H8.5" stroke={stroke} strokeWidth="1.2" strokeLinecap="round"/>
+        </svg>
+      );
+    case 'calendar':
+      return (
+        <svg viewBox="0 0 16 16" style={style} fill="none">
+          <rect x="2.5" y="3.5" width="11" height="10" rx="1" stroke={stroke} strokeWidth="1.2"/>
+          <path d="M5.5 2V5M10.5 2V5M2.5 7H13.5" stroke={stroke} strokeWidth="1.2" strokeLinecap="round"/>
+        </svg>
+      );
+    case 'memo':
+      return (
+        <svg viewBox="0 0 16 16" style={style} fill="none">
+          <path d="M3 3.5C3 2.67 3.67 2 4.5 2H11.5C12.33 2 13 2.67 13 3.5V11L10 14H4.5C3.67 14 3 13.33 3 12.5V3.5Z" stroke={stroke} strokeWidth="1.2"/>
+          <path d="M10 11H13L10 14V11Z" fill={stroke} opacity="0.3"/>
+        </svg>
+      );
+    case 'voice_memo':
+      return (
+        <svg viewBox="0 0 16 16" style={style} fill="none">
+          <rect x="6" y="2.5" width="4" height="7" rx="2" stroke={stroke} strokeWidth="1.2"/>
+          <path d="M4 8C4 10.21 5.79 12 8 12C10.21 12 12 10.21 12 8M8 12V14" stroke={stroke} strokeWidth="1.2" strokeLinecap="round"/>
+        </svg>
+      );
+    case 'photo':
+      return (
+        <svg viewBox="0 0 16 16" style={style} fill="none">
+          <rect x="2" y="3.5" width="12" height="9" rx="1.2" stroke={stroke} strokeWidth="1.2"/>
+          <circle cx="10.5" cy="6.5" r="0.9" fill={stroke}/>
+          <path d="M2.5 11L6 7.5L9 10.5L11 8.5L13.5 11" stroke={stroke} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
+// Nav dock (iOS bottom)
+function NavDock({ active, onNav }) {
+  const items = [
+    { id: 'home', label: '오늘', icon: (
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <path d="M3 9L11 3L19 9V18C19 18.55 18.55 19 18 19H4C3.45 19 3 18.55 3 18V9Z"
+          stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
+      </svg>
+    )},
+    { id: 'ask', label: '질문', icon: (
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <circle cx="10" cy="10" r="6.5" stroke="currentColor" strokeWidth="1.6"/>
+        <path d="M15 15L19 19" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+      </svg>
+    )},
+    { id: 'timeline', label: '타임라인', icon: (
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <path d="M5 4V18M5 4H17M5 11H15M5 18H13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+      </svg>
+    )},
+    { id: 'settings', label: '설정', icon: (
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <circle cx="11" cy="11" r="3" stroke="currentColor" strokeWidth="1.6"/>
+        <path d="M11 2V4M11 18V20M2 11H4M18 11H20M4.6 4.6L6 6M16 16L17.4 17.4M4.6 17.4L6 16M16 6L17.4 4.6"
+          stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+      </svg>
+    )},
+  ];
+  return (
+    <div className="dock">
+      {items.map(it => (
+        <div key={it.id}
+          className={'dock-btn' + (active === it.id ? ' active' : '')}
+          onClick={() => onNav && onNav(it.id)}>
+          {it.icon}
+          <div>{it.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+Object.assign(window, { CuratorMark, SourceIcon, NavDock });
+
+
+// ==== screen-home.jsx ====
+// HomeScreen — today dashboard, recent questions, warm hero
+function HomeScreen({ onAsk, onOpenMemory, onNav }) {
+  const { CHAT_HISTORY } = window.CURATOR_DATA;
+
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      <div className="paper-grain" />
+      {/* Status spacer */}
+      <div style={{ height: 54 }} />
+
+      {/* Top bar */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '14px 20px 8px', position: 'relative', zIndex: 5,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <CuratorMark size={22} />
+          <div style={{
+            fontFamily: 'var(--serif)', fontWeight: 600, fontSize: 17,
+            color: 'var(--ink)', letterSpacing: '-0.01em',
+          }}>큐레이터</div>
+        </div>
+        <div style={{
+          width: 36, height: 36, borderRadius: 10, background: 'var(--paper-2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          border: '0.5px solid var(--line)',
+        }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="6" r="2.5" stroke="var(--ink-2)" strokeWidth="1.3"/>
+            <path d="M3 13.5C3.8 11.4 5.7 10 8 10C10.3 10 12.2 11.4 13 13.5"
+              stroke="var(--ink-2)" strokeWidth="1.3" strokeLinecap="round"/>
+          </svg>
+        </div>
+      </div>
+
+      <div className="scroll" style={{ flex: 1, paddingBottom: 100 }}>
+        {/* Greeting */}
+        <div style={{ padding: '18px 20px 0' }}>
+          <div style={{
+            fontSize: 12, color: 'var(--ink-3)', letterSpacing: '0.01em', marginBottom: 6,
+          }}>2026년 4월 18일 토요일</div>
+          <div style={{
+            fontFamily: 'var(--serif)', fontSize: 28, lineHeight: 1.35,
+            color: 'var(--ink)', fontWeight: 500, letterSpacing: '-0.02em',
+            wordBreak: 'keep-all', textWrap: 'pretty',
+          }}>
+            안녕하세요, 지원 님.<br/>
+            <span style={{ color: 'var(--ink-3)' }}>오늘은 어떤 마음을<br/>들여다보고 싶으세요?</span>
+          </div>
+        </div>
+
+        {/* Big Ask card */}
+        <div style={{ padding: '22px 20px 0' }}>
+          <div
+            onClick={onAsk}
+            style={{
+              background: 'var(--paper)',
+              border: '0.5px solid var(--line-2)',
+              borderRadius: 22,
+              padding: '18px 18px 16px',
+              boxShadow: 'var(--shadow-soft)',
+              cursor: 'pointer',
+              position: 'relative',
+              overflow: 'hidden',
+            }}>
+            {/* accent corner */}
+            <div style={{
+              position: 'absolute', top: -40, right: -40, width: 120, height: 120,
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(200,116,86,0.18), transparent 65%)',
+            }}/>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+              <div style={{
+                width: 6, height: 6, borderRadius: 3, background: 'var(--terra)',
+              }}/>
+              <div style={{
+                fontSize: 11, letterSpacing: '0.1em', color: 'var(--terra-deep)',
+                textTransform: 'uppercase', fontWeight: 600,
+              }}>오늘의 질문</div>
+            </div>
+            <div style={{
+              fontFamily: 'var(--serif)', fontSize: 18, lineHeight: 1.55,
+              color: 'var(--ink)', fontWeight: 500, marginBottom: 14,
+              letterSpacing: '-0.01em', wordBreak: 'keep-all',
+            }}>
+              내 기록에 물어보세요.<br/>
+              <span style={{ color: 'var(--ink-2)', fontWeight: 400 }}>
+                오늘의 감정, 과거의 나, 반복되는 패턴까지.
+              </span>
+            </div>
+            <div style={{
+              display: 'flex', alignItems: 'center',
+              background: '#fff', borderRadius: 14,
+              padding: '12px 14px', gap: 10,
+              border: '0.5px solid var(--line)',
+            }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <circle cx="7" cy="7" r="5" stroke="var(--ink-3)" strokeWidth="1.3"/>
+                <path d="M11 11L14 14" stroke="var(--ink-3)" strokeWidth="1.3" strokeLinecap="round"/>
+              </svg>
+              <div style={{
+                flex: 1, fontSize: 14, color: 'var(--ink-3)',
+                fontWeight: 400, letterSpacing: '-0.01em',
+              }}>
+                무엇이든 물어보세요…
+              </div>
+              <div style={{
+                width: 28, height: 28, borderRadius: '50%',
+                background: 'var(--terra)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path d="M6 9V3M6 3L3 6M6 3L9 6" stroke="#FDF6EC" strokeWidth="1.5"
+                    strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Suggested prompts */}
+        <div style={{ padding: '20px 20px 0' }}>
+          <div style={{
+            fontSize: 11, letterSpacing: '0.08em', color: 'var(--ink-3)',
+            textTransform: 'uppercase', fontWeight: 600, marginBottom: 10,
+          }}>추천 질문</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[
+              { q: '나 요즘 왜 이렇게 무기력하지?', hint: '감정 · 패턴' },
+              { q: '작년 봄에 뭐 하면서 즐거웠지?', hint: '시간 · 회상' },
+              { q: '지난달 내 루틴은 어땠을까?', hint: '행동 · 요약' },
+            ].map((s, i) => (
+              <div key={i} onClick={onAsk} style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '13px 14px',
+                background: 'rgba(255,255,255,0.55)',
+                borderRadius: 14,
+                border: '0.5px solid var(--line)',
+                cursor: 'pointer',
+              }}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: 8,
+                  background: 'var(--paper-2)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0, color: 'var(--terra-deep)',
+                }}>
+                  <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                    <path d="M2 6.5L4.5 9L11 2.5" stroke="currentColor" strokeWidth="1.5"
+                      strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: 14, fontWeight: 500, color: 'var(--ink)',
+                    letterSpacing: '-0.01em', marginBottom: 2,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>{s.q}</div>
+                  <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>{s.hint}</div>
+                </div>
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ color: 'var(--ink-4)' }}>
+                  <path d="M3 1L7 5L3 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Recent conversations */}
+        <div style={{ padding: '24px 20px 0' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            marginBottom: 10,
+          }}>
+            <div style={{
+              fontSize: 11, letterSpacing: '0.08em', color: 'var(--ink-3)',
+              textTransform: 'uppercase', fontWeight: 600,
+            }}>최근 대화</div>
+            <div style={{ fontSize: 12, color: 'var(--terra-deep)', fontWeight: 500 }}>
+              전체 보기
+            </div>
+          </div>
+          <div style={{
+            background: '#fff', borderRadius: 18,
+            border: '0.5px solid var(--line)',
+            overflow: 'hidden',
+            boxShadow: 'var(--shadow-soft)',
+          }}>
+            {CHAT_HISTORY.map((c, i) => (
+              <div key={i} style={{
+                padding: '13px 16px',
+                borderTop: i > 0 ? '0.5px solid var(--line)' : 'none',
+                cursor: 'pointer',
+              }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  marginBottom: 4,
+                }}>
+                  <div style={{
+                    fontSize: 13.5, color: 'var(--ink)', fontWeight: 500,
+                    letterSpacing: '-0.01em', flex: 1, paddingRight: 8,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>{c.q}</div>
+                  <div style={{ fontSize: 11, color: 'var(--ink-3)', flexShrink: 0 }}>{c.when}</div>
+                </div>
+                <div style={{
+                  fontSize: 12, color: 'var(--ink-2)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  letterSpacing: '-0.01em',
+                }}>{c.preview}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Connected sources strip */}
+        <div style={{ padding: '24px 20px 40px' }}>
+          <div style={{
+            fontSize: 11, letterSpacing: '0.08em', color: 'var(--ink-3)',
+            textTransform: 'uppercase', fontWeight: 600, marginBottom: 10,
+          }}>연결된 기록</div>
+          <div style={{
+            display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8,
+          }}>
+            {[
+              { k: 'diary', l: '일기', n: '142' },
+              { k: 'calendar', l: '캘린더', n: '318' },
+              { k: 'memo', l: '메모', n: '87' },
+              { k: 'voice_memo', l: '음성 메모', n: '24' },
+            ].map((s, i) => (
+              <div key={i} style={{
+                padding: '12px 14px',
+                background: 'rgba(255,255,255,0.55)',
+                borderRadius: 14,
+                border: '0.5px solid var(--line)',
+                display: 'flex', alignItems: 'center', gap: 10,
+              }}>
+                <div style={{
+                  width: 30, height: 30, borderRadius: 9,
+                  background: 'var(--paper-2)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'var(--terra-deep)',
+                }}>
+                  <SourceIcon source={s.k} size={15}/>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{s.l}</div>
+                  <div style={{
+                    fontFamily: 'var(--serif)', fontSize: 16, fontWeight: 500,
+                    color: 'var(--ink)', letterSpacing: '-0.01em',
+                  }}>{s.n}<span style={{
+                    fontSize: 10, color: 'var(--ink-3)', fontWeight: 400,
+                    fontFamily: 'var(--sans)', marginLeft: 3,
+                  }}>개</span></div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{
+            marginTop: 12, fontSize: 11, color: 'var(--ink-3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          }}>
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M5 1L1.5 3V5C1.5 7 3 8.5 5 9C7 8.5 8.5 7 8.5 5V3L5 1Z"
+                stroke="var(--sage)" strokeWidth="1.2" strokeLinejoin="round"/>
+            </svg>
+            모든 처리가 기기 안에서 이루어집니다
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom dock */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingBottom: 24 }}>
+        <NavDock active="home" onNav={onNav}/>
+      </div>
+    </div>
+  );
+}
+
+window.HomeScreen = HomeScreen;
+
+
+// ==== screen-ask.jsx ====
+// AskScreen — question input with typing / suggestions / voice option
+function AskScreen({ onSubmit, onBack, onNav }) {
+  const [query, setQuery] = React.useState('');
+  const [focused, setFocused] = React.useState(false);
+  const inputRef = React.useRef(null);
+
+  React.useEffect(() => {
+    // auto-focus feel
+    const t = setTimeout(() => { setFocused(true); inputRef.current && inputRef.current.focus(); }, 120);
+    return () => clearTimeout(t);
+  }, []);
+
+  const submit = (text) => {
+    const q = (text !== undefined ? text : query).trim();
+    if (!q) return;
+    onSubmit(q);
+  };
+
+  const samples = [
+    { cat: '감정', q: '나 요즘 왜 이렇게 무기력하지?' },
+    { cat: '회상', q: '3년 전 봄에 뭐 하면서 즐거웠지?' },
+    { cat: '패턴', q: '이직 후에 늘 이런 기분이 드나?' },
+    { cat: '루틴', q: '책 읽기 가장 잘 지켜진 달이 언제였지?' },
+  ];
+
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      <div className="paper-grain" />
+      <div style={{ height: 54 }} />
+
+      {/* Header */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '10px 16px 4px', position: 'relative', zIndex: 5,
+      }}>
+        <div
+          onClick={onBack}
+          style={{
+            width: 36, height: 36, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.65)',
+            border: '0.5px solid var(--line)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
+          }}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M8 2L3 6L8 10" stroke="var(--ink-2)" strokeWidth="1.6"
+              strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <div style={{
+          fontSize: 13, color: 'var(--ink-3)', fontWeight: 500, letterSpacing: '-0.01em',
+        }}>질문하기</div>
+        <div style={{ width: 36 }} />
+      </div>
+
+      <div style={{
+        flex: 1, display: 'flex', flexDirection: 'column',
+        padding: '28px 22px 0', position: 'relative', zIndex: 2,
+      }}>
+        {/* Prompt */}
+        <div style={{
+          fontFamily: 'var(--serif)', fontSize: 22, lineHeight: 1.5,
+          color: 'var(--ink)', fontWeight: 500, letterSpacing: '-0.02em',
+          marginBottom: 20, wordBreak: 'keep-all', textWrap: 'pretty',
+        }}>
+          <span style={{ color: 'var(--terra-deep)' }}>무엇이</span> 궁금하세요?<br/>
+          <span style={{ color: 'var(--ink-3)', fontSize: 15, fontWeight: 400 }}>
+            당신의 기록에서만 답을 찾아드립니다.
+          </span>
+        </div>
+
+        {/* Input card */}
+        <div style={{
+          background: '#fff',
+          borderRadius: 20,
+          padding: '16px 16px 12px',
+          border: focused ? '1px solid var(--terra)' : '0.5px solid var(--line-2)',
+          boxShadow: focused
+            ? '0 0 0 4px rgba(200, 116, 86, 0.1), var(--shadow-card)'
+            : 'var(--shadow-soft)',
+          transition: 'all 0.2s ease',
+        }}>
+          <textarea
+            ref={inputRef}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onFocus={() => setFocused(true)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } }}
+            placeholder="예) 지난 겨울엔 뭘 하면서 기분이 풀렸지?"
+            rows={3}
+            style={{
+              width: '100%', border: 'none', outline: 'none', resize: 'none',
+              fontFamily: 'var(--sans)', fontSize: 16, lineHeight: 1.55,
+              color: 'var(--ink)', background: 'transparent',
+              letterSpacing: '-0.01em',
+            }}
+          />
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            marginTop: 6, paddingTop: 10, borderTop: '0.5px solid var(--line)',
+          }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: '50%',
+                background: 'var(--paper-2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', color: 'var(--ink-2)',
+              }}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <rect x="6" y="2.5" width="4" height="7" rx="2" stroke="currentColor" strokeWidth="1.3"/>
+                  <path d="M4 8C4 10.21 5.79 12 8 12C10.21 12 12 10.21 12 8M8 12V14"
+                    stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                </svg>
+              </div>
+              <div style={{
+                width: 32, height: 32, borderRadius: '50%',
+                background: 'var(--paper-2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', color: 'var(--ink-2)',
+              }}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <rect x="2" y="3.5" width="12" height="9" rx="1.2" stroke="currentColor" strokeWidth="1.3"/>
+                  <circle cx="10.5" cy="6.5" r="0.9" fill="currentColor"/>
+                  <path d="M2.5 11L6 7.5L9 10.5L11 8.5L13.5 11"
+                    stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+            </div>
+            <button
+              className="btn btn-terra"
+              onClick={() => submit()}
+              disabled={!query.trim()}
+              style={{
+                padding: '9px 18px',
+                borderRadius: 999,
+                fontSize: 14,
+                fontWeight: 600,
+                display: 'flex', alignItems: 'center', gap: 6,
+                opacity: query.trim() ? 1 : 0.5,
+              }}>
+              묻기
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M2 6H10M10 6L6 2M10 6L6 10" stroke="#FDF6EC" strokeWidth="1.6"
+                  strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Scope */}
+        <div style={{
+          marginTop: 18,
+          display: 'flex', gap: 8, flexWrap: 'wrap',
+        }}>
+          <div style={{
+            fontSize: 11, letterSpacing: '0.08em', color: 'var(--ink-3)',
+            textTransform: 'uppercase', fontWeight: 600,
+            width: '100%', marginBottom: 4,
+          }}>검색 범위</div>
+          {[
+            { l: '전체 기간', active: true },
+            { l: '지난 1년' },
+            { l: '지난 한 달' },
+            { l: '모든 소스', active: true },
+          ].map((t, i) => (
+            <div key={i} style={{
+              padding: '6px 12px',
+              borderRadius: 999,
+              fontSize: 12,
+              fontWeight: 500,
+              letterSpacing: '-0.01em',
+              background: t.active ? 'var(--terra)' : 'rgba(255,255,255,0.6)',
+              color: t.active ? '#FDF6EC' : 'var(--ink-2)',
+              border: t.active ? '0.5px solid var(--terra-deep)' : '0.5px solid var(--line)',
+              cursor: 'pointer',
+            }}>{t.l}</div>
+          ))}
+        </div>
+
+        {/* Examples */}
+        <div style={{ marginTop: 24, flex: 1 }}>
+          <div style={{
+            fontSize: 11, letterSpacing: '0.08em', color: 'var(--ink-3)',
+            textTransform: 'uppercase', fontWeight: 600, marginBottom: 10,
+          }}>이렇게 물어보세요</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {samples.map((s, i) => (
+              <div key={i}
+                onClick={() => { setQuery(s.q); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '11px 14px',
+                  background: 'rgba(255,255,255,0.45)',
+                  border: '0.5px solid var(--line)',
+                  borderRadius: 12,
+                  cursor: 'pointer',
+                }}>
+                <div className="tag terra" style={{ padding: '2px 7px', fontSize: 10, flexShrink: 0 }}>
+                  {s.cat}
+                </div>
+                <div style={{
+                  fontSize: 13.5, color: 'var(--ink)', fontWeight: 450,
+                  letterSpacing: '-0.01em', flex: 1,
+                }}>{s.q}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Privacy */}
+        <div style={{
+          marginTop: 'auto', padding: '16px 0 20px',
+          display: 'flex', alignItems: 'center', gap: 8,
+          fontSize: 11, color: 'var(--ink-3)',
+          textAlign: 'center', justifyContent: 'center',
+        }}>
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+            <path d="M5.5 1L1.5 3V5.5C1.5 7.5 3.2 9.5 5.5 10C7.8 9.5 9.5 7.5 9.5 5.5V3L5.5 1Z"
+              stroke="var(--sage)" strokeWidth="1.2" strokeLinejoin="round"/>
+          </svg>
+          Gemma‑4‑E2B · 기기 안에서 처리됨
+        </div>
+      </div>
+    </div>
+  );
+}
+
+window.AskScreen = AskScreen;
+
+
+// ==== screen-answer.jsx ====
+// AnswerScreen — essay/letter-style reflection with inline tappable citations.
+// Citations are [[id]] tokens in the essay template; we parse and render them as <cite> chips.
+
+function AnswerScreen({ query, onBack, onOpenMemory, streamingDone }) {
+  const { MEMORIES } = window.CURATOR_DATA;
+
+  // Essay content: structured so we can stream it word by word.
+  // Citation tokens: {{CITE:id}}
+  const ESSAY_PARAGRAPHS = [
+    '지원 님의 일기를 다시 훑어보며 드리는 작은 편지입니다.',
+    '요즘 느끼시는 그 무거움은, 이번이 처음은 아닌 것 같아요. 3년 전 이맘때쯤에도 비슷한 기록이 있었습니다. {{CITE:m_2023_02_14}} 아침에 눈뜨기 힘들고, 점심을 자주 거르고, 저녁엔 아무것도 하기 싫다고 쓰셨어요. 그 시기가 약 2주 이어졌다고 적혀 있네요.',
+    '흥미로운 건, 그 뒤 한 달쯤 지나 상황이 조금씩 바뀌었다는 점이에요. 3월엔 오래 미뤄둔 작은 사이드 프로젝트를 시작하셨고 {{CITE:m_2023_03_21}}, 그 주말에 “오랜만에 뭔가 만든다는 감각이 좋았다”라고 적으셨습니다. 4월엔 친구와 한강 산책을 다시 시작하셨고요. {{CITE:m_2023_04_09}}',
+    '그때의 회복은 거창한 결심보다 가볍고 구체적인 행동에서 왔어요. 만들고 싶었던 작은 것을 하나 시작하는 일, 약속 하나를 잡고 몸을 움직이는 일. 지원 님의 기록을 토대로 추측해보면, 지금도 비슷한 실마리가 도움이 될 수 있을 것 같습니다.',
+    '한 가지 더, 작년 11월 이직 직후에도 {{CITE:m_2024_11_18}} 비슷한 결의 기록이 보여요. 새 환경에 몸이 익숙해지는 동안 에너지가 많이 빠지는 시기가 지원 님께는 종종 찾아오는 듯합니다. 이 패턴을 기억해두시면, 같은 감정이 올 때 덜 놀라실 수 있을 거예요.',
+  ];
+
+  const CITED_IDS = ['m_2023_02_14', 'm_2023_03_21', 'm_2023_04_09', 'm_2024_11_18'];
+
+  const [revealed, setRevealed] = React.useState(streamingDone ? ESSAY_PARAGRAPHS.length : 0);
+  const [streaming, setStreaming] = React.useState(!streamingDone);
+
+  React.useEffect(() => {
+    if (streamingDone) { setRevealed(ESSAY_PARAGRAPHS.length); setStreaming(false); return; }
+    // Simulate paragraph-by-paragraph streaming
+    setRevealed(0); setStreaming(true);
+    let i = 0;
+    const t = setInterval(() => {
+      i++;
+      setRevealed(i);
+      if (i >= ESSAY_PARAGRAPHS.length) {
+        clearInterval(t);
+        setStreaming(false);
+      }
+    }, 850);
+    return () => clearInterval(t);
+  }, []);
+
+  // render a paragraph: parse {{CITE:id}} tokens
+  function renderParagraph(text, pi) {
+    const parts = [];
+    const re = /\{\{CITE:([a-z0-9_]+)\}\}/g;
+    let last = 0, m, citeIdx = 0;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) parts.push(<span key={'t' + pi + '_' + last}>{text.slice(last, m.index)}</span>);
+      const id = m[1];
+      const globalIdx = CITED_IDS.indexOf(id) + 1;
+      parts.push(
+        <span key={'c' + pi + '_' + m.index}
+          className="cite"
+          onClick={() => onOpenMemory(id)}>
+          <svg width="9" height="9" viewBox="0 0 9 9" fill="none" style={{ flexShrink: 0 }}>
+            <rect x="1.5" y="1" width="6" height="7" rx="0.8" stroke="currentColor" strokeWidth="1"/>
+            <path d="M3 3.5H6M3 5H6M3 6.5H4.5" stroke="currentColor" strokeWidth="0.9" strokeLinecap="round"/>
+          </svg>
+          {globalIdx}
+        </span>
+      );
+      last = m.index + m[0].length;
+      citeIdx++;
+    }
+    if (last < text.length) parts.push(<span key={'t' + pi + '_end'}>{text.slice(last)}</span>);
+    return parts;
+  }
+
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      <div className="paper-grain" />
+      <div style={{ height: 54 }} />
+
+      {/* Header */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '10px 16px 10px', position: 'relative', zIndex: 5,
+      }}>
+        <div onClick={onBack} style={{
+          width: 36, height: 36, borderRadius: '50%',
+          background: 'rgba(255,255,255,0.65)', border: '0.5px solid var(--line)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+        }}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M8 2L3 6L8 10" stroke="var(--ink-2)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          fontSize: 12, color: 'var(--ink-3)', fontWeight: 500,
+        }}>
+          {streaming ? (
+            <>
+              <div style={{ display: 'flex', gap: 3 }}>
+                {[0, 1, 2].map(i => (
+                  <div key={i} style={{
+                    width: 4, height: 4, borderRadius: 2, background: 'var(--terra)',
+                    animation: `bar 0.9s ${i * 0.12}s infinite ease-in-out`,
+                    transformOrigin: 'bottom',
+                  }}/>
+                ))}
+              </div>
+              생각 중…
+            </>
+          ) : (
+            <>4개의 기록을 참고함</>
+          )}
+        </div>
+        <div style={{
+          width: 36, height: 36, borderRadius: '50%',
+          background: 'rgba(255,255,255,0.65)', border: '0.5px solid var(--line)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+        }}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M10 4.5L11.5 3L8 6.5M6 8.5L2.5 12L4 10.5M10 4.5L13 7.5L9.5 11L4 12.5L5.5 7L9 3.5L10 4.5Z"
+              stroke="var(--ink-2)" strokeWidth="1.3" strokeLinejoin="round"/>
+          </svg>
+        </div>
+      </div>
+
+      {/* Scrollable essay */}
+      <div className="scroll" style={{ flex: 1, paddingBottom: 120 }}>
+        <div style={{ padding: '10px 24px 0' }}>
+          {/* query card */}
+          <div style={{
+            background: 'rgba(200, 116, 86, 0.08)',
+            border: '0.5px solid rgba(200, 116, 86, 0.2)',
+            borderRadius: 14,
+            padding: '12px 14px',
+            marginBottom: 24,
+          }}>
+            <div style={{
+              fontSize: 10, letterSpacing: '0.1em', color: 'var(--terra-deep)',
+              textTransform: 'uppercase', fontWeight: 700, marginBottom: 4,
+            }}>질문</div>
+            <div style={{
+              fontFamily: 'var(--serif)', fontSize: 17, color: 'var(--ink)',
+              fontWeight: 500, lineHeight: 1.5, letterSpacing: '-0.01em',
+              wordBreak: 'keep-all',
+            }}>{query || '나 요즘 왜 이렇게 무기력하지?'}</div>
+          </div>
+
+          {/* essay */}
+          <div className="essay">
+            {ESSAY_PARAGRAPHS.slice(0, revealed).map((p, i) => (
+              <p key={i} style={{
+                opacity: 0, animation: 'fadeIn 0.5s forwards',
+              }}>
+                {renderParagraph(p, i)}
+                {i === revealed - 1 && streaming && <span className="caret" />}
+              </p>
+            ))}
+          </div>
+
+          {/* Citation list */}
+          {!streaming && (
+            <div style={{ marginTop: 28 }}>
+              <div style={{
+                fontSize: 11, letterSpacing: '0.08em', color: 'var(--ink-3)',
+                textTransform: 'uppercase', fontWeight: 600, marginBottom: 10,
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}>
+                참고한 기록
+                <div style={{
+                  fontSize: 10, padding: '1px 6px', borderRadius: 4,
+                  background: 'var(--paper-2)', color: 'var(--ink-3)',
+                  letterSpacing: 0,
+                }}>{CITED_IDS.length}</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {CITED_IDS.map((id, i) => {
+                  const m = MEMORIES[id];
+                  return (
+                    <div key={id}
+                      onClick={() => onOpenMemory(id)}
+                      style={{
+                        background: '#fff',
+                        border: '0.5px solid var(--line)',
+                        borderRadius: 14,
+                        padding: '12px 14px',
+                        display: 'flex', gap: 12,
+                        boxShadow: 'var(--shadow-soft)',
+                        cursor: 'pointer',
+                      }}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 10,
+                        background: 'var(--terra)',
+                        color: '#FDF6EC',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontFamily: 'var(--serif)', fontSize: 15, fontWeight: 600,
+                        flexShrink: 0,
+                      }}>{i + 1}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3,
+                        }}>
+                          <div style={{ color: 'var(--ink-3)' }}>
+                            <SourceIcon source={m.source} size={12} />
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 500 }}>
+                            {m.sourceLabel} · {m.dateShort}
+                          </div>
+                          <div style={{ flex: 1 }}/>
+                          <div style={{
+                            fontSize: 10, padding: '1px 6px', borderRadius: 999,
+                            background: 'var(--paper-2)', color: 'var(--ink-3)', fontWeight: 500,
+                          }}>{m.mood}</div>
+                        </div>
+                        <div style={{
+                          fontSize: 14, color: 'var(--ink)', fontWeight: 500,
+                          letterSpacing: '-0.01em', marginBottom: 2,
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>{m.title}</div>
+                        <div style={{
+                          fontSize: 12, color: 'var(--ink-2)',
+                          display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden', letterSpacing: '-0.01em',
+                        }}>{m.content}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Feedback */}
+              <div style={{
+                marginTop: 20, padding: '14px 16px',
+                background: 'rgba(255,255,255,0.55)',
+                border: '0.5px solid var(--line)',
+                borderRadius: 14,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)', marginBottom: 2 }}>
+                    답변이 도움이 되었나요?
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>
+                    기록 검색 품질을 개선하는 데 사용됩니다
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {['👍', '👎'].map((e, i) => (
+                    <div key={i} style={{
+                      width: 36, height: 36, borderRadius: 10,
+                      background: 'var(--paper-2)',
+                      border: '0.5px solid var(--line)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 16, cursor: 'pointer',
+                    }}>{e}</div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Follow-up input */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 5,
+        background: 'linear-gradient(to top, var(--paper) 60%, transparent)',
+        padding: '16px 20px 28px',
+      }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          background: '#fff',
+          borderRadius: 999,
+          padding: '6px 6px 6px 16px',
+          border: '0.5px solid var(--line-2)',
+          boxShadow: 'var(--shadow-card)',
+        }}>
+          <div style={{
+            flex: 1, fontSize: 14, color: 'var(--ink-3)', fontWeight: 400,
+            letterSpacing: '-0.01em',
+          }}>더 물어보기…</div>
+          <div style={{
+            width: 34, height: 34, borderRadius: '50%',
+            background: 'var(--paper-2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--ink-2)', cursor: 'pointer',
+          }}>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <rect x="5" y="2" width="4" height="7" rx="2" stroke="currentColor" strokeWidth="1.3"/>
+              <path d="M3 7C3 9.21 4.79 11 7 11C9.21 11 11 9.21 11 7M7 11V13"
+                stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <div style={{
+            width: 34, height: 34, borderRadius: '50%',
+            background: 'var(--terra)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
+          }}>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M6 9V3M6 3L3 6M6 3L9 6" stroke="#FDF6EC" strokeWidth="1.5"
+                strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+window.AnswerScreen = AnswerScreen;
+
+
+// ==== screen-memory.jsx ====
+// MemorySheet — bottom sheet with the full memory record (displayed over the answer)
+function MemorySheet({ memoryId, onClose }) {
+  const { MEMORIES } = window.CURATOR_DATA;
+  if (!memoryId) return null;
+  const m = MEMORIES[memoryId];
+  if (!m) return null;
+
+  return (
+    <div style={{
+      position: 'absolute', inset: 0, zIndex: 100,
+      display: 'flex', alignItems: 'flex-end',
+      pointerEvents: 'auto',
+    }}>
+      {/* overlay */}
+      <div className="overlay"
+        onClick={onClose}
+        style={{
+          position: 'absolute', inset: 0,
+          background: 'rgba(42, 31, 23, 0.35)',
+          backdropFilter: 'blur(3px)',
+        }}
+      />
+      {/* sheet */}
+      <div className="sheet paper" style={{
+        position: 'relative', width: '100%',
+        maxHeight: '85%', minHeight: '65%',
+        borderTopLeftRadius: 28, borderTopRightRadius: 28,
+        boxShadow: '0 -20px 50px rgba(0,0,0,0.2)',
+        display: 'flex', flexDirection: 'column',
+        overflow: 'hidden',
+      }}>
+        <div className="paper-grain" />
+        {/* grabber */}
+        <div style={{ padding: '8px 0 4px', display: 'flex', justifyContent: 'center' }}>
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--ink-4)', opacity: 0.5 }}/>
+        </div>
+
+        {/* header row */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '8px 18px 14px', position: 'relative', zIndex: 2,
+        }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '5px 11px', borderRadius: 999,
+            background: 'rgba(200, 116, 86, 0.1)',
+            color: 'var(--terra-deep)',
+            fontSize: 11, fontWeight: 600, letterSpacing: '-0.01em',
+          }}>
+            <SourceIcon source={m.source} size={12}/>
+            {m.sourceLabel}
+          </div>
+          <div onClick={onClose} style={{
+            width: 30, height: 30, borderRadius: '50%',
+            background: 'rgba(42, 31, 23, 0.08)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
+          }}>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M2 2L10 10M10 2L2 10" stroke="var(--ink-2)" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </div>
+        </div>
+
+        {/* scroll body */}
+        <div className="scroll" style={{ flex: 1, padding: '0 22px 28px', position: 'relative', zIndex: 2 }}>
+          {/* date + meta */}
+          <div style={{
+            fontSize: 12, color: 'var(--ink-3)', fontWeight: 500,
+            letterSpacing: '0.01em', marginBottom: 4,
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <span>{m.date}</span>
+            <div className="divider-dot"/>
+            <span>{m.location}</span>
+          </div>
+
+          {/* title */}
+          <div className="title" style={{
+            fontSize: 26, lineHeight: 1.35, marginTop: 4, marginBottom: 14,
+            wordBreak: 'keep-all', textWrap: 'pretty',
+          }}>{m.title}</div>
+
+          {/* mood + tags */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 18 }}>
+            <div className="tag terra">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                <circle cx="5" cy="5" r="3.5" stroke="currentColor" strokeWidth="1.1"/>
+                <circle cx="4" cy="4.5" r="0.5" fill="currentColor"/>
+                <circle cx="6" cy="4.5" r="0.5" fill="currentColor"/>
+                <path d="M3.5 6.5C4 7 4.5 7.2 5 7.2C5.5 7.2 6 7 6.5 6.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+              </svg>
+              {m.mood}
+            </div>
+            {m.tags.map((t, i) => (
+              <div key={i} className="tag">#{t}</div>
+            ))}
+          </div>
+
+          {/* placeholder image block — keeps the soft product-shot card aesthetic */}
+          <div className="memory-placeholder" style={{
+            height: 100, borderRadius: 14, marginBottom: 18,
+            border: '0.5px solid var(--line-2)',
+          }}>
+            <div style={{
+              position: 'absolute', inset: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'rgba(245, 237, 224, 0.6)',
+            }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ marginBottom: 2 }}>Attached photo</div>
+                <div style={{ fontSize: 9, opacity: 0.7 }}>{m.dateShort} · 2 items</div>
+              </div>
+            </div>
+          </div>
+
+          {/* content */}
+          <div style={{
+            fontFamily: 'var(--serif)', fontSize: 16, lineHeight: 1.8,
+            color: 'var(--ink)', letterSpacing: '-0.005em',
+            wordBreak: 'keep-all', textWrap: 'pretty',
+          }}>
+            {m.content}
+          </div>
+
+          {/* actions */}
+          <div style={{
+            marginTop: 22, padding: '14px 0 0',
+            borderTop: '0.5px solid var(--line)',
+            display: 'flex', gap: 8,
+          }}>
+            <div style={{
+              flex: 1, padding: '10px 12px', borderRadius: 12,
+              background: 'rgba(255,255,255,0.55)',
+              border: '0.5px solid var(--line)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', cursor: 'pointer',
+            }}>
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                <path d="M6.5 1V8.5M6.5 8.5L3.5 5.5M6.5 8.5L9.5 5.5M2 11H11"
+                  stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+              </svg>
+              내보내기
+            </div>
+            <div style={{
+              flex: 1, padding: '10px 12px', borderRadius: 12,
+              background: 'rgba(255,255,255,0.55)',
+              border: '0.5px solid var(--line)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', cursor: 'pointer',
+            }}>
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                <path d="M6.5 2V8M6.5 2L4 4.5M6.5 2L9 4.5M2.5 10V11H10.5V10"
+                  stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              이 기록 제외
+            </div>
+            <div style={{
+              padding: '10px 14px', borderRadius: 12,
+              background: 'var(--terra)', color: '#FDF6EC',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            }}>원문 열기</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+window.MemorySheet = MemorySheet;
+
+
+// ==== app.jsx ====
+// Main app — holds navigation state and Tweaks
+// Three phones side by side showing the full flow: Home → Ask → Answer (+memory sheet)
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "mood": "cream"
+}/*EDITMODE-END*/;
+
+const MOODS = [
+  { id: 'cream', label: '크림 + 테라코타', swatch: ['#F5EDE0', '#C87456', '#B89368'] },
+  { id: 'peach', label: '피치 + 로즈',     swatch: ['#FBEDE6', '#D88172', '#C29A8A'] },
+  { id: 'beige', label: '베이지 + 오커',    swatch: ['#F2E9D8', '#B8894A', '#A87E3F'] },
+  { id: 'dusty', label: '더스티 핑크 + 세이지', swatch: ['#F4E8E6', '#C68A93', '#96A78A'] },
+];
+
+function DevicePanel({ label, sub, children }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <IOSDevice width={402} height={874}>
+        <div style={{ width: '100%', height: '100%' }} className="paper">{children}</div>
+      </IOSDevice>
+      <div className="frame-label">
+        {label}
+        {sub && <small>{sub}</small>}
+      </div>
+    </div>
+  );
+}
+
+function TweaksPanel({ mood, setMood, visible }) {
+  if (!visible) return null;
+  return (
+    <div className="tweaks">
+      <div className="tweaks-title">팔레트 무드</div>
+      <div className="swatch-row">
+        {MOODS.map(m => (
+          <div key={m.id}
+            onClick={() => setMood(m.id)}
+            className={'swatch' + (mood === m.id ? ' sel' : '')}
+            title={m.label}
+            style={{
+              background: `linear-gradient(135deg, ${m.swatch[0]} 33%, ${m.swatch[1]} 33%, ${m.swatch[1]} 66%, ${m.swatch[2]} 66%)`,
+            }}
+          />
+        ))}
+      </div>
+      <div className="swatch-label">
+        {MOODS.find(m => m.id === mood)?.label}
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [mood, setMoodRaw] = React.useState(TWEAK_DEFAULTS.mood || 'cream');
+  const [tweaksOn, setTweaksOn] = React.useState(false);
+
+  // per-device screen state
+  // Device A: Home (interactive, can navigate to Ask/Answer)
+  // Device B: Ask state
+  // Device C: Answer + memory sheet
+  const [aScreen, setAScreen] = React.useState('home'); // home | ask | answer
+  const [aQuery, setAQuery] = React.useState('');
+  const [aSheet, setASheet] = React.useState(null);
+
+  const [cSheet, setCSheet] = React.useState(null);
+
+  const setMood = (m) => {
+    setMoodRaw(m);
+    document.documentElement.dataset.mood = m === 'cream' ? '' : m;
+    try {
+      window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { mood: m } }, '*');
+    } catch (e) {}
+  };
+
+  React.useEffect(() => {
+    document.documentElement.dataset.mood = mood === 'cream' ? '' : mood;
+  }, [mood]);
+
+  // Edit-mode wiring
+  React.useEffect(() => {
+    const handler = (ev) => {
+      const d = ev.data;
+      if (!d || !d.type) return;
+      if (d.type === '__activate_edit_mode') setTweaksOn(true);
+      if (d.type === '__deactivate_edit_mode') setTweaksOn(false);
+    };
+    window.addEventListener('message', handler);
+    try { window.parent.postMessage({ type: '__edit_mode_available' }, '*'); } catch (e) {}
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  // Device A handlers
+  const aGoAsk = () => { setAScreen('ask'); };
+  const aGoHome = () => { setAScreen('home'); };
+  const aSubmit = (q) => { setAQuery(q); setAScreen('answer'); };
+  const aOpenMem = (id) => setASheet(id);
+  const aCloseMem = () => setASheet(null);
+
+  return (
+    <div className="stage">
+      <div style={{
+        textAlign: 'center', color: '#F5EDE0', fontFamily: 'var(--serif)',
+        marginBottom: 8,
+      }}>
+        <div style={{
+          fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase',
+          opacity: 0.5, marginBottom: 6, fontFamily: 'var(--sans)', fontWeight: 500,
+        }}>Life Curator · iOS prototype</div>
+        <div style={{ fontSize: 34, fontWeight: 500, letterSpacing: '-0.02em' }}>
+          큐레이터 <span style={{ opacity: 0.45, fontSize: 20, fontStyle: 'italic' }}>— 내 인생의 맥락 검색</span>
+        </div>
+        <div style={{
+          fontSize: 13, opacity: 0.5, marginTop: 8, fontFamily: 'var(--sans)',
+          fontWeight: 400, maxWidth: 600, marginLeft: 'auto', marginRight: 'auto',
+          textWrap: 'pretty',
+        }}>
+          따뜻한 종이와 테라코타의 색감. 한국어 UI · 기기 안에서만 처리되는 개인 RAG.
+        </div>
+      </div>
+
+      {/* Flow row — 3 devices */}
+      <div style={{
+        display: 'flex', gap: 44, alignItems: 'flex-start',
+        flexWrap: 'wrap', justifyContent: 'center',
+      }}>
+        <DevicePanel label="01 · 오늘" sub="Home / Today — live: 탭하여 질문 시작">
+          <div style={{ height: '100%', position: 'relative' }}>
+            {aScreen === 'home' && (
+              <HomeScreen onAsk={aGoAsk} onOpenMemory={aOpenMem} onNav={() => {}} />
+            )}
+            {aScreen === 'ask' && (
+              <AskScreen onSubmit={aSubmit} onBack={aGoHome} onNav={() => {}} />
+            )}
+            {aScreen === 'answer' && (
+              <AnswerScreen query={aQuery} onBack={() => setAScreen('home')} onOpenMemory={aOpenMem} streamingDone={false} />
+            )}
+            {aSheet && <MemorySheet memoryId={aSheet} onClose={aCloseMem} />}
+          </div>
+        </DevicePanel>
+
+        <DevicePanel label="02 · 질문하기" sub="Ask screen — 샘플을 탭하여 채워넣기">
+          <AskScreen
+            onSubmit={() => {}}
+            onBack={() => {}}
+            onNav={() => {}}
+          />
+        </DevicePanel>
+
+        <DevicePanel label="03 · 답변" sub="Essay / letter — 숫자 [1~4]를 탭하여 기록 열기">
+          <div style={{ height: '100%', position: 'relative' }}>
+            <AnswerScreen
+              query="나 요즘 왜 이렇게 무기력하지?"
+              onBack={() => {}}
+              onOpenMemory={(id) => setCSheet(id)}
+              streamingDone={true}
+            />
+            {cSheet && <MemorySheet memoryId={cSheet} onClose={() => setCSheet(null)} />}
+          </div>
+        </DevicePanel>
+      </div>
+
+      {/* Hint strip */}
+      <div style={{
+        marginTop: 16, padding: '14px 22px',
+        background: 'rgba(245, 237, 224, 0.08)',
+        border: '1px solid rgba(245, 237, 224, 0.12)',
+        borderRadius: 14,
+        color: 'rgba(245, 237, 224, 0.8)',
+        fontFamily: 'var(--sans)', fontSize: 13,
+        letterSpacing: '-0.01em',
+        display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap',
+        justifyContent: 'center',
+        maxWidth: 900,
+      }}>
+        <span style={{ opacity: 0.6, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          TRY
+        </span>
+        <span>① 첫 번째 폰에서 <b style={{ color: '#E8B8A4' }}>오늘의 질문</b> 카드를 탭</span>
+        <span style={{ opacity: 0.3 }}>·</span>
+        <span>② 질문을 입력하면 답변으로 이동</span>
+        <span style={{ opacity: 0.3 }}>·</span>
+        <span>③ 세 번째 폰에서 <b style={{ color: '#E8B8A4' }}>참조 번호</b>를 탭하여 기록 열기</span>
+      </div>
+
+      <TweaksPanel mood={mood} setMood={setMood} visible={tweaksOn} />
+    </div>
+  );
+}
+
+window.App = App;
+
+
+setTimeout(() => {
+  const root = ReactDOM.createRoot(document.getElementById('root'));
+  root.render(<App />);
+}, 50);
+</script>
+</body>
+</html>
