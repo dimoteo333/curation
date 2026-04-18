@@ -1,9 +1,10 @@
+import 'dart:ui';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../../state/app_shell_controller.dart';
 import '../../theme/curator_theme.dart';
-
-enum CuratorNavDestination { home, ask, settings }
 
 class NavDock extends StatelessWidget {
   const NavDock({
@@ -12,76 +13,115 @@ class NavDock extends StatelessWidget {
     required this.onSelected,
   });
 
-  final CuratorNavDestination activeDestination;
-  final ValueChanged<CuratorNavDestination> onSelected;
+  final CuratorTab activeDestination;
+  final ValueChanged<CuratorTab> onSelected;
 
   @override
   Widget build(BuildContext context) {
     final palette = Theme.of(context).extension<CuratorPalette>()!;
     final textTheme = Theme.of(context).textTheme;
-    final items = <({CuratorNavDestination destination, String label, IconData icon})>[
+    final items = <({CuratorTab destination, String label, IconData icon})>[
       (
-        destination: CuratorNavDestination.home,
+        destination: CuratorTab.home,
         label: '오늘',
         icon: CupertinoIcons.house,
       ),
       (
-        destination: CuratorNavDestination.ask,
+        destination: CuratorTab.ask,
         label: '질문',
         icon: CupertinoIcons.search,
       ),
       (
-        destination: CuratorNavDestination.settings,
+        destination: CuratorTab.timeline,
+        label: '타임라인',
+        icon: CupertinoIcons.list_bullet,
+      ),
+      (
+        destination: CuratorTab.settings,
         label: '설정',
-        icon: CupertinoIcons.gear,
+        icon: CupertinoIcons.gear_alt,
       ),
     ];
 
     return SafeArea(
       top: false,
-      minimum: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-      child: Container(
-        decoration: BoxDecoration(
-          color: palette.paper.withValues(alpha: palette.isDark ? 0.92 : 0.88),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: palette.line),
-          boxShadow: palette.shadowSoft,
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: items.map((item) {
-            final active = item.destination == activeDestination;
-            return Expanded(
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => onSelected(item.destination),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        item.icon,
-                        size: 21,
-                        color: active ? palette.terraDeep : palette.ink3,
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        item.label,
-                        style: textTheme.labelMedium?.copyWith(
-                          fontFamily: 'IBMPlexSansKR',
-                          fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-                          letterSpacing: -0.1,
-                          color: active ? palette.terraDeep : palette.ink3,
-                        ),
-                      ),
-                    ],
-                  ),
+      child: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: palette.paper.withValues(alpha: 0.88),
+              border: Border(
+                top: BorderSide(
+                  color: palette.line2.withValues(alpha: 0.9),
+                  width: 0.5,
                 ),
               ),
-            );
-          }).toList(growable: false),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
+              child: Row(
+                children: [
+                  for (final item in items)
+                    Expanded(
+                      child: _NavItem(
+                        active: item.destination == activeDestination,
+                        icon: item.icon,
+                        label: item.label,
+                        onTap: () => onSelected(item.destination),
+                        textTheme: textTheme,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.active,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.textTheme,
+  });
+
+  final bool active;
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = Theme.of(context).extension<CuratorPalette>()!;
+    final color = active ? palette.terra : palette.ink3;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 21, color: color),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: textTheme.labelMedium?.copyWith(
+                fontFamily: 'IBMPlexSansKR',
+                fontWeight: FontWeight.w500,
+                color: color,
+                letterSpacing: -0.1,
+              ),
+            ),
+          ],
         ),
       ),
     );

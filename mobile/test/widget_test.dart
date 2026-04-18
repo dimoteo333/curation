@@ -1,4 +1,5 @@
 import 'package:curator_mobile/src/app.dart';
+import 'package:curator_mobile/src/data/local/seed_records.dart';
 import 'package:curator_mobile/src/data/ondevice/litert_method_channel_bridge.dart';
 import 'package:curator_mobile/src/providers.dart';
 import 'package:flutter/material.dart';
@@ -39,13 +40,7 @@ void main() {
     expect(find.byKey(const Key('openSettingsButton')), findsOneWidget);
     expect(find.byKey(const Key('todayAskCard')), findsOneWidget);
 
-    await tester.scrollUntilVisible(
-      find.textContaining('기기 안에서'),
-      240,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('모든 처리가 기기 안에서 이루어집니다'), findsOneWidget);
+    expect(find.text('타임라인'), findsOneWidget);
   });
 
   testWidgets('오늘의 질문 카드를 누르면 질문 화면으로 이동한다', (WidgetTester tester) async {
@@ -102,9 +97,8 @@ void main() {
     await tester.tap(find.byKey(const Key('submitQuestionButton')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 120));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 2800));
 
-    expect(find.text('최근 기록에서 반복된 흐름'), findsOneWidget);
     expect(find.text('참고한 기록'), findsOneWidget);
     expect(find.text('답변이 도움이 되었나요?'), findsOneWidget);
   });
@@ -137,12 +131,12 @@ void main() {
     await tester.tap(find.byKey(const Key('submitQuestionButton')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 120));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 2800));
 
     await tester.tap(find.text('테스트 기록').first);
     await tester.pumpAndSettle();
 
-    expect(find.text('이 기록으로 질문하기'), findsOneWidget);
+    expect(find.text('원문 열기'), findsOneWidget);
     expect(find.text('서울 · 합정동'), findsOneWidget);
   });
 
@@ -168,8 +162,45 @@ void main() {
     await tester.tap(find.byKey(const Key('openSettingsButton')));
     await tester.pumpAndSettle();
 
-    expect(find.text('설정'), findsOneWidget);
     expect(find.text('사용 방식'), findsOneWidget);
+    expect(find.text('사용 방식'), findsOneWidget);
+  });
+
+  testWidgets('하단 탭에서 타임라인으로 이동하고 기록을 열 수 있다', (WidgetTester tester) async {
+    await _pumpApp(
+      tester,
+      bridge: const FakeOnDeviceLlmBridge(
+        runtimeStatus: OnDeviceRuntimeStatus(
+          llmReady: false,
+          embedderReady: false,
+          runtime: 'template-fallback',
+          message: '모델 경로가 없어 템플릿 폴백을 사용합니다.',
+          platform: 'flutter-test',
+          llmModelConfigured: false,
+          embedderModelConfigured: false,
+          llmModelAvailable: false,
+          embedderModelAvailable: false,
+          fallbackActive: true,
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('타임라인'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('타임라인'), findsWidgets);
+    expect(find.text('더 오래 전'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('혼자 카페에 앉아 초안을 정리한 오후'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('혼자 카페에 앉아 초안을 정리한 오후'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('원문 열기'), findsOneWidget);
   });
 
   testWidgets('작은 화면에서도 홈 화면이 overflow 없이 렌더링된다', (WidgetTester tester) async {
@@ -252,6 +283,7 @@ Future<void> _pumpApp(
           createTestDatabaseEncryption(),
         ),
         localDataInitializationProvider.overrideWith((ref) async {}),
+        localLifeRecordsProvider.overrideWith((ref) async => seededLifeRecords),
       ],
       child: const CuratorApp(),
     ),

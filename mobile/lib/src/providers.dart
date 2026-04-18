@@ -199,6 +199,11 @@ final localDataStatsProvider = FutureProvider<LocalDataStats>((ref) async {
   return ref.watch(lifeRecordStoreProvider).loadStats();
 });
 
+final localLifeRecordsProvider = FutureProvider<List<LifeRecord>>((ref) async {
+  ref.watch(localDataRevisionProvider);
+  return ref.watch(lifeRecordStoreProvider).loadRecords();
+});
+
 final localDataInitializationProvider = FutureProvider<void>((ref) async {
   ref.watch(localDataRevisionProvider);
   await ref.watch(lifeRecordStoreProvider).initialize();

@@ -1,14 +1,15 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/security/input_sanitizer.dart';
 import '../../domain/entities/curated_response.dart';
 import '../../state/curation_controller.dart';
 import '../../theme/curator_theme.dart';
 import '../widgets/curator_scene.dart';
 import '../widgets/source_icon.dart';
-import 'ask_screen.dart';
 import 'memory_sheet.dart';
 
 class AnswerScreen extends ConsumerStatefulWidget {
@@ -27,6 +28,7 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
   int _revealedParagraphs = 0;
   bool _streaming = true;
   bool? _helpful;
+  String? _followUpError;
 
   @override
   void initState() {
@@ -56,7 +58,6 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
       });
     }
     if (response == null) {
-      _streamTimer?.cancel();
       _activeAnswer = null;
       _revealedParagraphs = 0;
       _streaming = true;
@@ -64,10 +65,8 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
 
     final paragraphs = _paragraphsFrom(response?.answer);
     final citedRecords = _orderedCitedRecords(response, paragraphs);
-    final supportingCount = response?.supportingRecords.length ?? 0;
 
     return Scaffold(
-      extendBody: true,
       resizeToAvoidBottomInset: true,
       body: CuratorBackdrop(
         child: SafeArea(
@@ -103,7 +102,7 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
                                 ],
                               )
                             : Text(
-                                '$supportingCount개의 기록을 참고함',
+                                '${citedRecords.length}개의 기록을 참고함',
                                 key: const ValueKey('supporting-count'),
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   fontFamily: 'IBMPlexSansKR',
@@ -120,14 +119,14 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
                   ),
                   const SizedBox(height: 18),
                   _QueryCard(question: widget.question),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 24),
                   if (state.isLoading && response == null)
                     Padding(
-                      padding: const EdgeInsets.only(top: 26),
+                      padding: const EdgeInsets.only(top: 42),
                       child: Column(
                         children: [
-                          const Center(child: CircularProgressIndicator()),
-                          const SizedBox(height: 16),
+                          const _ThinkingDots(large: true),
+                          const SizedBox(height: 12),
                           Text(
                             '기록을 다시 읽고 있습니다',
                             style: theme.textTheme.bodySmall?.copyWith(
@@ -138,33 +137,37 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
                         ],
                       ),
                     )
-                  else if (response == null)
-                    Text(
-                      '아직 생성된 답변이 없습니다.',
-                      style: theme.textTheme.bodyMedium,
-                    )
-                  else ...[
-                    Text(
-                      response.insightTitle,
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        fontSize: 24,
-                        height: 1.45,
+                  else if (response == null && state.errorMessage != null)
+                    Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: palette.line),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    for (var index = 0; index < _revealedParagraphs; index += 1) ...[
-                      _AnimatedEssayParagraph(
-                        key: ValueKey('paragraph-$index-${paragraphs[index]}'),
-                        textSpans: _buildParagraphSpans(
-                          context,
-                          paragraph: paragraphs[index],
-                          citedRecords: response.supportingRecords,
+                      child: Text(
+                        state.errorMessage!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontFamily: 'IBMPlexSansKR',
+                          color: theme.colorScheme.error,
                         ),
-                        showCaret: _streaming && index == _revealedParagraphs - 1,
                       ),
-                      if (index != _revealedParagraphs - 1)
-                        const SizedBox(height: 18),
-                    ],
+                    )
+                  else if (response != null) ...[
+                    if (paragraphs.isNotEmpty)
+                      for (var index = 0; index < _revealedParagraphs; index += 1) ...[
+                        _AnimatedEssayParagraph(
+                          key: ValueKey('paragraph-$index-${paragraphs[index]}'),
+                          textSpans: _buildParagraphSpans(
+                            context,
+                            paragraph: paragraphs[index],
+                            citedRecords: response.supportingRecords,
+                          ),
+                          showCaret: _streaming && index == _revealedParagraphs - 1,
+                        ),
+                        if (index != _revealedParagraphs - 1)
+                          const SizedBox(height: 18),
+                      ],
                     if (!_streaming) ...[
                       const SizedBox(height: 28),
                       _SupportingRecordsSection(
@@ -182,6 +185,7 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
               ),
               _FollowUpBar(
                 controller: _followUpController,
+                errorText: _followUpError,
                 onVoiceTap: _showVoiceComingSoon,
                 onSend: _submitFollowUp,
               ),
@@ -329,44 +333,50 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => MemorySheet(
-        record: record,
-        onAskWithRecord: () {
-          Navigator.of(context).pop();
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => AskScreen(
-                initialQuery: '"${record.title}"에 대해 더 물어보고 싶어요.',
-              ),
-            ),
-          );
-        },
+      barrierColor: const Color(0x802A1F17),
+      builder: (_) => ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+          child: MemorySheet(
+            record: MemorySheetRecord.fromSupportingRecord(record),
+          ),
+        ),
       ),
     );
   }
 
   Future<void> _submitFollowUp() async {
-    final question = _followUpController.text.trim();
-    if (question.isEmpty) {
+    final normalizedQuestion = _validateQuestion(_followUpController.text);
+    if (normalizedQuestion == null) {
       return;
     }
-
-    final notifier = ref.read(curationControllerProvider.notifier);
-    await notifier.submitQuestion(question);
+    setState(() => _followUpError = null);
+    unawaited(
+      ref.read(curationControllerProvider.notifier).submitQuestion(
+            normalizedQuestion,
+          ),
+    );
     if (!mounted) {
-      return;
-    }
-
-    final state = ref.read(curationControllerProvider);
-    if (state.response == null && state.errorMessage != null) {
       return;
     }
     _followUpController.clear();
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
-        builder: (_) => AnswerScreen(question: state.lastQuestion),
+        builder: (_) => AnswerScreen(question: normalizedQuestion),
       ),
     );
+  }
+
+  String? _validateQuestion(String rawQuestion) {
+    try {
+      return InputSanitizer.sanitizeQuestion(rawQuestion);
+    } on InputValidationException catch (error) {
+      setState(() => _followUpError = error.message);
+      return null;
+    } catch (error) {
+      setState(() => _followUpError = error.toString());
+      return null;
+    }
   }
 
   void _showVoiceComingSoon() {
@@ -416,6 +426,7 @@ class _QueryCard extends StatelessWidget {
             style: theme.textTheme.titleLarge?.copyWith(
               fontSize: 17,
               height: 1.5,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -439,13 +450,13 @@ class _AnimatedEssayParagraph extends StatelessWidget {
     final palette = Theme.of(context).extension<CuratorPalette>()!;
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 460),
+      duration: const Duration(milliseconds: 850),
       curve: Curves.easeOutCubic,
       builder: (context, value, child) {
         return Opacity(
           opacity: value,
           child: Transform.translate(
-            offset: Offset(0, 10 * (1 - value)),
+            offset: Offset(0, 12 * (1 - value)),
             child: child,
           ),
         );
@@ -457,15 +468,7 @@ class _AnimatedEssayParagraph extends StatelessWidget {
             if (showCaret)
               WidgetSpan(
                 alignment: PlaceholderAlignment.middle,
-                child: Container(
-                  width: 6,
-                  height: 18,
-                  margin: const EdgeInsets.only(left: 2),
-                  decoration: BoxDecoration(
-                    color: palette.terra,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
+                child: _BlinkingCaret(color: palette.terra),
               ),
           ],
         ),
@@ -474,8 +477,55 @@ class _AnimatedEssayParagraph extends StatelessWidget {
   }
 }
 
+class _BlinkingCaret extends StatefulWidget {
+  const _BlinkingCaret({required this.color});
+
+  final Color color;
+
+  @override
+  State<_BlinkingCaret> createState() => _BlinkingCaretState();
+}
+
+class _BlinkingCaretState extends State<_BlinkingCaret>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0.3, end: 1).animate(_controller),
+      child: Container(
+        width: 6,
+        height: 18,
+        margin: const EdgeInsets.only(left: 2),
+        decoration: BoxDecoration(
+          color: widget.color,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+    );
+  }
+}
+
 class _ThinkingDots extends StatefulWidget {
-  const _ThinkingDots();
+  const _ThinkingDots({this.large = false});
+
+  final bool large;
 
   @override
   State<_ThinkingDots> createState() => _ThinkingDotsState();
@@ -503,6 +553,10 @@ class _ThinkingDotsState extends State<_ThinkingDots>
   @override
   Widget build(BuildContext context) {
     final palette = Theme.of(context).extension<CuratorPalette>()!;
+    final width = widget.large ? 6.0 : 4.0;
+    final minHeight = widget.large ? 8.0 : 4.0;
+    final maxHeight = widget.large ? 14.0 : 8.0;
+
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
@@ -511,11 +565,11 @@ class _ThinkingDotsState extends State<_ThinkingDots>
           children: List<Widget>.generate(3, (index) {
             final phase = ((_controller.value + index * 0.18) % 1.0);
             final pulse = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
-            final height = 4 + (8 - 4) * pulse;
+            final height = minHeight + (maxHeight - minHeight) * pulse;
             return Padding(
               padding: EdgeInsets.only(right: index == 2 ? 0 : 3),
               child: Container(
-                width: 4,
+                width: width,
                 height: height,
                 decoration: BoxDecoration(
                   color: palette.terra,
@@ -553,13 +607,24 @@ class _CitationChip extends StatelessWidget {
           borderRadius: BorderRadius.circular(999),
           border: Border.all(color: palette.terra.withValues(alpha: 0.2)),
         ),
-        child: Text(
-          '[$number]',
-          style: theme.textTheme.labelMedium?.copyWith(
-            fontFamily: 'IBMPlexSansKR',
-            fontWeight: FontWeight.w700,
-            color: palette.terraDeep,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.description_outlined,
+              size: 11,
+              color: palette.terraDeep,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '$number',
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontFamily: 'IBMPlexSansKR',
+                fontWeight: FontWeight.w700,
+                color: palette.terraDeep,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -640,7 +705,7 @@ class _SupportingRecordCard extends StatelessWidget {
     final theme = Theme.of(context);
     final palette = theme.extension<CuratorPalette>()!;
     final sourceId = _normalizeSourceId(record.importSource ?? record.source);
-    final mood = _moodLabel(record.metadata['mood']?.toString());
+    final mood = _memoryMoodLabel(record.metadata['mood']?.toString());
 
     return InkWell(
       onTap: onTap,
@@ -833,71 +898,91 @@ class _FeedbackCard extends StatelessWidget {
 class _FollowUpBar extends StatelessWidget {
   const _FollowUpBar({
     required this.controller,
+    required this.errorText,
     required this.onVoiceTap,
     required this.onSend,
   });
 
   final TextEditingController controller;
+  final String? errorText;
   final VoidCallback onVoiceTap;
   final Future<void> Function() onSend;
 
   @override
   Widget build(BuildContext context) {
-    final palette = Theme.of(context).extension<CuratorPalette>()!;
+    final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
+
     return Align(
       alignment: Alignment.bottomCenter,
       child: SafeArea(
         top: false,
         minimum: const EdgeInsets.fromLTRB(20, 0, 20, 22),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 6, 6, 6),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.9),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: palette.line2),
-            boxShadow: palette.shadowCard,
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  minLines: 1,
-                  maxLines: 3,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (errorText != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  errorText!,
+                  style: theme.textTheme.bodySmall?.copyWith(
                     fontFamily: 'IBMPlexSansKR',
-                    fontSize: 14,
-                    color: palette.ink,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: '더 물어보기…',
-                    filled: false,
-                    fillColor: Colors.transparent,
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                    hintStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontFamily: 'IBMPlexSansKR',
-                      fontSize: 14,
-                      color: palette.ink3,
-                    ),
+                    color: theme.colorScheme.error,
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              _CircleButton(
-                icon: Icons.mic_none_rounded,
-                filled: true,
-                onTap: onVoiceTap,
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 6, 6, 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: palette.line2),
+                boxShadow: palette.shadowCard,
               ),
-              const SizedBox(width: 6),
-              _CircleButton(
-                icon: Icons.arrow_upward_rounded,
-                filled: true,
-                accent: true,
-                onTap: () => onSend(),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      minLines: 1,
+                      maxLines: 3,
+                      onSubmitted: (_) => onSend(),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontFamily: 'IBMPlexSansKR',
+                        fontSize: 14,
+                        color: palette.ink,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: '더 물어보기…',
+                        filled: false,
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                        hintStyle: theme.textTheme.bodySmall?.copyWith(
+                          fontFamily: 'IBMPlexSansKR',
+                          fontSize: 14,
+                          color: palette.ink3,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _CircleButton(
+                    icon: Icons.mic_none_rounded,
+                    filled: true,
+                    onTap: onVoiceTap,
+                  ),
+                  const SizedBox(width: 6),
+                  _CircleButton(
+                    icon: Icons.arrow_upward_rounded,
+                    filled: true,
+                    accent: true,
+                    onTap: () => onSend(),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -920,24 +1005,28 @@ class _CircleButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = Theme.of(context).extension<CuratorPalette>()!;
+    final background = accent
+        ? palette.terra
+        : filled
+        ? palette.paper2
+        : Colors.white.withValues(alpha: 0.7);
+
     return InkWell(
       borderRadius: BorderRadius.circular(999),
       onTap: onTap,
       child: Ink(
-        width: 34,
-        height: 34,
+        width: 36,
+        height: 36,
         decoration: BoxDecoration(
-          color: accent
-              ? palette.terra
-              : filled
-                  ? palette.paper2
-                  : Colors.white.withValues(alpha: 0.65),
+          color: background,
           shape: BoxShape.circle,
-          border: Border.all(color: accent ? palette.terraDeep : palette.line),
+          border: Border.all(
+            color: accent ? palette.terraDeep : palette.line,
+          ),
         ),
         child: Icon(
           icon,
-          size: 16,
+          size: 18,
           color: accent ? const Color(0xFFFDF6EC) : palette.ink2,
         ),
       ),
@@ -963,7 +1052,7 @@ String _normalizeSourceId(String source) {
   };
 }
 
-String? _moodLabel(String? mood) {
+String? _memoryMoodLabel(String? mood) {
   if (mood == null || mood.isEmpty) {
     return null;
   }

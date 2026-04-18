@@ -1,17 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/security/input_sanitizer.dart';
 import '../../state/curation_controller.dart';
+import '../../state/app_shell_controller.dart';
 import '../../theme/curator_theme.dart';
 import '../widgets/curator_scene.dart';
-import '../widgets/nav_dock.dart';
 import 'answer_screen.dart';
-import 'settings_screen.dart';
 
 class AskScreen extends ConsumerStatefulWidget {
-  const AskScreen({super.key, this.initialQuery});
-
-  final String? initialQuery;
+  const AskScreen({super.key});
 
   @override
   ConsumerState<AskScreen> createState() => _AskScreenState();
@@ -26,26 +26,29 @@ class _AskScreenState extends ConsumerState<AskScreen> {
         (category: '루틴', question: '책 읽기 가장 잘 지켜진 달이 언제였지?'),
       ];
 
+  static const List<String> _scopeLabels = <String>[
+    '전체 기간',
+    '지난 1년',
+    '지난 한 달',
+    '모든 소스',
+  ];
+
   late final TextEditingController _controller;
   late final FocusNode _focusNode;
+  final Set<String> _activeScopes = <String>{'전체 기간', '모든 소스'};
   bool _focused = false;
+  String? _inputError;
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.initialQuery ?? '');
-    _focusNode = FocusNode();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-      Future<void>.delayed(const Duration(milliseconds: 120), () {
-        if (!mounted) {
-          return;
+    _controller = TextEditingController();
+    _focusNode = FocusNode()
+      ..addListener(() {
+        if (mounted) {
+          setState(() => _focused = _focusNode.hasFocus);
         }
-        _focusNode.requestFocus();
       });
-    });
   }
 
   @override
@@ -57,278 +60,337 @@ class _AskScreenState extends ConsumerState<AskScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(curationControllerProvider);
     final theme = Theme.of(context);
     final palette = theme.extension<CuratorPalette>()!;
+    final curationState = ref.watch(curationControllerProvider);
 
-    return Scaffold(
-      extendBody: true,
-      resizeToAvoidBottomInset: true,
-      body: CuratorBackdrop(
-        child: SafeArea(
-          bottom: false,
-          child: Stack(
-            children: [
-              ListView(
-                padding: const EdgeInsets.fromLTRB(22, 10, 22, 134),
+    ref.listen<CuratorAppShellState>(curatorAppShellProvider, (previous, next) {
+      final tabChangedToAsk =
+          previous?.currentTab != CuratorTab.ask &&
+          next.currentTab == CuratorTab.ask;
+      final requestChanged = previous?.askRequestId != next.askRequestId;
+
+      if (!tabChangedToAsk && !requestChanged) {
+        return;
+      }
+      if (requestChanged && next.askPrefill != null) {
+        _controller.text = next.askPrefill!;
+        _controller.selection = TextSelection.fromPosition(
+          TextPosition(offset: _controller.text.length),
+        );
+      }
+      setState(() => _inputError = null);
+      _focusLater();
+    });
+
+    return CuratorBackdrop(
+      child: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(22, 10, 22, 112),
+          children: [
+            Row(
+              children: [
+                _CircleIconButton(
+                  icon: Icons.arrow_back_ios_new_rounded,
+                  onTap: () {
+                    ref
+                        .read(curatorAppShellProvider.notifier)
+                        .selectTab(CuratorTab.home);
+                  },
+                ),
+                const Spacer(),
+                Text(
+                  '질문하기',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontFamily: 'IBMPlexSansKR',
+                    fontSize: 13,
+                    color: palette.ink3,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const Spacer(),
+                const SizedBox(width: 36),
+              ],
+            ),
+            const SizedBox(height: 28),
+            Text.rich(
+              TextSpan(
                 children: [
+                  TextSpan(
+                    text: '무엇이',
+                    style: TextStyle(color: palette.terraDeep),
+                  ),
+                  const TextSpan(text: ' 궁금하세요?\n'),
+                  TextSpan(
+                    text: '당신의 기록에서만 답을 찾아드립니다.',
+                    style: TextStyle(
+                      color: palette.ink3,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w400,
+                      fontFamily: 'IBMPlexSansKR',
+                    ),
+                  ),
+                ],
+              ),
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontSize: 22,
+                height: 1.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 20),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _focused ? palette.terra : palette.line2,
+                ),
+                boxShadow: _focused
+                    ? [
+                        ...palette.shadowCard,
+                        BoxShadow(
+                          color: palette.terra.withValues(alpha: 0.12),
+                          blurRadius: 0,
+                          spreadRadius: 4,
+                        ),
+                      ]
+                    : palette.shadowSoft,
+              ),
+              child: Column(
+                children: [
+                  TextField(
+                    key: const Key('questionTextField'),
+                    controller: _controller,
+                    focusNode: _focusNode,
+                    minLines: 3,
+                    maxLines: 8,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontFamily: 'IBMPlexSansKR',
+                      fontSize: 16,
+                      height: 1.55,
+                      color: palette.ink,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: '예) 지난 겨울엔 뭘 하면서 기분이 풀렸지?',
+                      hintStyle: theme.textTheme.bodySmall?.copyWith(
+                        fontFamily: 'IBMPlexSansKR',
+                        fontSize: 16,
+                        color: palette.ink3,
+                      ),
+                      filled: false,
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    textInputAction: TextInputAction.newline,
+                    onChanged: (_) {
+                      if (_inputError != null) {
+                        setState(() => _inputError = null);
+                      } else {
+                        setState(() {});
+                      }
+                    },
+                    onSubmitted: (_) => _submit(),
+                    onTapOutside: (_) => _focusNode.unfocus(),
+                    onEditingComplete: () {},
+                    keyboardType: TextInputType.multiline,
+                    onTap: () {
+                      if (!_focused) {
+                        setState(() => _focused = true);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  Container(height: 1, color: palette.line),
+                  const SizedBox(height: 10),
                   Row(
                     children: [
                       _CircleIconButton(
-                        icon: Icons.arrow_back_ios_new_rounded,
-                        onTap: () => Navigator.of(context).maybePop(),
+                        icon: Icons.mic_none_rounded,
+                        filled: true,
+                        onTap: _showVoiceComingSoon,
+                      ),
+                      const SizedBox(width: 8),
+                      _CircleIconButton(
+                        icon: Icons.photo_camera_outlined,
+                        filled: true,
+                        onTap: _showPhotoComingSoon,
                       ),
                       const Spacer(),
-                      Text(
-                        '질문하기',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontFamily: 'IBMPlexSansKR',
-                          fontSize: 13,
-                          color: palette.ink3,
-                        ),
-                      ),
-                      const Spacer(),
-                      const SizedBox(width: 36),
-                    ],
-                  ),
-                  const SizedBox(height: 28),
-                  Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(
-                          text: '무엇이 ',
-                          style: TextStyle(color: palette.terraDeep),
-                        ),
-                        const TextSpan(text: '궁금하세요?\n'),
-                        TextSpan(
-                          text: '당신의 기록에서만 답을 찾아드립니다.',
-                          style: TextStyle(
-                            color: palette.ink3,
-                            fontSize: 15,
-                            fontFamily: 'IBMPlexSansKR',
-                            fontWeight: FontWeight.w400,
+                      FilledButton(
+                        key: const Key('submitQuestionButton'),
+                        onPressed: curationState.isLoading ? null : _submit,
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(0, 38),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 10,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(999),
                           ),
                         ),
-                      ],
-                    ),
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontSize: 22,
-                      height: 1.5,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    curve: Curves.easeOut,
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: _focused ? palette.terra : palette.line2,
-                      ),
-                      boxShadow: _focused ? palette.shadowCard : palette.shadowSoft,
-                    ),
-                    child: Column(
-                      children: [
-                        TextField(
-                          key: const Key('questionTextField'),
-                          controller: _controller,
-                          focusNode: _focusNode,
-                          minLines: 4,
-                          maxLines: 8,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontFamily: 'IBMPlexSansKR',
-                            fontSize: 16,
-                            color: palette.ink,
-                            height: 1.55,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: '예) 지난 겨울엔 뭘 하면서 기분이 풀렸지?',
-                            fillColor: Colors.transparent,
-                            filled: false,
-                            contentPadding: EdgeInsets.zero,
-                            border: InputBorder.none,
-                            hintStyle: theme.textTheme.bodySmall?.copyWith(
-                              fontFamily: 'IBMPlexSansKR',
-                              fontSize: 16,
-                              color: palette.ink3,
-                            ),
-                          ),
-                          onTap: () => setState(() => _focused = true),
-                          onChanged: (_) {
-                            if (!_focused) {
-                              setState(() => _focused = true);
-                            } else {
-                              setState(() {});
-                            }
-                          },
-                          onTapOutside: (_) {
-                            _focusNode.unfocus();
-                            setState(() => _focused = false);
-                          },
-                          textInputAction: TextInputAction.newline,
-                        ),
-                        const SizedBox(height: 10),
-                        Container(height: 1, color: palette.line),
-                        const SizedBox(height: 10),
-                        Row(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            _CircleIconButton(
-                              icon: Icons.mic_none_rounded,
-                              filled: true,
-                              onTap: _showVoiceComingSoon,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '음성 입력은 곧 지원됩니다',
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                fontFamily: 'IBMPlexSansKR',
-                                color: palette.ink3,
-                              ),
-                            ),
-                            const Spacer(),
-                            FilledButton(
-                              key: const Key('submitQuestionButton'),
-                              onPressed: state.isLoading ? null : _submit,
-                              style: FilledButton.styleFrom(
-                                minimumSize: const Size(0, 38),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 18,
-                                  vertical: 10,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(state.isLoading ? '생각 중...' : '묻기'),
-                                  const SizedBox(width: 6),
-                                  const Icon(
-                                    Icons.arrow_forward_rounded,
-                                    size: 14,
-                                  ),
-                                ],
-                              ),
-                            ),
+                            Text(curationState.isLoading ? '생각 중...' : '묻기'),
+                            const SizedBox(width: 6),
+                            const Icon(Icons.arrow_forward_rounded, size: 14),
                           ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (state.errorMessage != null) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      state.errorMessage!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontFamily: 'IBMPlexSansKR',
-                        color: theme.colorScheme.error,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 22),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: const [
-                      _FilterChip(label: '전체 기간', active: true),
-                      _FilterChip(label: '지난 1년'),
-                      _FilterChip(label: '지난 한 달'),
-                      _FilterChip(label: '모든 소스', active: true),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  _SectionLabel(title: '이렇게 물어보세요'),
-                  const SizedBox(height: 10),
-                  for (var index = 0; index < _samples.length; index += 1) ...[
-                    _SamplePromptCard(
-                      category: _samples[index].category,
-                      question: _samples[index].question,
-                      onTap: () {
-                        _controller.text = _samples[index].question;
-                        _controller.selection = TextSelection.fromPosition(
-                          TextPosition(offset: _controller.text.length),
-                        );
-                        _focusNode.requestFocus();
-                        setState(() => _focused = true);
-                      },
-                    ),
-                    if (index != _samples.length - 1) const SizedBox(height: 6),
-                  ],
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.shield_outlined,
-                        size: 14,
-                        color: palette.sage,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Gemma-4-E2B · 기기 안에서 처리됨',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontFamily: 'IBMPlexSansKR',
                         ),
                       ),
                     ],
                   ),
                 ],
               ),
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: NavDock(
-                  activeDestination: CuratorNavDestination.ask,
-                  onSelected: (destination) {
-                    switch (destination) {
-                      case CuratorNavDestination.home:
-                        Navigator.of(context).maybePop();
-                        break;
-                      case CuratorNavDestination.ask:
-                        break;
-                      case CuratorNavDestination.settings:
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const SettingsScreen(),
-                          ),
-                        );
-                        break;
-                    }
-                  },
+            ),
+            if (_inputError != null || curationState.errorMessage != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                _inputError ?? curationState.errorMessage!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontFamily: 'IBMPlexSansKR',
+                  color: theme.colorScheme.error,
                 ),
               ),
             ],
-          ),
+            const SizedBox(height: 18),
+            Text(
+              '검색 범위',
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontFamily: 'IBMPlexSansKR',
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.0,
+                color: palette.ink3,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final label in _scopeLabels)
+                  _ScopeChip(
+                    label: label,
+                    active: _activeScopes.contains(label),
+                    onTap: () {
+                      setState(() {
+                        if (_activeScopes.contains(label)) {
+                          _activeScopes.remove(label);
+                        } else {
+                          _activeScopes.add(label);
+                        }
+                      });
+                    },
+                  ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Text(
+              '이렇게 물어보세요',
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontFamily: 'IBMPlexSansKR',
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.0,
+                color: palette.ink3,
+              ),
+            ),
+            const SizedBox(height: 10),
+            for (var index = 0; index < _samples.length; index += 1) ...[
+              _SamplePromptCard(
+                category: _samples[index].category,
+                question: _samples[index].question,
+                onTap: () {
+                  _controller.text = _samples[index].question;
+                  _controller.selection = TextSelection.fromPosition(
+                    TextPosition(offset: _controller.text.length),
+                  );
+                  setState(() => _inputError = null);
+                  _focusLater();
+                },
+              ),
+              if (index != _samples.length - 1) const SizedBox(height: 6),
+            ],
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.shield_outlined,
+                  size: 14,
+                  color: palette.sage,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Gemma-4-E2B · 기기 안에서 처리됨',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontFamily: 'IBMPlexSansKR',
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 
   Future<void> _submit() async {
-    final notifier = ref.read(curationControllerProvider.notifier);
-    await notifier.submitQuestion(_controller.text);
+    final rawQuestion = _controller.text;
+    final normalizedQuestion = _validateQuestion(rawQuestion);
+    if (normalizedQuestion == null) {
+      return;
+    }
+
+    setState(() => _inputError = null);
+    unawaited(
+      ref.read(curationControllerProvider.notifier).submitQuestion(
+            normalizedQuestion,
+          ),
+    );
     if (!mounted) {
       return;
     }
-
-    final state = ref.read(curationControllerProvider);
-    if (state.response == null && state.errorMessage != null) {
-      return;
-    }
-
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => AnswerScreen(question: state.lastQuestion),
+        builder: (_) => AnswerScreen(question: normalizedQuestion),
       ),
     );
+  }
+
+  String? _validateQuestion(String rawQuestion) {
+    try {
+      return InputSanitizer.sanitizeQuestion(rawQuestion);
+    } on InputValidationException catch (error) {
+      setState(() => _inputError = error.message);
+      return null;
+    } catch (error) {
+      setState(() => _inputError = error.toString());
+      return null;
+    }
+  }
+
+  void _focusLater() {
+    Future<void>.delayed(const Duration(milliseconds: 120), () {
+      if (mounted) {
+        _focusNode.requestFocus();
+      }
+    });
   }
 
   void _showVoiceComingSoon() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('음성 입력은 곧 지원됩니다.')),
+    );
+  }
+
+  void _showPhotoComingSoon() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('사진 첨부는 곧 지원됩니다.')),
     );
   }
 }
@@ -354,7 +416,7 @@ class _CircleIconButton extends StatelessWidget {
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-          color: filled ? palette.paper2 : Colors.white.withValues(alpha: 0.65),
+          color: filled ? palette.paper2 : Colors.white.withValues(alpha: 0.7),
           shape: BoxShape.circle,
           border: Border.all(color: palette.line),
         ),
@@ -368,56 +430,41 @@ class _CircleIconButton extends StatelessWidget {
   }
 }
 
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({
+class _ScopeChip extends StatelessWidget {
+  const _ScopeChip({
     required this.label,
-    this.active = false,
+    required this.active,
+    required this.onTap,
   });
 
   final String label;
   final bool active;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final palette = theme.extension<CuratorPalette>()!;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: active ? palette.terra : Colors.white.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: active ? palette.terraDeep : palette.line,
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? palette.terra : Colors.white.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: active ? palette.terraDeep : palette.line,
+          ),
         ),
-      ),
-      child: Text(
-        label,
-        style: theme.textTheme.labelMedium?.copyWith(
-          fontFamily: 'IBMPlexSansKR',
-          fontWeight: FontWeight.w500,
-          color: active ? const Color(0xFFFDF6EC) : palette.ink2,
+        child: Text(
+          label,
+          style: theme.textTheme.labelMedium?.copyWith(
+            fontFamily: 'IBMPlexSansKR',
+            color: active ? const Color(0xFFFDF6EC) : palette.ink2,
+            fontWeight: FontWeight.w500,
+          ),
         ),
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final palette = theme.extension<CuratorPalette>()!;
-    return Text(
-      title,
-      style: theme.textTheme.labelSmall?.copyWith(
-        fontFamily: 'IBMPlexSansKR',
-        fontWeight: FontWeight.w700,
-        letterSpacing: 1.0,
-        color: palette.ink3,
       ),
     );
   }
@@ -444,7 +491,7 @@ class _SamplePromptCard extends StatelessWidget {
       child: Ink(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.46),
+          color: Colors.white.withValues(alpha: 0.45),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: palette.line),
         ),

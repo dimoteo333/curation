@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/security/database_encryption.dart';
+import 'presentation/screens/ask_screen.dart';
 import 'presentation/screens/home_screen.dart';
 import 'presentation/screens/onboarding_screen.dart';
+import 'presentation/screens/settings_screen.dart';
+import 'presentation/screens/timeline_screen.dart';
+import 'presentation/widgets/nav_dock.dart';
 import 'providers.dart';
+import 'state/app_shell_controller.dart';
 import 'theme/curator_theme.dart';
 
 class CuratorApp extends StatelessWidget {
@@ -17,7 +22,7 @@ class CuratorApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: buildCuratorTheme(Brightness.light),
       darkTheme: buildCuratorTheme(Brightness.dark),
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.light,
       home: const _AppEntry(),
     );
   }
@@ -36,7 +41,7 @@ class _AppEntry extends ConsumerWidget {
         if (!settings.onboardingCompleted) {
           return const OnboardingScreen();
         }
-        return const HomeScreen();
+        return const CuratorAppShell();
       },
       loading: () => const _StartupStatusScreen(
         title: '로컬 데이터를 준비하는 중입니다',
@@ -53,6 +58,43 @@ class _AppEntry extends ConsumerWidget {
           onAction: () => ref.invalidate(localDataInitializationProvider),
         );
       },
+    );
+  }
+}
+
+class CuratorAppShell extends ConsumerWidget {
+  const CuratorAppShell({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final shellState = ref.watch(curatorAppShellProvider);
+
+    return Scaffold(
+      extendBody: true,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: IndexedStack(
+              index: shellState.currentTab.index,
+              children: const [
+                HomeScreen(),
+                AskScreen(),
+                TimelineScreen(),
+                SettingsScreen(),
+              ],
+            ),
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: NavDock(
+              activeDestination: shellState.currentTab,
+              onSelected: (tab) {
+                ref.read(curatorAppShellProvider.notifier).selectTab(tab);
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -73,6 +73,19 @@ class VectorDb {
     };
   }
 
+  Future<List<LifeRecord>> loadAllRecords() async {
+    final db = await _open();
+    final rows = await db.query(
+      'documents',
+      orderBy: 'created_at DESC',
+    );
+    final records = <LifeRecord>[];
+    for (final row in rows) {
+      records.add(await _recordFromRow(row));
+    }
+    return List<LifeRecord>.unmodifiable(records);
+  }
+
   Future<void> replaceAllRecords(
     List<LifeRecord> records,
     TextEmbeddingService embeddingService,

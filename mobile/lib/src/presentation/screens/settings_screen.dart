@@ -56,10 +56,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _pathsInitialized = true;
     }
 
-    return Scaffold(
-      resizeToAvoidBottomInset: true,
-      body: CuratorBackdrop(
+    return Material(
+      type: MaterialType.transparency,
+      child: CuratorBackdrop(
         child: SafeArea(
+          bottom: false,
           child: Align(
             alignment: Alignment.topCenter,
             child: ConstrainedBox(
@@ -67,7 +68,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: ListView(
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: const EdgeInsets.fromLTRB(28, 10, 28, 40),
+                padding: const EdgeInsets.fromLTRB(28, 10, 28, 140),
                 children: [
                   Row(
                     children: [

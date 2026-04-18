@@ -65,4 +65,9 @@ class LifeRecordStore {
       sourceCounts: await vectorDb.importSourceCounts(),
     );
   }
+
+  Future<List<LifeRecord>> loadRecords() async {
+    await initialize();
+    return vectorDb.loadAllRecords();
+  }
 }
