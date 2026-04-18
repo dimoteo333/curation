@@ -16,6 +16,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   late final PageController _pageController;
   int _currentPage = 0;
   bool _loadDemoData = false;
+  bool _isCompleting = false;
 
   static const List<_OnboardingPageData> _pages = [
     _OnboardingPageData(
@@ -186,10 +187,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                             key: isLastPage
                                 ? const Key('completeOnboardingButton')
                                 : const Key('onboardingNextButton'),
-                            onPressed: isLastPage
+                            onPressed: _isCompleting
+                                ? null
+                                : isLastPage
                                 ? _completeOnboarding
                                 : _goToNextPage,
-                            child: Text(isLastPage ? '시작하기' : '다음'),
+                            child: Text(
+                              _isCompleting
+                                  ? '준비 중...'
+                                  : isLastPage
+                                  ? '시작하기'
+                                  : '다음',
+                            ),
                           ),
                         ),
                       ],
@@ -232,11 +241,28 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Future<void> _completeOnboarding() async {
-    if (_loadDemoData) {
-      await ref.read(lifeRecordStoreProvider).loadDemoData();
-      ref.read(localDataRevisionProvider.notifier).bump();
+    setState(() => _isCompleting = true);
+    try {
+      if (_loadDemoData) {
+        try {
+          await ref.read(lifeRecordStoreProvider).loadDemoData();
+          ref.read(localDataRevisionProvider.notifier).bump();
+        } catch (_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('데모 데이터를 불러오지 못했습니다. 빈 상태로 계속 시작합니다.'),
+              ),
+            );
+          }
+        }
+      }
+      await ref.read(appSettingsProvider.notifier).completeOnboarding();
+    } finally {
+      if (mounted) {
+        setState(() => _isCompleting = false);
+      }
     }
-    await ref.read(appSettingsProvider.notifier).completeOnboarding();
   }
 }
 

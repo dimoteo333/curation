@@ -25,8 +25,10 @@ class HomeScreen extends ConsumerWidget {
     final palette = theme.extension<CuratorPalette>()!;
     final shell = ref.read(curatorAppShellProvider.notifier);
     final stats = ref.watch(localDataStatsProvider);
+    final statsValue = stats.asData?.value;
+    final hasLocalRecords = (statsValue?.recordCount ?? 0) > 0;
     final conversations = ref.watch(recentConversationsProvider);
-    final recentConversations = conversations.isEmpty
+    final recentConversations = conversations.isEmpty && hasLocalRecords
         ? _fallbackRecentConversations()
         : conversations;
     final now = DateTime.now();
@@ -227,9 +229,29 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 20),
+            if (statsValue?.recordCount == 0) ...[
+              _EmptyHomeState(
+                onImportData: () => shell.selectTab(CuratorTab.settings),
+                onLoadDemoData: () async {
+                  await ref.read(lifeRecordStoreProvider).loadDemoData();
+                  ref.read(localDataRevisionProvider.notifier).bump();
+                  if (!context.mounted) {
+                    return;
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('데모 데이터를 불러왔습니다.')),
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
             _SectionHeader(title: '추천 질문'),
             const SizedBox(height: 10),
-            for (var index = 0; index < _suggestedPrompts.length; index += 1) ...[
+            for (
+              var index = 0;
+              index < _suggestedPrompts.length;
+              index += 1
+            ) ...[
               _SuggestionCard(
                 prompt: _suggestedPrompts[index].prompt,
                 hint: _suggestedPrompts[index].hint,
@@ -259,83 +281,90 @@ class HomeScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 10),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: palette.line),
-                boxShadow: palette.shadowSoft,
-              ),
-              child: Column(
-                children: [
-                  for (var index = 0; index < recentConversations.length; index += 1)
-                    InkWell(
-                      onTap: () {
-                        shell.composeQuestion(
-                          prefill: recentConversations[index].question,
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 13,
-                        ),
-                        decoration: BoxDecoration(
-                          border: index == 0
-                              ? null
-                              : Border(
-                                  top: BorderSide(color: palette.line),
-                                ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    recentConversations[index].question,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      fontFamily: 'IBMPlexSansKR',
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: palette.ink,
+            if (recentConversations.isEmpty)
+              _EmptyConversationState(hasLocalRecords: hasLocalRecords)
+            else
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: palette.line),
+                  boxShadow: palette.shadowSoft,
+                ),
+                child: Column(
+                  children: [
+                    for (
+                      var index = 0;
+                      index < recentConversations.length;
+                      index += 1
+                    )
+                      InkWell(
+                        onTap: () {
+                          shell.composeQuestion(
+                            prefill: recentConversations[index].question,
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 13,
+                          ),
+                          decoration: BoxDecoration(
+                            border: index == 0
+                                ? null
+                                : Border(top: BorderSide(color: palette.line)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      recentConversations[index].question,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            fontFamily: 'IBMPlexSansKR',
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: palette.ink,
+                                          ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _relativeConversationTime(
-                                    recentConversations[index].askedAt,
-                                    now,
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _relativeConversationTime(
+                                      recentConversations[index].askedAt,
+                                      now,
+                                    ),
+                                    style: theme.textTheme.labelMedium
+                                        ?.copyWith(
+                                          fontFamily: 'IBMPlexSansKR',
+                                          color: palette.ink3,
+                                        ),
                                   ),
-                                  style: theme.textTheme.labelMedium?.copyWith(
-                                    fontFamily: 'IBMPlexSansKR',
-                                    color: palette.ink3,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              recentConversations[index].preview,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                fontFamily: 'IBMPlexSansKR',
-                                fontSize: 12,
-                                color: palette.ink2,
+                                ],
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 4),
+                              Text(
+                                recentConversations[index].preview,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  fontFamily: 'IBMPlexSansKR',
+                                  fontSize: 12,
+                                  color: palette.ink2,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
-            ),
             const SizedBox(height: 24),
             const _SectionHeader(title: '연결된 기록'),
             const SizedBox(height: 10),
@@ -359,11 +388,7 @@ class HomeScreen extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.shield_outlined,
-                  size: 14,
-                  color: palette.sage,
-                ),
+                Icon(Icons.shield_outlined, size: 14, color: palette.sage),
                 const SizedBox(width: 6),
                 Text(
                   '모든 처리가 기기 안에서 이루어집니다',
@@ -490,12 +515,99 @@ class _SuggestionCard extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 16,
-              color: palette.ink4,
-            ),
+            Icon(Icons.chevron_right_rounded, size: 16, color: palette.ink4),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyHomeState extends StatelessWidget {
+  const _EmptyHomeState({
+    required this.onImportData,
+    required this.onLoadDemoData,
+  });
+
+  final VoidCallback onImportData;
+  final Future<void> Function() onLoadDemoData;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
+
+    return Container(
+      key: const Key('homeEmptyStateCard'),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: palette.line),
+        boxShadow: palette.shadowSoft,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '아직 가져온 기록이 없습니다',
+            style: theme.textTheme.titleLarge?.copyWith(fontSize: 20),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '설정에서 파일이나 캘린더를 가져오면 홈과 타임라인에 바로 반영됩니다. 원하면 데모 데이터로 먼저 둘러볼 수도 있습니다.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontFamily: 'IBMPlexSansKR',
+              color: palette.ink3,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 16),
+          FilledButton(
+            key: const Key('homeImportDataButton'),
+            onPressed: onImportData,
+            child: const Text('기록 가져오러 가기'),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton(
+            key: const Key('homeLoadDemoDataButton'),
+            onPressed: onLoadDemoData,
+            child: const Text('데모 데이터 불러오기'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyConversationState extends StatelessWidget {
+  const _EmptyConversationState({required this.hasLocalRecords});
+
+  final bool hasLocalRecords;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
+    final message = hasLocalRecords
+        ? '질문을 남기면 최근 대화가 여기에 쌓입니다.'
+        : '기록을 가져온 뒤 질문을 시작하면 최근 대화가 여기에 표시됩니다.';
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: palette.line),
+        boxShadow: palette.shadowSoft,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          message,
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontFamily: 'IBMPlexSansKR',
+            color: palette.ink3,
+          ),
         ),
       ),
     );
@@ -514,21 +626,13 @@ class _ConnectedSourcesGrid extends StatelessWidget {
     final memoCount =
         (stats.sourceCounts['note'] ?? 0) + (stats.sourceCounts['file'] ?? 0);
     final cards = <({String source, String label, int count})>[
-      (
-        source: 'diary',
-        label: '일기',
-        count: stats.sourceCounts['diary'] ?? 0,
-      ),
+      (source: 'diary', label: '일기', count: stats.sourceCounts['diary'] ?? 0),
       (
         source: 'calendar',
         label: '캘린더',
         count: stats.sourceCounts['calendar'] ?? 0,
       ),
-      (
-        source: 'memo',
-        label: '메모',
-        count: memoCount,
-      ),
+      (source: 'memo', label: '메모', count: memoCount),
       (
         source: 'voice_memo',
         label: '음성 메모',

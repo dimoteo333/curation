@@ -48,14 +48,21 @@ class _AppEntry extends ConsumerWidget {
         message: '기기 안의 기록 저장소를 안전하게 확인하고 있습니다.',
       ),
       error: (error, _) {
-        if (error is DatabaseEncryptionResetRequiredException) {
-          return _LocalDataRecoveryScreen(error: error);
+        if (error is LocalDataInitializationRecoveryRequiredException) {
+          return _LocalDataRecoveryScreen(recovery: error);
         }
-        return _StartupStatusScreen(
-          title: '앱을 시작하지 못했습니다',
-          message: '로컬 데이터 준비 중 오류가 발생했습니다.\n$error',
-          actionLabel: '다시 시도',
-          onAction: () => ref.invalidate(localDataInitializationProvider),
+        if (error is DatabaseEncryptionResetRequiredException) {
+          return _LocalDataRecoveryScreen(
+            recovery:
+                LocalDataInitializationRecoveryRequiredException.fromEncryptionError(
+                  error,
+                ),
+          );
+        }
+        return _LocalDataRecoveryScreen(
+          recovery: LocalDataInitializationRecoveryRequiredException.unknown(
+            details: error.toString(),
+          ),
         );
       },
     );
@@ -100,17 +107,10 @@ class CuratorAppShell extends ConsumerWidget {
 }
 
 class _StartupStatusScreen extends StatelessWidget {
-  const _StartupStatusScreen({
-    required this.title,
-    required this.message,
-    this.actionLabel,
-    this.onAction,
-  });
+  const _StartupStatusScreen({required this.title, required this.message});
 
   final String title;
   final String message;
-  final String? actionLabel;
-  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -123,17 +123,11 @@ class _StartupStatusScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (onAction == null) ...[
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 20),
-                ],
+                const CircularProgressIndicator(),
+                const SizedBox(height: 20),
                 Text(title, textAlign: TextAlign.center),
                 const SizedBox(height: 12),
                 Text(message, textAlign: TextAlign.center),
-                if (actionLabel != null && onAction != null) ...[
-                  const SizedBox(height: 20),
-                  FilledButton(onPressed: onAction, child: Text(actionLabel!)),
-                ],
               ],
             ),
           ),
@@ -144,9 +138,9 @@ class _StartupStatusScreen extends StatelessWidget {
 }
 
 class _LocalDataRecoveryScreen extends ConsumerStatefulWidget {
-  const _LocalDataRecoveryScreen({required this.error});
+  const _LocalDataRecoveryScreen({required this.recovery});
 
-  final DatabaseEncryptionResetRequiredException error;
+  final LocalDataInitializationRecoveryRequiredException recovery;
 
   @override
   ConsumerState<_LocalDataRecoveryScreen> createState() =>
@@ -156,19 +150,92 @@ class _LocalDataRecoveryScreen extends ConsumerStatefulWidget {
 class _LocalDataRecoveryScreenState
     extends ConsumerState<_LocalDataRecoveryScreen> {
   bool _isResetting = false;
+  String? _resetError;
 
   @override
   Widget build(BuildContext context) {
-    return _StartupStatusScreen(
-      title: '로컬 데이터를 복구할 수 없습니다',
-      message: widget.error.message,
-      actionLabel: _isResetting ? '초기화 중...' : '로컬 데이터 초기화',
-      onAction: _isResetting ? null : _resetLocalData,
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: 44,
+                    color: colorScheme.error,
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    widget.recovery.title,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    widget.recovery.message,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      '초기화 시 삭제되는 항목\n${widget.recovery.lossDescription}',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                  if (_resetError != null) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      _resetError!,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.error,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  OutlinedButton(
+                    key: const Key('localDataRecoveryRetryButton'),
+                    onPressed: _isResetting
+                        ? null
+                        : () => ref.invalidate(localDataInitializationProvider),
+                    child: const Text('다시 시도'),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    key: const Key('localDataRecoveryResetButton'),
+                    onPressed: _isResetting ? null : _resetLocalData,
+                    child: Text(_isResetting ? '초기화 중...' : '초기화하고 새로 시작하기'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
   Future<void> _resetLocalData() async {
-    setState(() => _isResetting = true);
+    setState(() {
+      _isResetting = true;
+      _resetError = null;
+    });
     try {
       await ref.read(lifeRecordStoreProvider).deleteAllData();
       ref.read(localDataRevisionProvider.notifier).bump();
@@ -176,7 +243,14 @@ class _LocalDataRecoveryScreenState
       ref.invalidate(importHistorySnapshotProvider);
       ref.invalidate(calendarSyncStatusProvider);
       ref.invalidate(onDeviceRuntimeStatusProvider);
+      ref.invalidate(recentConversationsProvider);
       ref.invalidate(localDataInitializationProvider);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _resetError = '초기화 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.';
+        });
+      }
     } finally {
       if (mounted) {
         setState(() => _isResetting = false);

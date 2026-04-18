@@ -1,8 +1,8 @@
+import 'package:curator_mobile/src/app.dart';
+import 'package:curator_mobile/src/data/local/life_record_store.dart';
+import 'package:curator_mobile/src/providers.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-
-import 'package:curator_mobile/app.dart' as app;
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -25,8 +25,17 @@ void main() {
         ProviderScope(
           overrides: [
             sharedPreferencesProvider.overrideWithValue(prefs),
+            localDataInitializationProvider.overrideWith((ref) async {}),
+            localDataStatsProvider.overrideWith(
+              (ref) => const LocalDataStats(
+                recordCount: 4,
+                databaseSizeBytes: 1024,
+                sourceCounts: <String, int>{'file': 4},
+              ),
+            ),
+            localLifeRecordsProvider.overrideWith((ref) async => const []),
           ],
-          child: const app.CuratorApp(),
+          child: const CuratorApp(),
         ),
       );
       await tester.pumpAndSettle();
@@ -35,12 +44,6 @@ void main() {
     testWidgets('capture all tabs', (WidgetTester tester) async {
       await pumpApp(tester);
 
-      // Tab 0: Home - already visible
-      // Find bottom nav items
-      final navItems = find.byType(GestureDetector);
-      
-      // Just pump and settle for each state
-      // This test mainly exists to verify the app renders without crashing
       expect(find.text('큐레이터'), findsWidgets);
     });
   });

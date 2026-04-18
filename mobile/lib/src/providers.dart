@@ -194,6 +194,88 @@ final localDataRevisionProvider =
       LocalDataRevisionController.new,
     );
 
+enum LocalDataInitializationRecoveryReason {
+  missingKeyForExistingDatabase,
+  encryptedDataUnavailable,
+  corruptedDatabase,
+  unknown,
+}
+
+class LocalDataInitializationRecoveryRequiredException implements Exception {
+  const LocalDataInitializationRecoveryRequiredException({
+    required this.reason,
+    required this.title,
+    required this.message,
+    required this.lossDescription,
+    this.details,
+  });
+
+  factory LocalDataInitializationRecoveryRequiredException.fromEncryptionError(
+    DatabaseEncryptionResetRequiredException error,
+  ) {
+    return switch (error.reason) {
+      DatabaseEncryptionFailureReason.missingMasterKey =>
+        const LocalDataInitializationRecoveryRequiredException(
+          reason:
+              LocalDataInitializationRecoveryReason.encryptedDataUnavailable,
+          title: '기존 로컬 데이터를 복구할 수 없습니다',
+          message:
+              '암호화 키를 찾지 못해 기기에 남아 있던 기록을 읽을 수 없습니다. 새로 시작할 수 있도록 로컬 데이터를 초기화해 주세요.',
+          lossDescription: '기기에 저장된 기록, 검색 인덱스, 가져오기 이력, 앱 설정이 삭제됩니다.',
+        ),
+      DatabaseEncryptionFailureReason.invalidMasterKey =>
+        const LocalDataInitializationRecoveryRequiredException(
+          reason: LocalDataInitializationRecoveryReason.corruptedDatabase,
+          title: '로컬 데이터가 손상되었습니다',
+          message:
+              '저장된 암호화 키 또는 데이터 상태가 맞지 않아 기존 기록을 열 수 없습니다. 초기화 후 새로 시작할 수 있습니다.',
+          lossDescription: '기기에 저장된 기록, 검색 인덱스, 가져오기 이력, 앱 설정이 삭제됩니다.',
+        ),
+    };
+  }
+
+  const LocalDataInitializationRecoveryRequiredException.missingKeyForExistingDatabase()
+    : reason =
+          LocalDataInitializationRecoveryReason.missingKeyForExistingDatabase,
+      title = '기존 로컬 데이터를 복구할 수 없습니다',
+      message = '앱을 다시 설치하는 동안 암호화 키가 사라져 기존 로컬 데이터를 읽을 수 없습니다. 새로 시작하시겠습니까?',
+      lossDescription = '기기에 남아 있던 기록, 검색 인덱스, 가져오기 이력, 앱 설정이 삭제됩니다.',
+      details = null;
+
+  factory LocalDataInitializationRecoveryRequiredException.corruptedDatabase({
+    String? details,
+  }) {
+    return LocalDataInitializationRecoveryRequiredException(
+      reason: LocalDataInitializationRecoveryReason.corruptedDatabase,
+      title: '로컬 저장소를 다시 준비해야 합니다',
+      message: '데이터베이스 파일이 손상되었거나 이전 초기화가 중간에 멈췄습니다. 초기화 후 다시 시작할 수 있습니다.',
+      lossDescription: '기기에 저장된 기록, 검색 인덱스, 가져오기 이력, 앱 설정이 삭제됩니다.',
+      details: details,
+    );
+  }
+
+  factory LocalDataInitializationRecoveryRequiredException.unknown({
+    String? details,
+  }) {
+    return LocalDataInitializationRecoveryRequiredException(
+      reason: LocalDataInitializationRecoveryReason.unknown,
+      title: '앱을 바로 열 수 없습니다',
+      message: '로컬 데이터를 준비하는 중 문제가 발생했습니다. 다시 시도하거나 초기화 후 새로 시작할 수 있습니다.',
+      lossDescription: '초기화를 선택하면 기기에 저장된 기록, 검색 인덱스, 가져오기 이력, 앱 설정이 삭제됩니다.',
+      details: details,
+    );
+  }
+
+  final LocalDataInitializationRecoveryReason reason;
+  final String title;
+  final String message;
+  final String lossDescription;
+  final String? details;
+
+  @override
+  String toString() => '$title: $message';
+}
+
 final localDataStatsProvider = FutureProvider<LocalDataStats>((ref) async {
   ref.watch(localDataRevisionProvider);
   return ref.watch(lifeRecordStoreProvider).loadStats();
@@ -206,7 +288,34 @@ final localLifeRecordsProvider = FutureProvider<List<LifeRecord>>((ref) async {
 
 final localDataInitializationProvider = FutureProvider<void>((ref) async {
   ref.watch(localDataRevisionProvider);
-  await ref.watch(lifeRecordStoreProvider).initialize();
+  await ref.read(appSettingsProvider.notifier).ensureFirstRunVersion();
+
+  final vectorDb = ref.watch(vectorDbProvider);
+  final databaseEncryption = ref.watch(databaseEncryptionProvider);
+  if (await vectorDb.hasPersistedDatabaseFile() &&
+      !await databaseEncryption.hasMasterKey()) {
+    throw const LocalDataInitializationRecoveryRequiredException.missingKeyForExistingDatabase();
+  }
+
+  try {
+    await ref.watch(lifeRecordStoreProvider).initialize();
+  } on DatabaseEncryptionResetRequiredException catch (error) {
+    throw LocalDataInitializationRecoveryRequiredException.fromEncryptionError(
+      error,
+    );
+  } on DatabaseException catch (error) {
+    throw LocalDataInitializationRecoveryRequiredException.corruptedDatabase(
+      details: error.toString(),
+    );
+  } on FormatException catch (error) {
+    throw LocalDataInitializationRecoveryRequiredException.corruptedDatabase(
+      details: error.toString(),
+    );
+  } catch (error) {
+    throw LocalDataInitializationRecoveryRequiredException.unknown(
+      details: error.toString(),
+    );
+  }
 });
 
 final remoteCurationRepositoryProvider = Provider<CurationRepository>((ref) {

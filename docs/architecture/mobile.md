@@ -39,6 +39,8 @@ Rules
 ## On-device flow
 
 - On first launch, a minimal onboarding screen explains the service, file import entry point, privacy posture, and optional demo-data loading. Completion is persisted with SharedPreferences.
+- The app records `app.first_run_version` on the first successful launch so later launches can skip onboarding and future "what's new" flows have stable version metadata.
+- Startup never hard-blocks on stale encrypted local data: if SQLite files remain but the secure-stored master key is missing, or if the local DB is corrupted, the app shows a Korean recovery screen with a destructive reset path back to onboarding.
 - Runtime mode and developer model paths are stored as local settings and can override compile-time defaults without changing the API contract.
 - Imported records and explicitly loaded demo records are indexed into a local encrypted SQLite vector store.
 - `.txt` and `.md` files can be imported through the settings screen, parsed into local `LifeRecord` records, and embedded into the local vector DB.
@@ -47,6 +49,7 @@ Rules
 - Personal text fields in the local store are encrypted at the application layer with a per-install master key stored in secure storage, while embedding vectors remain plaintext for retrieval.
 - Settings now expose a privacy policy reference, an explicit demo-data load action when the local DB is empty, and a destructive delete-all flow that removes the SQLite files, clears the secure-stored master key, and clears local app preferences.
 - Settings also expose calendar sync status, last sync time, import history, and a data-source summary so local ingest state is visible to the user.
+- If onboarding finishes without demo data, the home screen remains usable and shows an empty-state prompt to import records or load demo data later.
 - Developer-only model path controls are grouped behind an explicit runtime section so ordinary user settings stay separate from local debug/runtime configuration.
 - Query embeddings currently use the pure Dart `SemanticEmbeddingService` fallback on both iOS and Android.
 - Local retrieval now keeps a tag-cluster ANN-style prefilter, persisted normalized embedding state, and an LRU repeated-question cache so searches do not rescore the full local corpus on every query.

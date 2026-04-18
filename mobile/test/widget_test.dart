@@ -1,4 +1,5 @@
 import 'package:curator_mobile/src/app.dart';
+import 'package:curator_mobile/src/data/local/life_record_store.dart';
 import 'package:curator_mobile/src/data/local/seed_records.dart';
 import 'package:curator_mobile/src/data/ondevice/litert_method_channel_bridge.dart';
 import 'package:curator_mobile/src/providers.dart';
@@ -283,6 +284,13 @@ Future<void> _pumpApp(
           createTestDatabaseEncryption(),
         ),
         localDataInitializationProvider.overrideWith((ref) async {}),
+        localDataStatsProvider.overrideWith(
+          (ref) => const LocalDataStats(
+            recordCount: 14,
+            databaseSizeBytes: 4096,
+            sourceCounts: <String, int>{'diary': 6, 'calendar': 4, 'file': 4},
+          ),
+        ),
         localLifeRecordsProvider.overrideWith((ref) async => seededLifeRecords),
       ],
       child: const CuratorApp(),

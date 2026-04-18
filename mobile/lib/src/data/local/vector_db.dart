@@ -48,6 +48,15 @@ class VectorDb {
     await _open();
   }
 
+  Future<bool> hasPersistedDatabaseFile() async {
+    final path = await _resolveDatabasePath();
+    final file = File(path);
+    if (!await file.exists()) {
+      return false;
+    }
+    return await file.length() > 0;
+  }
+
   Future<int> cleanOrphanEmbeddings() async {
     final db = await _open();
     return _cleanOrphanEmbeddings(db);
@@ -75,10 +84,7 @@ class VectorDb {
 
   Future<List<LifeRecord>> loadAllRecords() async {
     final db = await _open();
-    final rows = await db.query(
-      'documents',
-      orderBy: 'created_at DESC',
-    );
+    final rows = await db.query('documents', orderBy: 'created_at DESC');
     final records = <LifeRecord>[];
     for (final row in rows) {
       records.add(await _recordFromRow(row));
@@ -267,8 +273,7 @@ class VectorDb {
       return existing;
     }
 
-    final path = await databasePathResolver();
-    _resolvedDatabasePath = path;
+    final path = await _resolveDatabasePath();
     final database = await databaseFactory.openDatabase(
       path,
       options: OpenDatabaseOptions(
@@ -329,6 +334,17 @@ class VectorDb {
     await _cleanOrphanEmbeddings(database);
     _database = database;
     return database;
+  }
+
+  Future<String> _resolveDatabasePath() async {
+    final existingPath = _resolvedDatabasePath;
+    if (existingPath != null) {
+      return existingPath;
+    }
+
+    final resolvedPath = await databasePathResolver();
+    _resolvedDatabasePath = resolvedPath;
+    return resolvedPath;
   }
 
   Future<void> _ensureEncryptionState(Database db) async {

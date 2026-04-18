@@ -42,7 +42,7 @@ class CuratorAppShellController extends Notifier<CuratorAppShellState> {
 
   void composeQuestion({String? prefill, bool resetInput = false}) {
     state = state.copyWith(
-      currentTab: CuratorTab.home,
+      currentTab: CuratorTab.ask,
       askRequestId: state.askRequestId + 1,
       askPrefill: resetInput ? '' : prefill,
       clearAskPrefill: !resetInput && prefill == null,

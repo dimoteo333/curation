@@ -1,4 +1,6 @@
 import 'package:curator_mobile/src/app.dart';
+import 'package:curator_mobile/src/core/config/app_build_info.dart';
+import 'package:curator_mobile/src/data/local/life_record_store.dart';
 import 'package:curator_mobile/src/data/ondevice/litert_method_channel_bridge.dart';
 import 'package:curator_mobile/src/providers.dart';
 import 'package:flutter/material.dart';
@@ -16,10 +18,26 @@ void main() {
       ProviderScope(
         overrides: [
           sharedPreferencesProvider.overrideWithValue(preferences),
+          appBuildInfoProvider.overrideWithValue(
+            const AppBuildInfo(
+              appName: '큐레이터',
+              packageName: 'curator_mobile',
+              version: '1.5.0',
+              buildNumber: '15',
+            ),
+          ),
           onDeviceLlmBridgeProvider.overrideWithValue(
             const _FakeOnDeviceLlmBridge(),
           ),
           localDataInitializationProvider.overrideWith((ref) async {}),
+          localDataStatsProvider.overrideWith(
+            (ref) => const LocalDataStats(
+              recordCount: 0,
+              databaseSizeBytes: 0,
+              sourceCounts: <String, int>{},
+            ),
+          ),
+          localLifeRecordsProvider.overrideWith((ref) async => const []),
         ],
         child: const CuratorApp(),
       ),
@@ -49,7 +67,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('openSettingsButton')), findsOneWidget);
+    expect(find.byKey(const Key('homeEmptyStateCard')), findsOneWidget);
     expect(preferences.getBool('app.onboarding_completed'), isTrue);
+    expect(preferences.getString('app.first_run_version'), '1.5.0+15');
   });
 
   testWidgets('작은 화면에서도 온보딩 화면이 overflow 없이 렌더링된다', (
@@ -63,10 +83,26 @@ void main() {
       ProviderScope(
         overrides: [
           sharedPreferencesProvider.overrideWithValue(preferences),
+          appBuildInfoProvider.overrideWithValue(
+            const AppBuildInfo(
+              appName: '큐레이터',
+              packageName: 'curator_mobile',
+              version: '1.5.0',
+              buildNumber: '15',
+            ),
+          ),
           onDeviceLlmBridgeProvider.overrideWithValue(
             const _FakeOnDeviceLlmBridge(),
           ),
           localDataInitializationProvider.overrideWith((ref) async {}),
+          localDataStatsProvider.overrideWith(
+            (ref) => const LocalDataStats(
+              recordCount: 0,
+              databaseSizeBytes: 0,
+              sourceCounts: <String, int>{},
+            ),
+          ),
+          localLifeRecordsProvider.overrideWith((ref) async => const []),
         ],
         child: const CuratorApp(),
       ),

@@ -10,15 +10,19 @@ class AppSettingsController extends Notifier<AppSettings> {
   static const String _llmModelPathKey = 'app.llm_model_path';
   static const String _embedderModelPathKey = 'app.embedder_model_path';
   static const String _onboardingCompletedKey = 'app.onboarding_completed';
+  static const String _firstRunVersionKey = 'app.first_run_version';
   static const String _calendarSyncEnabledKey = 'app.calendar_sync_enabled';
 
   SharedPreferences get _preferences => ref.read(sharedPreferencesProvider);
   AppConfig get _config => ref.read(appConfigProvider);
+  String get _currentVersion => ref.read(appBuildInfoProvider).versionLabel;
 
   @override
   AppSettings build() {
     return AppSettings(
       runtimeMode: _runtimeMode(),
+      currentVersion: _currentVersion,
+      firstRunVersion: _preferences.getString(_firstRunVersionKey),
       llmModelPath: _storedPath(_llmModelPathKey) ?? _config.llmModelPath,
       embedderModelPath:
           _storedPath(_embedderModelPathKey) ?? _config.embedderModelPath,
@@ -64,9 +68,31 @@ class AppSettingsController extends Notifier<AppSettings> {
     );
   }
 
+  Future<void> ensureFirstRunVersion() async {
+    final existing = _preferences.getString(_firstRunVersionKey);
+    if (existing != null && existing.isNotEmpty) {
+      state = state.copyWith(
+        currentVersion: _currentVersion,
+        firstRunVersion: existing,
+      );
+      return;
+    }
+
+    await _preferences.setString(_firstRunVersionKey, _currentVersion);
+    state = state.copyWith(
+      currentVersion: _currentVersion,
+      firstRunVersion: _currentVersion,
+    );
+  }
+
   Future<void> completeOnboarding() async {
+    await ensureFirstRunVersion();
     await _preferences.setBool(_onboardingCompletedKey, true);
-    state = state.copyWith(onboardingCompleted: true);
+    state = state.copyWith(
+      currentVersion: _currentVersion,
+      firstRunVersion: state.firstRunVersion ?? _currentVersion,
+      onboardingCompleted: true,
+    );
   }
 
   Future<void> setCalendarSyncEnabled(bool enabled) async {
