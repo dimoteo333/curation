@@ -10,7 +10,7 @@ import 'fakes/fake_curation_repository.dart';
 import 'test_support.dart';
 
 void main() {
-  testWidgets('홈 화면은 에디토리얼 레이아웃에서 응답을 렌더링한다', (WidgetTester tester) async {
+  testWidgets('홈 화면은 새 대시보드 레이아웃을 렌더링한다', (WidgetTester tester) async {
     await _pumpApp(
       tester,
       bridge: const FakeOnDeviceLlmBridge(
@@ -30,33 +30,86 @@ void main() {
       ),
     );
 
-    expect(find.text('당신의 하루를 읽습니다'), findsOneWidget);
-    expect(find.text('최근 인사이트'), findsOneWidget);
-    expect(find.byKey(const Key('questionTextField')), findsOneWidget);
+    expect(find.text('큐레이터'), findsOneWidget);
+    expect(find.textContaining('안녕하세요, 지원 님.'), findsOneWidget);
+    expect(find.text('오늘의 질문'), findsOneWidget);
+    expect(find.text('추천 질문'), findsOneWidget);
+    expect(find.text('최근 대화'), findsOneWidget);
+    expect(find.text('연결된 기록'), findsOneWidget);
     expect(find.byKey(const Key('openSettingsButton')), findsOneWidget);
+    expect(find.byKey(const Key('todayAskCard')), findsOneWidget);
 
     await tester.scrollUntilVisible(
-      find.byKey(const Key('submitQuestionButton')),
-      220,
+      find.textContaining('기기 안에서'),
+      240,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
+    expect(find.text('모든 처리가 기기 안에서 이루어집니다'), findsOneWidget);
+  });
+
+  testWidgets('오늘의 질문 카드를 누르면 질문 화면으로 이동한다', (WidgetTester tester) async {
+    await _pumpApp(
+      tester,
+      bridge: const FakeOnDeviceLlmBridge(
+        runtimeStatus: OnDeviceRuntimeStatus(
+          llmReady: false,
+          embedderReady: false,
+          runtime: 'template-fallback',
+          message: '모델 경로가 없어 템플릿 폴백을 사용합니다.',
+          platform: 'flutter-test',
+          llmModelConfigured: false,
+          embedderModelConfigured: false,
+          llmModelAvailable: false,
+          embedderModelAvailable: false,
+          fallbackActive: true,
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('todayAskCard')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('질문하기'), findsOneWidget);
+    expect(find.byKey(const Key('questionTextField')), findsOneWidget);
+  });
+
+  testWidgets('질문 제출 후 답변 화면으로 이동한다', (WidgetTester tester) async {
+    await _pumpApp(
+      tester,
+      bridge: const FakeOnDeviceLlmBridge(
+        runtimeStatus: OnDeviceRuntimeStatus(
+          llmReady: false,
+          embedderReady: false,
+          runtime: 'template-fallback',
+          message: '모델 경로가 없어 템플릿 폴백을 사용합니다.',
+          platform: 'flutter-test',
+          llmModelConfigured: false,
+          embedderModelConfigured: false,
+          llmModelAvailable: false,
+          embedderModelAvailable: false,
+          fallbackActive: true,
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('todayAskCard')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('questionTextField')),
+      '나 요즘 왜 이렇게 무기력하지?',
+    );
     await tester.tap(find.byKey(const Key('submitQuestionButton')));
     await tester.pump();
-    expect(find.text('가장 가까운 기록과 문장을 고르고 있습니다.'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 120));
     await tester.pumpAndSettle();
 
-    expect(find.text('최근 인사이트'), findsWidgets);
-    expect(find.text('질문  나 요즘 왜 이렇게 무기력하지?'), findsOneWidget);
-    expect(find.textContaining('질문과 맞닿은 기록을 조용히 엮어 보여드립니다.'), findsOneWidget);
-    expect(find.text('테스트용 질문과 가장 가까운 기록 두 건을 묶어 보여줍니다.'), findsOneWidget);
-    expect(find.text('"테스트용 발췌문입니다."'), findsOneWidget);
-    expect(find.text('템플릿 응답'), findsOneWidget);
-    expect(find.byKey(const Key('askAnotherQuestionButton')), findsOneWidget);
-    expect(find.byKey(const Key('responseSection')), findsOneWidget);
+    expect(find.text('최근 기록에서 반복된 흐름'), findsOneWidget);
+    expect(find.text('참고한 기록'), findsOneWidget);
+    expect(find.text('답변이 도움이 되었나요?'), findsOneWidget);
   });
 
-  testWidgets('응답이 없을 때도 에디토리얼 플레이스홀더를 보여준다', (WidgetTester tester) async {
+  testWidgets('답변의 참고 기록을 누르면 메모리 시트가 열린다', (WidgetTester tester) async {
     await _pumpApp(
       tester,
       bridge: const FakeOnDeviceLlmBridge(
@@ -75,40 +128,22 @@ void main() {
       ),
     );
 
-    expect(find.text('"야근이 많았던 3월,\n당신의 무기력함은\n당연한 것이었습니다"'), findsOneWidget);
-    expect(find.text('── 3개월 전 야근 회고'), findsOneWidget);
-  });
-
-  testWidgets('다른 질문하기 버튼은 응답을 비우고 다시 질문할 수 있게 한다', (
-    WidgetTester tester,
-  ) async {
-    await _pumpApp(
-      tester,
-      bridge: const FakeOnDeviceLlmBridge(
-        runtimeStatus: OnDeviceRuntimeStatus(
-          llmReady: false,
-          embedderReady: false,
-          runtime: 'template-fallback',
-          message: '모델 경로가 없어 템플릿 폴백을 사용합니다.',
-          platform: 'flutter-test',
-          llmModelConfigured: false,
-          embedderModelConfigured: false,
-          llmModelAvailable: false,
-          embedderModelAvailable: false,
-          fallbackActive: true,
-        ),
-      ),
+    await tester.tap(find.byKey(const Key('todayAskCard')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('questionTextField')),
+      '나 요즘 왜 이렇게 무기력하지?',
     );
-
     await tester.tap(find.byKey(const Key('submitQuestionButton')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('responseSection')), findsOneWidget);
-
-    await tester.tap(find.byKey(const Key('askAnotherQuestionButton')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 120));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('responseSection')), findsNothing);
-    expect(find.text('"야근이 많았던 3월,\n당신의 무기력함은\n당연한 것이었습니다"'), findsOneWidget);
+    await tester.tap(find.text('테스트 기록').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('이 기록으로 질문하기'), findsOneWidget);
+    expect(find.text('서울 · 합정동'), findsOneWidget);
   });
 
   testWidgets('홈 화면에서 설정 화면으로 이동할 수 있다', (WidgetTester tester) async {
@@ -157,7 +192,7 @@ void main() {
       physicalSize: const Size(640, 1136),
     );
 
-    expect(find.byKey(const Key('questionTextField')), findsOneWidget);
+    expect(find.byKey(const Key('todayAskCard')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -180,6 +215,8 @@ void main() {
       ),
     );
 
+    await tester.tap(find.byKey(const Key('todayAskCard')));
+    await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('questionTextField')),
       '길다' * 200,

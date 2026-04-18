@@ -79,9 +79,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                               color: palette.outline.withValues(alpha: 0.28),
                             ),
                           ),
-                          child: Image.asset(
-                            'assets/branding/curator_mark.png',
-                          ),
+                          child: const CuratorMark(size: 28),
                         ),
                         const SizedBox(width: 14),
                         Expanded(

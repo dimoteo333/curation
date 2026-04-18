@@ -67,6 +67,10 @@ class OnDeviceCurationRepository implements CurationRepository {
                   ? generation.supportingQuote
                   : _buildExcerpt(match.record.content),
               relevanceReason: _buildRelevanceReason(match),
+              importSource: match.record.importSource,
+              content: match.record.content,
+              tags: match.record.tags,
+              metadata: match.record.metadata,
             ),
           )
           .toList(growable: false),

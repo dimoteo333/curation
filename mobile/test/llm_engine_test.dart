@@ -34,6 +34,8 @@ void main() {
     expect(result.summary, contains('야근이 길어지던 주간 회고'));
     expect(result.answer, contains('야근이 길어지던 주간 회고'));
     expect(result.answer, contains('2년 전'));
+    expect(result.answer, contains('{{CITE:'));
+    expect(result.answer, contains('\n\n'));
     expect(result.supportingQuote, startsWith('"'));
     expect(result.supportingQuote, contains('무기력했다'));
     expect(result.suggestedFollowUp, contains('에너지'));
@@ -65,6 +67,7 @@ void main() {
 
     expect(result.insightTitle, contains('수면'));
     expect(result.answer, contains('생활 리듬을 되돌린 날'));
+    expect(result.answer, contains('{{CITE:diary-routine-reset-2023}}'));
     expect(result.supportingQuote, contains('하루 종일 멍했다'));
     expect(result.suggestedFollowUp, contains('최근 일주일'));
   });

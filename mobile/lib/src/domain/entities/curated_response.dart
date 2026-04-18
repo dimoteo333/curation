@@ -22,6 +22,10 @@ class SupportingRecord {
     required this.createdAt,
     required this.excerpt,
     required this.relevanceReason,
+    this.importSource,
+    this.content,
+    this.tags = const <String>[],
+    this.metadata = const <String, dynamic>{},
   });
 
   final String id;
@@ -30,6 +34,10 @@ class SupportingRecord {
   final DateTime createdAt;
   final String excerpt;
   final String relevanceReason;
+  final String? importSource;
+  final String? content;
+  final List<String> tags;
+  final Map<String, dynamic> metadata;
 }
 
 class CuratedResponse {

@@ -22,11 +22,12 @@ class CurationViewState {
     CuratedResponse? response,
     String? errorMessage,
     bool clearError = false,
+    bool clearResponse = false,
     String? lastQuestion,
   }) {
     return CurationViewState(
       isLoading: isLoading ?? this.isLoading,
-      response: response ?? this.response,
+      response: clearResponse ? null : response ?? this.response,
       errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
       lastQuestion: lastQuestion ?? this.lastQuestion,
     );
@@ -54,6 +55,7 @@ class CurationController extends Notifier<CurationViewState> {
     state = state.copyWith(
       isLoading: true,
       clearError: true,
+      clearResponse: true,
       lastQuestion: normalizedQuestion,
     );
 
@@ -67,6 +69,9 @@ class CurationController extends Notifier<CurationViewState> {
         clearError: true,
         lastQuestion: normalizedQuestion,
       );
+      await ref
+          .read(recentConversationsProvider.notifier)
+          .recordConversation(question: normalizedQuestion, response: response);
     } catch (error) {
       ref.invalidate(onDeviceRuntimeStatusProvider);
       state = state.copyWith(

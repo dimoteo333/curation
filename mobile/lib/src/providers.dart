@@ -29,6 +29,7 @@ import 'domain/services/llm_engine.dart';
 import 'domain/services/text_embedding_service.dart';
 import 'domain/use_cases/request_curation_use_case.dart';
 import 'state/app_settings_controller.dart';
+import 'state/recent_conversations_controller.dart';
 
 final appConfigProvider = Provider<AppConfig>((ref) => const AppConfig());
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
@@ -230,6 +231,11 @@ final curationRepositoryProvider = Provider<CurationRepository>((ref) {
 final requestCurationUseCaseProvider = Provider<RequestCurationUseCase>((ref) {
   return RequestCurationUseCase(ref.watch(curationRepositoryProvider));
 });
+
+final recentConversationsProvider =
+    NotifierProvider<RecentConversationsController, List<RecentConversation>>(
+      RecentConversationsController.new,
+    );
 
 class LocalDataRevisionController extends Notifier<int> {
   @override

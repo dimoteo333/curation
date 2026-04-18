@@ -36,6 +36,8 @@ class SupportingRecordDto {
       createdAt: createdAt,
       excerpt: excerpt,
       relevanceReason: relevanceReason,
+      importSource: null,
+      content: null,
     );
   }
 }

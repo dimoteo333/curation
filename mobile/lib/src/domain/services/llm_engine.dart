@@ -60,7 +60,7 @@ class LlmEngine {
         return GeneratedCuration(
           insightTitle: _buildInsightTitle(_collectThemes(contextRecords)),
           summary: summary,
-          answer: answer,
+          answer: _normalizeEssayAnswer(answer, records: contextRecords),
           supportingQuote: supportingQuote,
           suggestedFollowUp: followUp,
           usedNativeRuntime: true,
@@ -83,25 +83,8 @@ class LlmEngine {
         .map((VectorSearchMatch match) => match.record)
         .toList(growable: false);
     final topRecord = records.first;
-    final secondaryRecord = records.length > 1 ? records[1] : null;
     final themes = _collectThemes(records);
-    final recordTime = _describeRelativeTime(topRecord.createdAt);
-    final template = _selectFallbackTemplate(
-      question: question,
-      records: records,
-    );
-    final answer = switch (template) {
-      _FallbackTemplate.reflective =>
-        '$recordTime 쓰신 "${topRecord.title}"을 다시 보면, 지금의 질문은 갑자기 생긴 감정보다 오래 버틴 뒤에 몸과 마음이 함께 무거워지는 흐름에 더 가깝습니다. ${_buildSecondaryBridge(secondaryRecord)}그때의 기록에는 이미 ${_summarizeRecoveryCue(records)} 같은 회복 단서도 같이 남아 있습니다.',
-      _FallbackTemplate.temporal =>
-        '$recordTime의 "${topRecord.title}"에서는 지금 느끼는 감정의 결이 먼저 보입니다. ${_summarizeContent(topRecord.content)}라고 적어 두신 걸 보면, 현재의 어려움도 한 번의 사건보다 누적된 리듬과 더 닿아 있습니다. ${_buildSecondaryBridge(secondaryRecord)}',
-      _FallbackTemplate.recovery =>
-        '이번 질문은 힘든 이유를 찾는 것만큼, 언제 조금 덜 무너졌는지를 같이 보는 편이 도움이 됩니다. $recordTime 쓰신 "${topRecord.title}"에서도 힘이 빠진 장면 옆에 ${_summarizeRecoveryCue(records)} 같은 회복 행동이 함께 붙어 있었습니다. ${_buildSecondaryBridge(secondaryRecord)}',
-      _FallbackTemplate.relationship =>
-        '$recordTime 기록인 "${topRecord.title}"을 보면, 지금의 마음은 혼자 견디는 시간이 길어질수록 더 무거워지는 패턴에 가깝습니다. ${_summarizeContent(topRecord.content)}라는 문장처럼, 감정이 풀린 순간에는 대개 누군가와의 대화나 정리가 함께 있었습니다. ${_buildSecondaryBridge(secondaryRecord)}',
-      _FallbackTemplate.growth =>
-        '이번 질문은 단순히 지쳤다는 이야기보다, 어떤 리듬이 당신을 다시 앞으로 움직이게 했는지 묻는 질문으로도 읽힙니다. $recordTime의 "${topRecord.title}"을 보면 작은 기록, 짧은 실행, 혹은 회복 행동이 다음 날의 감각을 바꾸는 장면이 반복됩니다. ${_buildSecondaryBridge(secondaryRecord)}',
-    }.trim();
+    final answer = _buildFallbackEssay(question: question, records: records);
 
     return GeneratedCuration(
       insightTitle: _buildInsightTitle(themes),
@@ -126,7 +109,10 @@ class LlmEngine {
       ..writeln('- 과거 기록에 없는 내용은 추측하지 않습니다.')
       ..writeln('- 의학적 진단이나 치료 조언은 하지 않습니다.')
       ..writeln('- 응답은 따뜻하지만 과장되지 않게 작성합니다.')
-      ..writeln('- 답변에는 시간 맥락, 구체적인 기록 제목, 인용문 1개, 부드러운 후속 질문을 포함합니다.')
+      ..writeln('- 답변은 4~5개의 짧은 문단으로 구성된 편지/에세이 형식으로 작성합니다.')
+      ..writeln('- 문단은 빈 줄 하나로 구분합니다.')
+      ..writeln('- 기록을 직접 언급하는 문장 끝에는 반드시 {{CITE:record_id}} 토큰을 붙입니다.')
+      ..writeln('- 질문에 답하는 통찰, 패턴 해석, 회복 단서가 모두 포함되어야 합니다.')
       ..writeln()
       ..writeln('[질문]')
       ..writeln(question)
@@ -143,12 +129,106 @@ class LlmEngine {
     }
 
     buffer
-      ..writeln('위 기록만을 근거로 다음 구조를 지켜 답하세요.')
-      ..writeln('1. 현재 질문에 대한 핵심 통찰 2~3문장')
-      ..writeln('2. 기록에서 가져온 짧은 인용문 1개')
-      ..writeln('3. 사용자가 이어서 적어 볼 부드러운 질문 1개');
+      ..writeln('위 기록만을 근거로 답하세요.')
+      ..writeln('출력 형식:')
+      ..writeln('1. 첫 문단은 편지를 시작하는 짧은 문장')
+      ..writeln('2. 둘째 문단부터는 기록을 근거로 한 해석')
+      ..writeln('3. 최소 두 개 이상의 {{CITE:record_id}} 토큰 포함')
+      ..writeln('4. 마지막 문단은 부드러운 가능성 제안으로 마무리');
 
     return buffer.toString();
+  }
+
+  String _normalizeEssayAnswer(
+    String answer, {
+    required List<LifeRecord> records,
+  }) {
+    final trimmed = answer.trim();
+    if (trimmed.isEmpty) {
+      return _buildFallbackEssay(question: '', records: records);
+    }
+    if (trimmed.contains('{{CITE:')) {
+      return trimmed;
+    }
+    final fallback = _buildFallbackEssay(question: '', records: records);
+    final paragraphs = trimmed
+        .split(RegExp(r'\n\s*\n'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (paragraphs.isEmpty) {
+      return fallback;
+    }
+    final withCitations = <String>[
+      paragraphs.first,
+      if (paragraphs.length > 1)
+        '${paragraphs[1]} {{CITE:${records.first.id}}}'
+      else
+        '{{CITE:${records.first.id}}}',
+      ...paragraphs.skip(2),
+    ];
+    if (records.length > 1) {
+      withCitations.add(
+        '비슷한 흐름은 "${records[1].title}"에서도 한 번 더 보입니다. {{CITE:${records[1].id}}}',
+      );
+    }
+    return withCitations.join('\n\n');
+  }
+
+  String _buildFallbackEssay({
+    required String question,
+    required List<LifeRecord> records,
+  }) {
+    final topRecord = records.first;
+    final secondaryRecord = records.length > 1 ? records[1] : null;
+    final thirdRecord = records.length > 2 ? records[2] : null;
+    final tone = _selectFallbackTemplate(question: question, records: records);
+    final opening = switch (tone) {
+      _FallbackTemplate.relationship =>
+        '기록을 다시 천천히 훑어보며 드리는 작은 편지입니다.',
+      _FallbackTemplate.growth =>
+        '기록 안에서 다시 움직이게 한 장면들을 모아 보았습니다.',
+      _FallbackTemplate.recovery =>
+        '기록 속에서 조금 덜 무너졌던 순간을 먼저 살펴보았습니다.',
+      _FallbackTemplate.temporal =>
+        '지금의 질문이 언제부터 시작된 흐름인지 기록으로 짚어 보았습니다.',
+      _FallbackTemplate.reflective =>
+        '질문과 가장 가까이 닿아 있는 기록들을 다시 읽어 보았습니다.',
+    };
+    final first = '${_describeRelativeTime(topRecord.createdAt)}의 "${topRecord.title}"을 보면, 지금 느끼는 무게는 갑자기 생긴 것보다 조금씩 누적된 흐름에 더 가깝습니다. ${_summarizeContent(topRecord.content)}라는 문장이 특히 먼저 보입니다. {{CITE:${topRecord.id}}}';
+
+    final second = switch (tone) {
+      _FallbackTemplate.relationship =>
+        secondaryRecord == null
+            ? '기록을 보면 혼자 견디는 시간이 길어질수록 마음의 무게가 더 커지는 패턴이 있습니다.'
+            : '비슷한 결은 ${_describeRelativeTime(secondaryRecord.createdAt)}의 "${secondaryRecord.title}"에서도 한 번 더 나타납니다. 감정이 풀리는 쪽에는 대개 대화나 관계의 회복이 함께 붙어 있었습니다. {{CITE:${secondaryRecord.id}}}',
+      _FallbackTemplate.growth =>
+        secondaryRecord == null
+            ? '완전히 회복된 날보다, 작게라도 다시 시작한 장면이 전환점으로 남아 있습니다.'
+            : '또 ${_describeRelativeTime(secondaryRecord.createdAt)}의 "${secondaryRecord.title}"에서는 작은 실행이 감각을 바꾸는 장면이 보입니다. 완성보다 시작 속도가 먼저 회복을 열어 준 셈입니다. {{CITE:${secondaryRecord.id}}}',
+      _FallbackTemplate.recovery =>
+        secondaryRecord == null
+            ? '흥미로운 점은 힘이 빠진 날 옆에 회복 단서도 함께 적혀 있다는 점입니다.'
+            : '흥미로운 점은 비슷하게 지친 기록 옆에 회복 행동이 같이 남아 있다는 것입니다. ${_describeRelativeTime(secondaryRecord.createdAt)}의 "${secondaryRecord.title}"도 그런 단서로 이어집니다. {{CITE:${secondaryRecord.id}}}',
+      _FallbackTemplate.temporal =>
+        secondaryRecord == null
+            ? '그래서 이번 어려움도 한 번의 사건보다 리듬이 무너진 시간을 함께 볼 필요가 있습니다.'
+            : '시간을 조금 넓혀 보면 ${_describeRelativeTime(secondaryRecord.createdAt)}의 "${secondaryRecord.title}"에서도 비슷한 결이 반복됩니다. 한 번의 사건보다 리듬이 흔들릴 때 같은 감정이 다시 찾아오는 편입니다. {{CITE:${secondaryRecord.id}}}',
+      _FallbackTemplate.reflective =>
+        secondaryRecord == null
+            ? '그래서 지금의 질문은 원인을 단정하기보다, 오래 버틴 뒤 어떤 신호가 먼저 나타나는지를 보는 편이 더 정확해 보입니다.'
+            : '그래서 지금의 질문은 원인을 단정하기보다, 오래 버틴 뒤 어떤 신호가 먼저 나타나는지를 보는 편이 더 정확해 보입니다. ${_describeRelativeTime(secondaryRecord.createdAt)}의 "${secondaryRecord.title}"도 같은 흐름을 보강합니다. {{CITE:${secondaryRecord.id}}}',
+    };
+
+    final third = thirdRecord == null
+        ? '기록 전체를 보면 거창한 결심보다 ${_summarizeRecoveryCue(records)} 같은 작고 구체적인 행동이 다시 버틸 힘을 만든 적이 많았습니다.'
+        : '한편 ${_describeRelativeTime(thirdRecord.createdAt)}의 "${thirdRecord.title}"에서는 조금 다른 결이 보입니다. 완전히 나아진 날이라기보다, 몸을 움직이거나 리듬을 바꾸며 다시 숨을 돌린 장면에 가깝습니다. {{CITE:${thirdRecord.id}}}';
+
+    final closing = question.contains('왜')
+        ? '지금의 답은 "왜 이런가"를 단정하기보다, 언제 같은 흐름이 시작되고 무엇이 조금이라도 숨통을 틔웠는지를 기억해 두는 데 더 가까워 보입니다.'
+        : '지금 바로 큰 답을 찾지 않아도 괜찮습니다. 기록 속에서 이미 여러 번 통했던 작은 전환을 다시 꺼내 보는 편이 더 현실적인 시작일 수 있습니다.';
+
+    return <String>[opening, first, second, third, closing].join('\n\n');
   }
 
   String _buildSummary(List<VectorSearchMatch> matches) {
@@ -313,13 +393,6 @@ class LlmEngine {
       }
     }
     return '몸과 마음을 조금 가볍게 만든 행동';
-  }
-
-  String _buildSecondaryBridge(LifeRecord? record) {
-    if (record == null) {
-      return '';
-    }
-    return '${_describeRelativeTime(record.createdAt)}의 "${record.title}"에서도 비슷한 결이 한 번 더 확인됩니다.';
   }
 
   String _buildSupportingQuote(LifeRecord record) {

@@ -35,6 +35,7 @@ void main() {
     expect(result.summary, contains('쉬어도 피곤한 주말'));
     expect(result.answer, contains('쉬어도 피곤한 주말'));
     expect(result.answer, contains('1년 전'));
+    expect(result.answer, contains('{{CITE:'));
     expect(result.supportingQuote, startsWith('"'));
     expect(
       result.supportingQuote,
