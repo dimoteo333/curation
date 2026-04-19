@@ -52,7 +52,7 @@ void main() {
     await tester.pumpWidget(harness.buildApp());
     await _pumpUntilFound(tester, find.text('큐레이터 시작하기'));
 
-    expect(preferences.getString('app.first_run_version'), '1.5.0+15');
+    expect(preferences.getString('app.first_run_version'), isNull);
 
     await tester.tap(find.byKey(const Key('onboardingSkipButton')));
     await tester.pumpAndSettle();
@@ -64,6 +64,7 @@ void main() {
     expect(find.text('질문'), findsOneWidget);
     expect(find.text('타임라인'), findsOneWidget);
     expect(find.text('설정'), findsOneWidget);
+    expect(preferences.getString('app.first_run_version'), '1.5.0+15');
   });
 
   testWidgets('app restart는 온보딩을 반복하지 않고 바로 메인 앱으로 간다', (
@@ -180,7 +181,9 @@ Future<void> _pumpUntilFound(
     }
   }
 
-  throw TestFailure('Timed out waiting for ${finder.description}.');
+  throw TestFailure(
+    'Timed out waiting for ${finder.describeMatch(Plurality.many)}.',
+  );
 }
 
 class _AppHarness {

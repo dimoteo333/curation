@@ -288,17 +288,11 @@ final localLifeRecordsProvider = FutureProvider<List<LifeRecord>>((ref) async {
 
 final localDataInitializationProvider = FutureProvider<void>((ref) async {
   ref.watch(localDataRevisionProvider);
-  await ref.read(appSettingsProvider.notifier).ensureFirstRunVersion();
-
-  final vectorDb = ref.watch(vectorDbProvider);
   final databaseEncryption = ref.watch(databaseEncryptionProvider);
-  if (await vectorDb.hasPersistedDatabaseFile() &&
-      !await databaseEncryption.hasMasterKey()) {
-    throw const LocalDataInitializationRecoveryRequiredException.missingKeyForExistingDatabase();
-  }
 
   try {
     await ref.watch(lifeRecordStoreProvider).initialize();
+    await databaseEncryption.ensureMasterKey();
   } on DatabaseEncryptionResetRequiredException catch (error) {
     throw LocalDataInitializationRecoveryRequiredException.fromEncryptionError(
       error,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -49,7 +51,14 @@ class _AppEntry extends ConsumerWidget {
       ),
       error: (error, _) {
         if (error is LocalDataInitializationRecoveryRequiredException) {
-          return _LocalDataRecoveryScreen(recovery: error);
+          if (_requiresLocalDataRecovery(error)) {
+            return _LocalDataRecoveryScreen(recovery: error);
+          }
+          return _LocalDataRetryScreen(
+            title: error.title,
+            message: error.message,
+            details: error.details,
+          );
         }
         if (error is DatabaseEncryptionResetRequiredException) {
           return _LocalDataRecoveryScreen(
@@ -59,22 +68,50 @@ class _AppEntry extends ConsumerWidget {
                 ),
           );
         }
-        return _LocalDataRecoveryScreen(
-          recovery: LocalDataInitializationRecoveryRequiredException.unknown(
-            details: error.toString(),
-          ),
+        return _LocalDataRetryScreen(
+          title: '앱을 바로 열 수 없습니다',
+          message: '로컬 데이터를 준비하는 중 문제가 발생했습니다. 다시 시도해 주세요.',
+          details: error.toString(),
         );
       },
     );
   }
 }
 
-class CuratorAppShell extends ConsumerWidget {
+bool _requiresLocalDataRecovery(
+  LocalDataInitializationRecoveryRequiredException recovery,
+) {
+  return switch (recovery.reason) {
+    LocalDataInitializationRecoveryReason.missingKeyForExistingDatabase ||
+    LocalDataInitializationRecoveryReason.encryptedDataUnavailable ||
+    LocalDataInitializationRecoveryReason.corruptedDatabase => true,
+    LocalDataInitializationRecoveryReason.unknown => false,
+  };
+}
+
+class CuratorAppShell extends ConsumerStatefulWidget {
   const CuratorAppShell({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CuratorAppShell> createState() => _CuratorAppShellState();
+}
+
+class _CuratorAppShellState extends ConsumerState<CuratorAppShell> {
+  bool _didRequestFirstRunVersion = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = ref.watch(appSettingsProvider);
     final shellState = ref.watch(curatorAppShellProvider);
+
+    if (!_didRequestFirstRunVersion && settings.firstRunVersion == null) {
+      _didRequestFirstRunVersion = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(
+          ref.read(appSettingsProvider.notifier).ensureFirstRunVersion(),
+        );
+      });
+    }
 
     return Scaffold(
       extendBody: true,
@@ -101,6 +138,77 @@ class CuratorAppShell extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _LocalDataRetryScreen extends ConsumerWidget {
+  const _LocalDataRetryScreen({
+    required this.title,
+    required this.message,
+    this.details,
+  });
+
+  final String title;
+  final String message;
+  final String? details;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Icon(
+                    Icons.sync_problem_rounded,
+                    size: 44,
+                    color: colorScheme.error,
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  if (details != null && details!.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      details!,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    key: const Key('localDataRetryOnlyButton'),
+                    onPressed: () =>
+                        ref.invalidate(localDataInitializationProvider),
+                    child: const Text('다시 시도'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

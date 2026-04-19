@@ -233,14 +233,25 @@ class HomeScreen extends ConsumerWidget {
               _EmptyHomeState(
                 onImportData: () => shell.selectTab(CuratorTab.settings),
                 onLoadDemoData: () async {
-                  await ref.read(lifeRecordStoreProvider).loadDemoData();
-                  ref.read(localDataRevisionProvider.notifier).bump();
-                  if (!context.mounted) {
-                    return;
+                  try {
+                    await ref.read(lifeRecordStoreProvider).loadDemoData();
+                    ref.read(localDataRevisionProvider.notifier).bump();
+                    if (!context.mounted) {
+                      return;
+                    }
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('데모 데이터를 불러왔습니다.')),
+                    );
+                  } catch (_) {
+                    if (!context.mounted) {
+                      return;
+                    }
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('데모 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'),
+                      ),
+                    );
                   }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('데모 데이터를 불러왔습니다.')),
-                  );
                 },
               ),
               const SizedBox(height: 20),
