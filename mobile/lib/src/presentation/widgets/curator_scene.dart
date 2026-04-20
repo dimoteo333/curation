@@ -36,7 +36,9 @@ class CuratorBackdrop extends StatelessWidget {
             right: -80,
             child: _EditorialHalo(
               diameter: 320,
-              color: palette.terra.withValues(alpha: palette.isDark ? 0.14 : 0.12),
+              color: palette.terra.withValues(
+                alpha: palette.isDark ? 0.14 : 0.12,
+              ),
             ),
           ),
           Positioned(
@@ -44,7 +46,9 @@ class CuratorBackdrop extends StatelessWidget {
             left: -120,
             child: _EditorialHalo(
               diameter: 280,
-              color: palette.ochre.withValues(alpha: palette.isDark ? 0.08 : 0.07),
+              color: palette.ochre.withValues(
+                alpha: palette.isDark ? 0.08 : 0.07,
+              ),
             ),
           ),
           Positioned(
@@ -67,11 +71,7 @@ class CuratorBackdrop extends StatelessWidget {
 }
 
 class PaperGrain extends StatelessWidget {
-  const PaperGrain({
-    super.key,
-    this.opacity = 0.18,
-    this.borderRadius,
-  });
+  const PaperGrain({super.key, this.opacity = 0.18, this.borderRadius});
 
   final double opacity;
   final BorderRadius? borderRadius;
@@ -110,11 +110,7 @@ class PaperGrain extends StatelessWidget {
 }
 
 class CuratorMark extends StatelessWidget {
-  const CuratorMark({
-    super.key,
-    this.size = 24,
-    this.color,
-  });
+  const CuratorMark({super.key, this.size = 24, this.color});
 
   final double size;
   final Color? color;
@@ -125,9 +121,25 @@ class CuratorMark extends StatelessWidget {
     return SizedBox(
       width: size,
       height: size,
-      child: CustomPaint(
-        painter: _CuratorMarkPainter(color ?? palette.terra),
-      ),
+      child: CustomPaint(painter: _CuratorMarkPainter(color ?? palette.terra)),
+    );
+  }
+}
+
+class CuratorLogoBadge extends StatelessWidget {
+  const CuratorLogoBadge({super.key, this.size = 28});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(
+      'assets/branding/curator_mark.png',
+      width: size,
+      height: size,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.high,
+      excludeFromSemantics: true,
     );
   }
 }
@@ -161,10 +173,7 @@ class CuratorMarkArtwork extends StatelessWidget {
               boxShadow: palette.shadowCard,
             ),
             child: Center(
-              child: CuratorMark(
-                size: size * 0.48,
-                color: palette.terra,
-              ),
+              child: CuratorMark(size: size * 0.48, color: palette.terra),
             ),
           ),
         ],

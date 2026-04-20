@@ -1,7 +1,7 @@
 import 'package:curator_mobile/src/core/config/app_build_info.dart';
 import 'package:curator_mobile/src/data/import/calendar_import_service.dart';
-import 'package:curator_mobile/src/data/ondevice/litert_method_channel_bridge.dart';
 import 'package:curator_mobile/src/data/local/life_record_store.dart';
+import 'package:curator_mobile/src/data/ondevice/litert_method_channel_bridge.dart';
 import 'package:curator_mobile/src/presentation/screens/settings_screen.dart';
 import 'package:curator_mobile/src/providers.dart';
 import 'package:curator_mobile/src/theme/curator_theme.dart';

@@ -145,6 +145,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ),
                           const _HairlineDivider(),
                           _ValueRow(
+                            title: '상태',
+                            value: _calendarSyncStateLabel(status),
+                          ),
+                          const _HairlineDivider(),
+                          _ValueRow(
                             title: '마지막 동기화',
                             value: _formatTimestamp(status.lastSyncedAt),
                           ),
@@ -160,6 +165,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             subtitle: '최근 30일 기기 일정에서 중복 없이 다시 가져옵니다.',
                             actionLabel: '동기화',
                             onTap: _syncCalendar,
+                          ),
+                          const _HairlineDivider(),
+                          _ActionRow(
+                            key: const Key('settingsGoogleCalendarNoteButton'),
+                            title: 'Google Calendar 가져오기 안내',
+                            subtitle: 'iPhone 캘린더에 동기화된 Google 일정도 함께 읽을 수 있습니다.',
+                            actionLabel: '보기',
+                            onTap: _showGoogleCalendarNote,
                           ),
                           if (status.permissionStatus ==
                                   CalendarImportPermissionStatus.denied ||
@@ -298,9 +311,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     child: Column(
                       children: [
                         _ActionRow(
+                          key: const Key('settingsNotesImportButton'),
+                          title: '내보낸 메모 파일 가져오기',
+                          subtitle: 'Apple Notes에서 저장한 `.txt`, `.md` 파일을 바로 선택합니다.',
+                          actionLabel: '불러오기',
+                          onTap: _importFiles,
+                        ),
+                        const _HairlineDivider(),
+                        _ActionRow(
                           key: const Key('settingsNotesGuideButton'),
                           title: 'Apple Notes 가져오기 안내',
-                          subtitle: '직접 연동 대신 `.txt` export 후 파일 가져오기를 안내합니다.',
+                          subtitle: '공유 시트 연동과 `.txt` 또는 `.md` 파일 가져오기 흐름을 안내합니다.',
                           actionLabel: '가이드 보기',
                           onTap: _showNotesImportGuide,
                         ),
@@ -616,6 +637,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Future<void> _showGoogleCalendarNote() {
+    return showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Google Calendar 안내'),
+          content: const SingleChildScrollView(
+            child: Text(
+              '큐레이터는 `device_calendar_plus`를 통해 iPhone 기본 캘린더 저장소를 읽습니다.\n\n'
+              '따라서 iOS 설정 또는 캘린더 앱에서 Google 계정을 연결해 두면, 기기에 동기화된 Google 일정도 같은 동기화 경로로 함께 가져올 수 있습니다.\n\n'
+              '큐레이터가 Google 계정에 직접 로그인하거나 Google Calendar API를 호출하는 방식은 아닙니다.',
+            ),
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('닫기'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _showMessage(String message) {
     ScaffoldMessenger.of(
       context,
@@ -693,6 +738,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       CalendarImportPermissionStatus.restricted => '이 기기에서는 캘린더 접근이 제한되어 있습니다.',
       CalendarImportPermissionStatus.notDetermined => '캘린더 권한을 먼저 허용해 주세요.',
     };
+  }
+
+  String _calendarSyncStateLabel(CalendarSyncStatus status) {
+    if (!status.syncEnabled) {
+      return '꺼짐';
+    }
+    if (!status.hasPermission) {
+      return '권한 필요';
+    }
+    if (status.lastSyncedAt == null) {
+      return '동기화 대기 중';
+    }
+    if (status.importedEventCount == 0) {
+      return '동기화 완료, 저장된 일정 없음';
+    }
+    return '동기화 완료';
   }
 
   String _formatDataSourceSummary(Map<String, int> sourceCounts) {

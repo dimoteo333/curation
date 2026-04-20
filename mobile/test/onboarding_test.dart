@@ -8,10 +8,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'fake_pending_import.dart';
+
 void main() {
   testWidgets('첫 실행 시 온보딩을 보여주고 완료 후 홈으로 진입한다', (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues(const <String, Object>{});
     final preferences = await SharedPreferences.getInstance();
+    final pendingImportService = FakePendingSharedImportService();
     _setViewport(tester, const Size(1200, 2200));
 
     await tester.pumpWidget(
@@ -30,6 +33,12 @@ void main() {
             const _FakeOnDeviceLlmBridge(),
           ),
           localDataInitializationProvider.overrideWith((ref) async {}),
+          pendingSharedImportBridgeProvider.overrideWithValue(
+            pendingImportService.bridge,
+          ),
+          pendingSharedImportServiceProvider.overrideWithValue(
+            pendingImportService,
+          ),
           localDataStatsProvider.overrideWith(
             (ref) => const LocalDataStats(
               recordCount: 0,
@@ -77,6 +86,7 @@ void main() {
   ) async {
     SharedPreferences.setMockInitialValues(const <String, Object>{});
     final preferences = await SharedPreferences.getInstance();
+    final pendingImportService = FakePendingSharedImportService();
     _setViewport(tester, const Size(640, 1136));
 
     await tester.pumpWidget(
@@ -95,6 +105,12 @@ void main() {
             const _FakeOnDeviceLlmBridge(),
           ),
           localDataInitializationProvider.overrideWith((ref) async {}),
+          pendingSharedImportBridgeProvider.overrideWithValue(
+            pendingImportService.bridge,
+          ),
+          pendingSharedImportServiceProvider.overrideWithValue(
+            pendingImportService,
+          ),
           localDataStatsProvider.overrideWith(
             (ref) => const LocalDataStats(
               recordCount: 0,

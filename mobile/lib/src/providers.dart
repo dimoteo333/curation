@@ -14,6 +14,7 @@ import 'data/import/calendar_import_service.dart';
 import 'data/import/file_picker_gateway.dart';
 import 'data/import/file_record_import_service.dart';
 import 'data/import/import_history_service.dart';
+import 'data/import/pending_shared_import_service.dart';
 import 'data/local/life_record_store.dart';
 import 'data/local/seed_records.dart';
 import 'data/local/vector_db.dart';
@@ -157,6 +158,21 @@ final fileRecordImportServiceProvider = Provider<FileRecordImportService>((
     recordStore: ref.watch(lifeRecordStoreProvider),
     filePicker: ref.watch(importFilePickerProvider),
     importHistoryService: ref.watch(importHistoryServiceProvider),
+  );
+});
+
+final pendingSharedImportBridgeProvider = Provider<PendingSharedImportBridge>((
+  ref,
+) {
+  return MethodChannelPendingSharedImportBridge();
+});
+
+final pendingSharedImportServiceProvider = Provider<PendingSharedImportService>((
+  ref,
+) {
+  return PendingSharedImportService(
+    bridge: ref.watch(pendingSharedImportBridgeProvider),
+    fileImportService: ref.watch(fileRecordImportServiceProvider),
   );
 });
 

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/security/database_encryption.dart';
+import 'data/import/pending_shared_import_service.dart';
 import 'presentation/screens/ask_screen.dart';
 import 'presentation/screens/home_screen.dart';
 import 'presentation/screens/onboarding_screen.dart';
@@ -25,8 +26,105 @@ class CuratorApp extends StatelessWidget {
       theme: buildCuratorTheme(Brightness.light),
       darkTheme: buildCuratorTheme(Brightness.dark),
       themeMode: ThemeMode.light,
-      home: const _AppEntry(),
+      home: const _SharedImportLifecycleGate(child: _AppEntry()),
     );
+  }
+}
+
+class _SharedImportLifecycleGate extends ConsumerStatefulWidget {
+  const _SharedImportLifecycleGate({required this.child});
+
+  final Widget child;
+
+  @override
+  ConsumerState<_SharedImportLifecycleGate> createState() =>
+      _SharedImportLifecycleGateState();
+}
+
+class _SharedImportLifecycleGateState
+    extends ConsumerState<_SharedImportLifecycleGate> {
+  late final PendingSharedImportBridge _pendingSharedImportBridge;
+  bool _initialCheckScheduled = false;
+  bool _importInFlight = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _pendingSharedImportBridge = ref.read(pendingSharedImportBridgeProvider);
+    _pendingSharedImportBridge.setResumeHandler(_drainPendingSharedImports);
+  }
+
+  @override
+  void dispose() {
+    _pendingSharedImportBridge.setResumeHandler(null);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final localDataInitialization = ref.watch(localDataInitializationProvider);
+
+    if (localDataInitialization.hasValue && !_initialCheckScheduled) {
+      _initialCheckScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_drainPendingSharedImports());
+      });
+    }
+
+    return widget.child;
+  }
+
+  Future<void> _drainPendingSharedImports() async {
+    if (_importInFlight) {
+      return;
+    }
+
+    final localDataInitialization = ref.read(localDataInitializationProvider);
+    if (!localDataInitialization.hasValue) {
+      return;
+    }
+
+    _importInFlight = true;
+    try {
+      final result = await ref
+          .read(pendingSharedImportServiceProvider)
+          .importPendingSharedFiles();
+      if (result.fileImportResult.importedCount > 0) {
+        ref.read(localDataRevisionProvider.notifier).bump();
+      }
+
+      if (!mounted || !result.hadPendingFiles) {
+        return;
+      }
+
+      final message = _sharedImportMessage(result);
+      if (message == null) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      _importInFlight = false;
+    }
+  }
+
+  String? _sharedImportMessage(PendingSharedImportResult result) {
+    final importedCount = result.fileImportResult.importedCount;
+    final duplicateCount = result.fileImportResult.duplicateFiles.length;
+    final skippedCount = result.fileImportResult.skippedFiles.length;
+
+    if (importedCount == 0 && duplicateCount == 0 && skippedCount == 0) {
+      return null;
+    }
+
+    final parts = <String>[
+      if (importedCount > 0) '가져옴 $importedCount건',
+      if (duplicateCount > 0) '중복 $duplicateCount건',
+      if (skippedCount > 0) '건너뜀 $skippedCount건',
+    ];
+    return '공유된 메모를 처리했습니다. ${parts.join(' · ')}';
   }
 }
 

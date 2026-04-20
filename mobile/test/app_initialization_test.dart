@@ -17,6 +17,7 @@ import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'fake_pending_import.dart';
 import 'test_support.dart';
 
 void main() {
@@ -100,6 +101,7 @@ void main() {
   ) async {
     SharedPreferences.setMockInitialValues(const <String, Object>{});
     final preferences = await SharedPreferences.getInstance();
+    final pendingImportService = FakePendingSharedImportService();
 
     await tester.pumpWidget(
       ProviderScope(
@@ -109,6 +111,12 @@ void main() {
           localDataInitializationProvider.overrideWith((ref) async {
             throw StateError('unexpected init failure');
           }),
+          pendingSharedImportBridgeProvider.overrideWithValue(
+            pendingImportService.bridge,
+          ),
+          pendingSharedImportServiceProvider.overrideWithValue(
+            pendingImportService,
+          ),
         ],
         child: const CuratorApp(),
       ),
@@ -127,6 +135,7 @@ void main() {
       'app.onboarding_completed': true,
     });
     final preferences = await SharedPreferences.getInstance();
+    final pendingImportService = FakePendingSharedImportService();
 
     await tester.pumpWidget(
       ProviderScope(
@@ -137,6 +146,12 @@ void main() {
             const _FakeOnDeviceLlmBridge(),
           ),
           localDataInitializationProvider.overrideWith((ref) async {}),
+          pendingSharedImportBridgeProvider.overrideWithValue(
+            pendingImportService.bridge,
+          ),
+          pendingSharedImportServiceProvider.overrideWithValue(
+            pendingImportService,
+          ),
           localDataStatsProvider.overrideWith(
             (ref) => const LocalDataStats(
               recordCount: 0,

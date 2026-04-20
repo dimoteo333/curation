@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'fake_pending_import.dart';
 import 'fakes/fake_curation_repository.dart';
 import 'test_support.dart';
 
@@ -269,6 +270,7 @@ Future<void> _pumpApp(
     'app.onboarding_completed': true,
   });
   final preferences = await SharedPreferences.getInstance();
+  final pendingImportService = FakePendingSharedImportService();
   tester.view.physicalSize = physicalSize;
   tester.view.devicePixelRatio = 2;
   addTearDown(tester.view.resetPhysicalSize);
@@ -284,6 +286,12 @@ Future<void> _pumpApp(
           createTestDatabaseEncryption(),
         ),
         localDataInitializationProvider.overrideWith((ref) async {}),
+        pendingSharedImportBridgeProvider.overrideWithValue(
+          pendingImportService.bridge,
+        ),
+        pendingSharedImportServiceProvider.overrideWithValue(
+          pendingImportService,
+        ),
         localDataStatsProvider.overrideWith(
           (ref) => const LocalDataStats(
             recordCount: 14,

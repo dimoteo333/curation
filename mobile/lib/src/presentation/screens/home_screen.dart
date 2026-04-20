@@ -41,7 +41,7 @@ class HomeScreen extends ConsumerWidget {
           children: [
             Row(
               children: [
-                const CuratorMark(size: 22),
+                const CuratorLogoBadge(key: Key('homeBrandLogo'), size: 28),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
