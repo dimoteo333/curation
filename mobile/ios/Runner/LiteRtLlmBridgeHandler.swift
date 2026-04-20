@@ -57,6 +57,15 @@ final class LiteRtLlmBridgeHandler {
       )
       return
     }
+    if requestsLiteRtLmBundle(modelPath: llmModelPath) {
+      let message =
+        "iOS용 공개 LiteRT-LM Swift SDK가 아직 없고, Python은 iOS 공개 지원 범위가 아니며, C++ source-build 브리지는 아직 앱에 연결되지 않아 `.litertlm` Gemma 4 모델을 실행할 수 없습니다."
+      lastErrorMessage = message
+      result(
+        FlutterError(code: "llm_unavailable", message: message, details: nil)
+      )
+      return
+    }
 
     do {
       guard let inference = initializeLlm(modelPath: llmModelPath) else {
@@ -85,6 +94,12 @@ final class LiteRtLlmBridgeHandler {
 
   private func initializeLlm(modelPath: String?, errors: inout [String]) -> LlmInference? {
     guard let modelPath, !modelPath.isEmpty else { return nil }
+    if requestsLiteRtLmBundle(modelPath: modelPath) {
+      errors.append(
+        "iOS용 공개 LiteRT-LM Swift SDK가 아직 없고, Python은 iOS 공개 지원 범위가 아니며, C++ source-build 브리지는 아직 앱에 연결되지 않아 `.litertlm` Gemma 4 모델은 Dart 폴백을 사용합니다."
+      )
+      return nil
+    }
     guard FileManager.default.fileExists(atPath: modelPath) else {
       errors.append("LLM 모델 파일을 찾지 못했습니다.")
       return nil
@@ -114,9 +129,7 @@ final class LiteRtLlmBridgeHandler {
     let fallbackActive = !llmReady || !embedderReady
 
     let runtime: String
-    if llmReady && embedderReady {
-      runtime = "native-ready"
-    } else if llmReady || embedderReady {
+    if llmReady || embedderReady {
       runtime = "native-partial"
     } else if lastErrorMessage != nil {
       runtime = "native-error"
@@ -125,10 +138,11 @@ final class LiteRtLlmBridgeHandler {
     }
 
     let message: String
-    if llmReady && embedderReady {
-      message = "LiteRT LLM 및 텍스트 임베더가 준비되었습니다."
-    } else if llmReady {
+    if llmReady {
       message = "LiteRT LLM은 준비되었지만 iOS 텍스트 임베딩은 Dart 의미 폴백을 사용합니다."
+    } else if requestsLiteRtLmBundle(modelPath: llmModelPath) {
+      message =
+        "iOS용 공개 LiteRT-LM Swift SDK가 아직 없고, Python은 iOS 공개 지원 범위가 아니며, C++ source-build 브리지는 아직 앱에 연결되지 않아 `.litertlm` Gemma 4 모델은 Dart 로컬 폴백을 사용합니다."
     } else if llmConfigured && !llmAvailable {
       message = "LLM 모델 경로가 설정되었지만 파일을 찾지 못해 Dart 로컬 폴백을 사용합니다."
     } else if lastErrorMessage != nil {
@@ -151,5 +165,10 @@ final class LiteRtLlmBridgeHandler {
       "lastError": lastErrorMessage as Any,
       "lastPrepareDurationMs": lastPrepareDurationMs as Any,
     ]
+  }
+
+  private func requestsLiteRtLmBundle(modelPath: String?) -> Bool {
+    guard let modelPath else { return false }
+    return modelPath.lowercased().hasSuffix(".litertlm")
   }
 }

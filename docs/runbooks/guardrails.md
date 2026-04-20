@@ -41,7 +41,7 @@ Self-review에서 확인된 9개 이슈를 자동/수동 가드레일로 묶어,
 - 모델 경로 미설정, 잘못된 경로, 실제 모델 연결 3가지 케이스 수동 실행
 - 스키마 변경 시 `VectorDb` 버전과 재색인/마이그레이션 문서 확인
 - Android 변경 시 `mobile/android/app/build.gradle.kts`에서 `minSdk >= 24`, `namespace`, `applicationId`, 고정 버전 의존성, release ProGuard 설정을 함께 확인
-- Android 변경 시 `mobile/android/app/src/main/AndroidManifest.xml`에서 `INTERNET`과 import 경로 관련 읽기 권한 가드를 확인
+- Android 변경 시 `mobile/android/app/src/main/AndroidManifest.xml`에서 `INTERNET`, import 경로 관련 읽기 권한, LiteRT-LM GPU용 native-library 선언을 함께 확인
 - Android 변경 시 `flutter build apk --debug` 또는 `./gradlew :app:assembleDebug`로 실제 컴파일 스모크 테스트를 남긴다
 
 ## 우회 방지 전략
@@ -88,7 +88,7 @@ Self-review에서 확인된 9개 이슈를 자동/수동 가드레일로 묶어,
 
 - Android:
   - `flutter build apk --debug` 또는 `./gradlew :app:assembleDebug`로 최소 컴파일 스모크 테스트를 추가한다.
-  - release 검증 시 shrinker/R8 활성화 상태와 `proguard-rules.pro`의 MediaPipe/TFLite keep 규칙을 함께 확인한다.
+  - release 검증 시 shrinker/R8 활성화 상태와 `proguard-rules.pro`의 LiteRT-LM/TFLite keep 규칙을 함께 확인한다.
   - 현재는 `embed`가 네이티브 미지원이어야 하므로, 상태 응답이 `native-partial` 또는 폴백으로 내려오고 Dart 의미 임베딩으로 계속 동작하는지 확인한다.
 - iOS:
   - macOS 러너에서 `flutter build ios --simulator --no-codesign` 또는 `xcodebuild -workspace Runner.xcworkspace -scheme Runner -sdk iphonesimulator build`를 사용한다.

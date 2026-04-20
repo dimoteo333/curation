@@ -53,11 +53,20 @@ Rules
 - Developer-only model path controls are grouped behind an explicit runtime section so ordinary user settings stay separate from local debug/runtime configuration.
 - Query embeddings currently use the pure Dart `SemanticEmbeddingService` fallback on both iOS and Android.
 - Local retrieval now keeps a tag-cluster ANN-style prefilter, persisted normalized embedding state, and an LRU repeated-question cache so searches do not rescore the full local corpus on every query.
-- Native `embed` bridge calls are intentionally unavailable on both platforms until the MediaPipe text embedding path is stabilized.
+- Native `embed` bridge calls are intentionally unavailable on both platforms
+  until a stable public on-device text embedding path is available.
 - The local vector store keeps normalized embedding and repeated-query caches so small datasets stay responsive without changing the retrieval contract.
 - `LifeRecord` now carries `sourceId` for stable local deduplication, `source` for Korean UI display, `importSource` for extensible source typing, and `metadata` for source-specific details.
-- iOS can use the native LiteRT LLM bridge when a model path is configured on a supported device, but text embedding still falls back to Dart because the current CocoaPods spec set does not resolve `MediaPipeTasksText`.
-- Android can compile and run the native LiteRT LLM bridge with `minSdk >= 24`, pinned MediaPipe GenAI dependencies, and release ProGuard rules that keep MediaPipe/TFLite classes.
+- iOS keeps the legacy MediaPipe bridge for non-`.litertlm` experiments, but
+  public Gemma 4 LiteRT-LM `.litertlm` loading is not currently exposed through
+  a documented Swift SDK path, so that configuration remains fallback-only.
+- Python is not a documented LiteRT-LM iOS app path, and the plausible future
+  Gemma 4 route on iOS is a source-built C++ bridge that this repository does
+  not yet bundle or validate.
+- Android can compile and run the native LiteRT-LM bridge with `minSdk >= 24`,
+  pinned `litertlm-android` dependencies, optional OpenCL native-library
+  manifest declarations, and release ProGuard rules that keep LiteRT-LM/TFLite
+  classes.
 - Both platforms return the same native runtime status shape and fall back to the same Dart semantic embedding path when models are missing or initialization fails.
 - The curation answer is generated from Korean prompt templates and retrieved local context, with native generation used only when the LLM bridge reports partial native readiness.
 - Large model artifacts are staged outside the repository and passed by `LLM_MODEL_PATH` and `EMBEDDER_MODEL_PATH`.

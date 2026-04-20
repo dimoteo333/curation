@@ -120,10 +120,10 @@ android {
     }
 }
 
-val mediaPipeGenAiVersion = "0.10.21"
+val liteRtLmVersion = "0.10.2"
 
 dependencies {
-    implementation("com.google.mediapipe:tasks-genai:$mediaPipeGenAiVersion")
+    implementation("com.google.ai.edge.litertlm:litertlm-android:$liteRtLmVersion")
 }
 
 gradle.taskGraph.whenReady {

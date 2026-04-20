@@ -170,7 +170,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           _ActionRow(
                             key: const Key('settingsGoogleCalendarNoteButton'),
                             title: 'Google Calendar 가져오기 안내',
-                            subtitle: 'iPhone 캘린더에 동기화된 Google 일정도 함께 읽을 수 있습니다.',
+                            subtitle:
+                                'iPhone 캘린더에 동기화된 Google 일정도 함께 읽을 수 있습니다.',
                             actionLabel: '보기',
                             onTap: _showGoogleCalendarNote,
                           ),
@@ -313,7 +314,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         _ActionRow(
                           key: const Key('settingsNotesImportButton'),
                           title: '내보낸 메모 파일 가져오기',
-                          subtitle: 'Apple Notes에서 저장한 `.txt`, `.md` 파일을 바로 선택합니다.',
+                          subtitle:
+                              'Apple Notes에서 저장한 `.txt`, `.md` 파일을 바로 선택합니다.',
                           actionLabel: '불러오기',
                           onTap: _importFiles,
                         ),
@@ -321,7 +323,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         _ActionRow(
                           key: const Key('settingsNotesGuideButton'),
                           title: 'Apple Notes 가져오기 안내',
-                          subtitle: '공유 시트 연동과 `.txt` 또는 `.md` 파일 가져오기 흐름을 안내합니다.',
+                          subtitle:
+                              '공유 시트 연동과 `.txt` 또는 `.md` 파일 가져오기 흐름을 안내합니다.',
                           actionLabel: '가이드 보기',
                           onTap: _showNotesImportGuide,
                         ),
@@ -342,7 +345,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           actionLabel: _developerToolsExpanded ? '접기' : '열기',
                           onTap: () {
                             setState(() {
-                              _developerToolsExpanded = !_developerToolsExpanded;
+                              _developerToolsExpanded =
+                                  !_developerToolsExpanded;
                             });
                           },
                         ),
@@ -353,7 +357,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             controller: _llmPathController,
                             decoration: const InputDecoration(
                               labelText: 'LLM 모델 경로',
-                              hintText: '/path/to/gemma.task',
+                              hintText: '/path/to/gemma-4-E2B-it.litertlm',
                             ),
                           ),
                           const SizedBox(height: 18),
@@ -372,6 +376,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             subtitle: '개발자용 로컬 경로로만 사용됩니다.',
                             actionLabel: '저장',
                             onTap: _saveModelPaths,
+                          ),
+                          const SizedBox(height: 18),
+                          const _DescriptionBlock(
+                            text:
+                                'Android에서는 LiteRT-LM `.litertlm` 번들을 권장합니다. 예: `gemma-4-E2B-it.litertlm`. iOS는 현재 공개 Swift SDK가 없고, Python 경로는 공식 iOS 대상이 아니며, C++ source-build 브리지가 아직 앱에 포함되지 않아 `.litertlm` 입력 시 Dart 폴백을 유지합니다.',
                           ),
                         ],
                       ],

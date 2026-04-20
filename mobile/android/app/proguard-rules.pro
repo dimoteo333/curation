@@ -1,5 +1,5 @@
-# Keep MediaPipe and LiteRT runtime classes that may be referenced from native code.
--keep class com.google.mediapipe.** { *; }
+# Keep LiteRT-LM and LiteRT runtime classes that may be referenced from native code.
+-keep class com.google.ai.edge.litertlm.** { *; }
 -keep class com.google.protobuf.** { *; }
 -keep class org.tensorflow.lite.** { *; }
 -keepclassmembers class * {
