@@ -13,6 +13,10 @@
 2. Start the backend with `bash scripts/run-api.sh`.
 3. Run the simulator test flow with `API_BASE_URL=http://127.0.0.1:8000 bash scripts/run-ios-sim-tests.sh`.
 
+## Core-page harness reference
+
+- For Codex/harness-friendly page coverage, use `docs/runbooks/ios-simulator-core-pages.md`.
+
 ## Current repository caveat
 
 - On the current local machine, `xcrun simctl list devices available` returned no available iOS runtime, so the integration test could not be executed locally.
