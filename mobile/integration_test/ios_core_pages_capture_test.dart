@@ -102,6 +102,7 @@ Future<void> _captureAsk(
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(const Key('todayAskCard')));
   await tester.pumpAndSettle();
+  await _dismissActiveInput(tester);
   expect(find.byKey(const Key('questionTextField')), findsOneWidget);
   await binding.takeScreenshot('today-question');
   await _resetSurface(tester);
@@ -280,6 +281,12 @@ Future<void> _mountApp(
 
 Future<void> _resetSurface(WidgetTester tester) async {
   await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pumpAndSettle();
+}
+
+Future<void> _dismissActiveInput(WidgetTester tester) async {
+  FocusManager.instance.primaryFocus?.unfocus();
+  await tester.pump(const Duration(milliseconds: 300));
   await tester.pumpAndSettle();
 }
 

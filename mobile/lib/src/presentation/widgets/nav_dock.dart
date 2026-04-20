@@ -20,17 +20,10 @@ class NavDock extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = Theme.of(context).extension<CuratorPalette>()!;
     final textTheme = Theme.of(context).textTheme;
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
     final items = <({CuratorTab destination, String label, IconData icon})>[
-      (
-        destination: CuratorTab.home,
-        label: '오늘',
-        icon: CupertinoIcons.house,
-      ),
-      (
-        destination: CuratorTab.ask,
-        label: '질문',
-        icon: CupertinoIcons.search,
-      ),
+      (destination: CuratorTab.home, label: '오늘', icon: CupertinoIcons.house),
+      (destination: CuratorTab.ask, label: '질문', icon: CupertinoIcons.search),
       (
         destination: CuratorTab.timeline,
         label: '타임라인',
@@ -43,37 +36,39 @@ class NavDock extends StatelessWidget {
       ),
     ];
 
-    return SafeArea(
-      top: false,
-      child: ClipRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: palette.paper.withValues(alpha: 0.88),
-              border: Border(
-                top: BorderSide(
-                  color: palette.line2.withValues(alpha: 0.9),
-                  width: 0.5,
-                ),
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: palette.paper.withValues(alpha: 0.9),
+            border: Border(
+              top: BorderSide(
+                color: palette.line2.withValues(alpha: 0.9),
+                width: 0.5,
               ),
             ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
-              child: Row(
-                children: [
-                  for (final item in items)
-                    Expanded(
-                      child: _NavItem(
-                        active: item.destination == activeDestination,
-                        icon: item.icon,
-                        label: item.label,
-                        onTap: () => onSelected(item.destination),
-                        textTheme: textTheme,
-                      ),
+          ),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              8,
+              10,
+              8,
+              bottomInset > 0 ? bottomInset + 2 : 8,
+            ),
+            child: Row(
+              children: [
+                for (final item in items)
+                  Expanded(
+                    child: _NavItem(
+                      active: item.destination == activeDestination,
+                      icon: item.icon,
+                      label: item.label,
+                      onTap: () => onSelected(item.destination),
+                      textTheme: textTheme,
                     ),
-                ],
-              ),
+                  ),
+              ],
             ),
           ),
         ),

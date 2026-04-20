@@ -310,7 +310,8 @@ Outputs:
 Harness notes:
 - 이 lane은 실데이터 대신 deterministic provider override를 사용한다.
 - answer와 memory sheet는 실제 질문 제출 플로우를 통과한 뒤 캡쳐된다.
-- Codex가 screenshot byte를 직접 저장하므로 별도 수동 export step이 없다.
+- Codex는 simulator app screenshot 위에 iOS status bar와 home indicator를 합성해 full-screen framing을 만든다.
+- status bar는 9:41 / Wi-Fi / 배터리 100% 기준으로 고정된다.
 
 ## Existing automated coverage to reuse
 

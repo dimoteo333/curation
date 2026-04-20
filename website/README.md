@@ -34,5 +34,6 @@ flutter drive \
 ## Notes for Codex
 
 - 캡쳐는 deterministic provider override 기반이라 앱 실데이터 없이 재생성할 수 있다.
+- 캡쳐 이미지는 simulator app screenshot에 iOS status bar와 home indicator를 합성한 full-screen framing이다.
 - 문서의 screenshot reference는 모두 `captures/ios-simulator/core/` 기준 상대경로를 사용한다.
 - 이 폴더에는 환경 파일을 두지 않는다.

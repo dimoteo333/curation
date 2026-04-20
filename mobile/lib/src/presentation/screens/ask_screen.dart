@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -143,48 +144,61 @@ class _AskScreenState extends ConsumerState<AskScreen> {
             AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               curve: Curves.easeOut,
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
+                color: Colors.white.withValues(alpha: 0.84),
+                borderRadius: BorderRadius.circular(24),
                 border: Border.all(
-                  color: _focused ? palette.terra : palette.line2,
+                  color: _focused
+                      ? palette.terra.withValues(alpha: 0.42)
+                      : palette.line2,
                 ),
                 boxShadow: _focused
                     ? [
-                        ...palette.shadowCard,
                         BoxShadow(
-                          color: palette.terra.withValues(alpha: 0.12),
+                          color: palette.ink.withValues(alpha: 0.08),
+                          blurRadius: 22,
+                          offset: const Offset(0, 10),
+                        ),
+                        BoxShadow(
+                          color: palette.terra.withValues(alpha: 0.08),
                           blurRadius: 0,
-                          spreadRadius: 4,
+                          spreadRadius: 1.5,
                         ),
                       ]
                     : palette.shadowSoft,
               ),
               child: Column(
                 children: [
-                  TextField(
+                  CupertinoTextField(
                     key: const Key('questionTextField'),
                     controller: _controller,
                     focusNode: _focusNode,
                     minLines: 3,
                     maxLines: 8,
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                     style: theme.textTheme.bodySmall?.copyWith(
                       fontFamily: 'IBMPlexSansKR',
                       fontSize: 16,
                       height: 1.55,
                       color: palette.ink,
                     ),
-                    decoration: InputDecoration(
-                      hintText: '예) 지난 겨울엔 뭘 하면서 기분이 풀렸지?',
-                      hintStyle: theme.textTheme.bodySmall?.copyWith(
-                        fontFamily: 'IBMPlexSansKR',
-                        fontSize: 16,
-                        color: palette.ink3,
+                    placeholder: '예) 지난 겨울엔 뭘 하면서 기분이 풀렸지?',
+                    placeholderStyle: theme.textTheme.bodySmall?.copyWith(
+                      fontFamily: 'IBMPlexSansKR',
+                      fontSize: 16,
+                      height: 1.55,
+                      color: palette.ink3,
+                    ),
+                    clearButtonMode: OverlayVisibilityMode.editing,
+                    decoration: BoxDecoration(
+                      color: palette.paper.withValues(alpha: 0.96),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: _focused
+                            ? palette.terra.withValues(alpha: 0.28)
+                            : palette.line,
                       ),
-                      filled: false,
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,
                     ),
                     textInputAction: TextInputAction.newline,
                     onChanged: (_) {
@@ -204,7 +218,7 @@ class _AskScreenState extends ConsumerState<AskScreen> {
                       }
                     },
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   Container(height: 1, color: palette.line),
                   const SizedBox(height: 10),
                   Row(
@@ -319,11 +333,7 @@ class _AskScreenState extends ConsumerState<AskScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.shield_outlined,
-                  size: 14,
-                  color: palette.sage,
-                ),
+                Icon(Icons.shield_outlined, size: 14, color: palette.sage),
                 const SizedBox(width: 6),
                 Text(
                   'Gemma-4-E2B · 기기 안에서 처리됨',
@@ -348,9 +358,9 @@ class _AskScreenState extends ConsumerState<AskScreen> {
 
     setState(() => _inputError = null);
     unawaited(
-      ref.read(curationControllerProvider.notifier).submitQuestion(
-            normalizedQuestion,
-          ),
+      ref
+          .read(curationControllerProvider.notifier)
+          .submitQuestion(normalizedQuestion),
     );
     if (!mounted) {
       return;
@@ -383,15 +393,15 @@ class _AskScreenState extends ConsumerState<AskScreen> {
   }
 
   void _showVoiceComingSoon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('음성 입력은 곧 지원됩니다.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('음성 입력은 곧 지원됩니다.')));
   }
 
   void _showPhotoComingSoon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('사진 첨부는 곧 지원됩니다.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('사진 첨부는 곧 지원됩니다.')));
   }
 }
 
@@ -420,11 +430,7 @@ class _CircleIconButton extends StatelessWidget {
           shape: BoxShape.circle,
           border: Border.all(color: palette.line),
         ),
-        child: Icon(
-          icon,
-          size: 18,
-          color: palette.ink2,
-        ),
+        child: Icon(icon, size: 18, color: palette.ink2),
       ),
     );
   }
@@ -453,9 +459,7 @@ class _ScopeChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: active ? palette.terra : Colors.white.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: active ? palette.terraDeep : palette.line,
-          ),
+          border: Border.all(color: active ? palette.terraDeep : palette.line),
         ),
         child: Text(
           label,
@@ -502,9 +506,7 @@ class _SamplePromptCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: palette.terra.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: palette.terra.withValues(alpha: 0.2),
-                ),
+                border: Border.all(color: palette.terra.withValues(alpha: 0.2)),
               ),
               child: Text(
                 category,

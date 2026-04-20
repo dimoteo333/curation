@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -155,15 +156,22 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
                     )
                   else if (response != null) ...[
                     if (paragraphs.isNotEmpty)
-                      for (var index = 0; index < _revealedParagraphs; index += 1) ...[
+                      for (
+                        var index = 0;
+                        index < _revealedParagraphs;
+                        index += 1
+                      ) ...[
                         _AnimatedEssayParagraph(
-                          key: ValueKey('paragraph-$index-${paragraphs[index]}'),
+                          key: ValueKey(
+                            'paragraph-$index-${paragraphs[index]}',
+                          ),
                           textSpans: _buildParagraphSpans(
                             context,
                             paragraph: paragraphs[index],
                             citedRecords: response.supportingRecords,
                           ),
-                          showCaret: _streaming && index == _revealedParagraphs - 1,
+                          showCaret:
+                              _streaming && index == _revealedParagraphs - 1,
                         ),
                         if (index != _revealedParagraphs - 1)
                           const SizedBox(height: 18),
@@ -266,7 +274,9 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
         );
       }
       final recordId = match.group(1)!;
-      final citationIndex = citedRecords.indexWhere((record) => record.id == recordId);
+      final citationIndex = citedRecords.indexWhere(
+        (record) => record.id == recordId,
+      );
       if (citationIndex >= 0) {
         final record = citedRecords[citationIndex];
         result.add(
@@ -352,9 +362,9 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
     }
     setState(() => _followUpError = null);
     unawaited(
-      ref.read(curationControllerProvider.notifier).submitQuestion(
-            normalizedQuestion,
-          ),
+      ref
+          .read(curationControllerProvider.notifier)
+          .submitQuestion(normalizedQuestion),
     );
     if (!mounted) {
       return;
@@ -380,15 +390,15 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
   }
 
   void _showVoiceComingSoon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('음성 입력은 곧 지원됩니다.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('음성 입력은 곧 지원됩니다.')));
   }
 
   void _shareComingSoon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('공유 기능은 곧 지원됩니다.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('공유 기능은 곧 지원됩니다.')));
   }
 }
 
@@ -585,10 +595,7 @@ class _ThinkingDotsState extends State<_ThinkingDots>
 }
 
 class _CitationChip extends StatelessWidget {
-  const _CitationChip({
-    required this.number,
-    required this.onTap,
-  });
+  const _CitationChip({required this.number, required this.onTap});
 
   final int number;
   final VoidCallback onTap;
@@ -814,10 +821,7 @@ class _SupportingRecordCard extends StatelessWidget {
 }
 
 class _FeedbackCard extends StatelessWidget {
-  const _FeedbackCard({
-    required this.helpful,
-    required this.onSelect,
-  });
+  const _FeedbackCard({required this.helpful, required this.onSelect});
 
   final bool? helpful;
   final ValueChanged<bool> onSelect;
@@ -827,10 +831,7 @@ class _FeedbackCard extends StatelessWidget {
     final theme = Theme.of(context);
     final palette = theme.extension<CuratorPalette>()!;
 
-    Widget option({
-      required bool value,
-      required IconData icon,
-    }) {
+    Widget option({required bool value, required IconData icon}) {
       final active = helpful == value;
       return InkWell(
         borderRadius: BorderRadius.circular(10),
@@ -841,7 +842,9 @@ class _FeedbackCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: active ? palette.terra : palette.paper2,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: active ? palette.terraDeep : palette.line),
+            border: Border.all(
+              color: active ? palette.terraDeep : palette.line,
+            ),
           ),
           child: Icon(
             icon,
@@ -912,12 +915,12 @@ class _FollowUpBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final palette = theme.extension<CuratorPalette>()!;
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
 
     return Align(
       alignment: Alignment.bottomCenter,
-      child: SafeArea(
-        top: false,
-        minimum: const EdgeInsets.fromLTRB(20, 0, 20, 22),
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(20, 0, 20, bottomInset > 0 ? 8 : 14),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -933,7 +936,7 @@ class _FollowUpBar extends StatelessWidget {
                 ),
               ),
             Container(
-              padding: const EdgeInsets.fromLTRB(16, 6, 6, 6),
+              padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.9),
                 borderRadius: BorderRadius.circular(999),
@@ -943,26 +946,28 @@ class _FollowUpBar extends StatelessWidget {
               child: Row(
                 children: [
                   Expanded(
-                    child: TextField(
+                    child: CupertinoTextField(
                       controller: controller,
                       minLines: 1,
                       maxLines: 3,
                       onSubmitted: (_) => onSend(),
+                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontFamily: 'IBMPlexSansKR',
                         fontSize: 14,
                         color: palette.ink,
                       ),
-                      decoration: InputDecoration(
-                        hintText: '더 물어보기…',
-                        filled: false,
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.zero,
-                        hintStyle: theme.textTheme.bodySmall?.copyWith(
-                          fontFamily: 'IBMPlexSansKR',
-                          fontSize: 14,
-                          color: palette.ink3,
-                        ),
+                      placeholder: '더 물어보기…',
+                      placeholderStyle: theme.textTheme.bodySmall?.copyWith(
+                        fontFamily: 'IBMPlexSansKR',
+                        fontSize: 14,
+                        color: palette.ink3,
+                      ),
+                      clearButtonMode: OverlayVisibilityMode.editing,
+                      decoration: BoxDecoration(
+                        color: palette.paper.withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: palette.line),
                       ),
                     ),
                   ),
@@ -1020,9 +1025,7 @@ class _CircleButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: background,
           shape: BoxShape.circle,
-          border: Border.all(
-            color: accent ? palette.terraDeep : palette.line,
-          ),
+          border: Border.all(color: accent ? palette.terraDeep : palette.line),
         ),
         child: Icon(
           icon,
