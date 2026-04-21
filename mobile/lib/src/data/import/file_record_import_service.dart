@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as path;
@@ -147,6 +147,8 @@ class FileRecordImportService {
           },
         ),
       );
+    } on FileSystemException {
+      return null;
     } on InputValidationException {
       return null;
     }

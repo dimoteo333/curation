@@ -23,6 +23,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final TextEditingController _embedderPathController;
   bool _pathsInitialized = false;
   bool _developerToolsExpanded = false;
+  bool _isImportingFiles = false;
+  bool _isSyncingCalendar = false;
+  bool _isLoadingDemoData = false;
+  bool _isClearingData = false;
+  bool _isSavingModelPaths = false;
 
   @override
   void initState() {
@@ -163,7 +168,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             key: const Key('settingsCalendarSyncButton'),
                             title: '지금 동기화',
                             subtitle: '최근 30일 기기 일정에서 중복 없이 다시 가져옵니다.',
-                            actionLabel: '동기화',
+                            actionLabel: _isSyncingCalendar
+                                ? '동기화 중...'
+                                : '동기화',
                             onTap: _syncCalendar,
                           ),
                           const _HairlineDivider(),
@@ -237,7 +244,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             key: const Key('settingsImportButton'),
                             title: '파일 가져오기',
                             subtitle: '`.txt`, `.md` 기록을 불러옵니다.',
-                            actionLabel: '불러오기',
+                            actionLabel: _isImportingFiles
+                                ? '가져오는 중...'
+                                : '불러오기',
                             onTap: _importFiles,
                           ),
                           if (stats.recordCount == 0) ...[
@@ -246,7 +255,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               key: const Key('settingsLoadDemoDataButton'),
                               title: '데모 데이터 로드',
                               subtitle: '체험용 기록 14건을 로컬 DB에 불러옵니다.',
-                              actionLabel: '로드',
+                              actionLabel: _isLoadingDemoData
+                                  ? '로드 중...'
+                                  : '로드',
                               onTap: _loadDemoData,
                             ),
                           ],
@@ -255,7 +266,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             key: const Key('settingsClearDataButton'),
                             title: '모든 데이터 삭제',
                             subtitle: '로컬 기록, 인덱스, 앱 설정을 모두 제거합니다.',
-                            actionLabel: '삭제',
+                            actionLabel: _isClearingData ? '삭제 중...' : '삭제',
                             destructive: true,
                             onTap: _clearAllData,
                           ),
@@ -316,7 +327,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           title: '내보낸 메모 파일 가져오기',
                           subtitle:
                               'Apple Notes에서 저장한 `.txt`, `.md` 파일을 바로 선택합니다.',
-                          actionLabel: '불러오기',
+                          actionLabel: _isImportingFiles ? '가져오는 중...' : '불러오기',
                           onTap: _importFiles,
                         ),
                         const _HairlineDivider(),
@@ -374,7 +385,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             key: const Key('saveModelPathsButton'),
                             title: '모델 경로 저장',
                             subtitle: '개발자용 로컬 경로로만 사용됩니다.',
-                            actionLabel: '저장',
+                            actionLabel: _isSavingModelPaths ? '저장 중...' : '저장',
                             onTap: _saveModelPaths,
                           ),
                           const SizedBox(height: 18),
@@ -458,110 +469,173 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _importFiles() async {
-    final service = ref.read(fileRecordImportServiceProvider);
-    final result = await service.pickAndImport();
-    if (result.importedCount > 0) {
-      ref.read(localDataRevisionProvider.notifier).bump();
-    }
-
-    if (!mounted) {
+    if (_isImportingFiles) {
       return;
     }
+    setState(() => _isImportingFiles = true);
+    try {
+      final service = ref.read(fileRecordImportServiceProvider);
+      final result = await service.pickAndImport();
+      if (result.importedCount > 0) {
+        ref.read(localDataRevisionProvider.notifier).bump();
+      }
 
-    if (!result.hasImportedRecords &&
-        result.skippedFiles.isEmpty &&
-        result.duplicateFiles.isEmpty) {
-      _showMessage('선택한 파일이 없습니다.');
-      return;
+      if (!mounted) {
+        return;
+      }
+
+      if (!result.hasImportedRecords &&
+          result.skippedFiles.isEmpty &&
+          result.duplicateFiles.isEmpty) {
+        _showMessage('선택한 파일이 없습니다.');
+        return;
+      }
+
+      final skippedSummary = result.skippedFiles.isEmpty
+          ? ''
+          : ' 건너뜀 ${result.skippedFiles.length}건';
+      final duplicateSummary = result.duplicateFiles.isEmpty
+          ? ''
+          : ' 중복 ${result.duplicateFiles.length}건';
+      _showMessage(
+        '파일 ${result.importedCount}건을 가져왔습니다.$duplicateSummary$skippedSummary',
+      );
+    } catch (_) {
+      if (mounted) {
+        _showMessage('파일을 가져오지 못했습니다. 파일 접근 권한과 형식을 확인해 주세요.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isImportingFiles = false);
+      }
     }
-
-    final skippedSummary = result.skippedFiles.isEmpty
-        ? ''
-        : ' 건너뜀 ${result.skippedFiles.length}건';
-    final duplicateSummary = result.duplicateFiles.isEmpty
-        ? ''
-        : ' 중복 ${result.duplicateFiles.length}건';
-    _showMessage(
-      '파일 ${result.importedCount}건을 가져왔습니다.$duplicateSummary$skippedSummary',
-    );
   }
 
   Future<void> _toggleCalendarSync(bool enabled) async {
+    if (_isSyncingCalendar) {
+      return;
+    }
     final controller = ref.read(appSettingsProvider.notifier);
-    if (!enabled) {
-      await controller.setCalendarSyncEnabled(false);
+    try {
+      if (!enabled) {
+        await controller.setCalendarSyncEnabled(false);
+        ref.invalidate(calendarSyncStatusProvider);
+        if (!mounted) {
+          return;
+        }
+        _showMessage('캘린더 자동 동기화를 껐습니다.');
+        return;
+      }
+
+      final permissionStatus = await ref
+          .read(calendarImportServiceProvider)
+          .requestPermission();
+      if (permissionStatus != CalendarImportPermissionStatus.granted) {
+        await controller.setCalendarSyncEnabled(false);
+        ref.invalidate(calendarSyncStatusProvider);
+        if (!mounted) {
+          return;
+        }
+        _showMessage(_calendarPermissionErrorMessage(permissionStatus));
+        return;
+      }
+
+      await controller.setCalendarSyncEnabled(true);
+      ref.invalidate(calendarSyncStatusProvider);
+      await _syncCalendar();
+    } catch (_) {
       ref.invalidate(calendarSyncStatusProvider);
       if (!mounted) {
         return;
       }
-      _showMessage('캘린더 자동 동기화를 껐습니다.');
-      return;
+      _showMessage('캘린더 설정을 바꾸지 못했습니다. 권한 상태를 확인한 뒤 다시 시도해 주세요.');
     }
-
-    final permissionStatus = await ref
-        .read(calendarImportServiceProvider)
-        .requestPermission();
-    if (permissionStatus != CalendarImportPermissionStatus.granted) {
-      await controller.setCalendarSyncEnabled(false);
-      ref.invalidate(calendarSyncStatusProvider);
-      if (!mounted) {
-        return;
-      }
-      _showMessage(_calendarPermissionErrorMessage(permissionStatus));
-      return;
-    }
-
-    await controller.setCalendarSyncEnabled(true);
-    ref.invalidate(calendarSyncStatusProvider);
-    await _syncCalendar();
   }
 
   Future<void> _syncCalendar() async {
-    final result = await ref
-        .read(calendarImportServiceProvider)
-        .syncRecentEvents();
-    if (result.permissionStatus != CalendarImportPermissionStatus.granted) {
+    if (_isSyncingCalendar) {
+      return;
+    }
+    setState(() => _isSyncingCalendar = true);
+    try {
+      final result = await ref
+          .read(calendarImportServiceProvider)
+          .syncRecentEvents();
+      if (result.permissionStatus != CalendarImportPermissionStatus.granted) {
+        ref.invalidate(calendarSyncStatusProvider);
+        if (!mounted) {
+          return;
+        }
+        _showMessage(_calendarPermissionErrorMessage(result.permissionStatus));
+        return;
+      }
+
+      ref.read(localDataRevisionProvider.notifier).bump();
       ref.invalidate(calendarSyncStatusProvider);
       if (!mounted) {
         return;
       }
-      _showMessage(_calendarPermissionErrorMessage(result.permissionStatus));
-      return;
-    }
 
-    ref.read(localDataRevisionProvider.notifier).bump();
-    ref.invalidate(calendarSyncStatusProvider);
-    if (!mounted) {
-      return;
+      if (!result.hasImportedRecords) {
+        _showMessage('최근 30일 내 가져올 일정이 없습니다.');
+        return;
+      }
+      _showMessage(
+        '캘린더 일정 ${result.importedCount}건을 동기화했습니다. 조회 ${result.scannedCount}건',
+      );
+    } catch (_) {
+      ref.invalidate(calendarSyncStatusProvider);
+      if (mounted) {
+        _showMessage('캘린더 동기화를 완료하지 못했습니다. 권한과 기기 캘린더 상태를 확인해 주세요.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSyncingCalendar = false);
+      }
     }
-
-    if (!result.hasImportedRecords) {
-      _showMessage('최근 30일 내 가져올 일정이 없습니다.');
-      return;
-    }
-    _showMessage(
-      '캘린더 일정 ${result.importedCount}건을 동기화했습니다. 조회 ${result.scannedCount}건',
-    );
   }
 
   Future<void> _openCalendarPermissionSettings() async {
-    await ref.read(calendarImportServiceProvider).openAppSettings();
-    if (!mounted) {
-      return;
+    try {
+      await ref.read(calendarImportServiceProvider).openAppSettings();
+      if (!mounted) {
+        return;
+      }
+      _showMessage('시스템 설정에서 캘린더 권한을 확인해 주세요.');
+    } catch (_) {
+      if (mounted) {
+        _showMessage('시스템 설정을 열지 못했습니다. 설정 앱에서 캘린더 권한을 확인해 주세요.');
+      }
     }
-    _showMessage('시스템 설정에서 캘린더 권한을 확인해 주세요.');
   }
 
   Future<void> _loadDemoData() async {
-    await ref.read(lifeRecordStoreProvider).loadDemoData();
-    ref.read(localDataRevisionProvider.notifier).bump();
-    if (!mounted) {
+    if (_isLoadingDemoData) {
       return;
     }
-    _showMessage('데모 데이터를 로드했습니다.');
+    setState(() => _isLoadingDemoData = true);
+    try {
+      await ref.read(lifeRecordStoreProvider).loadDemoData();
+      ref.read(localDataRevisionProvider.notifier).bump();
+      if (!mounted) {
+        return;
+      }
+      _showMessage('데모 데이터를 로드했습니다.');
+    } catch (_) {
+      if (mounted) {
+        _showMessage('데모 데이터를 로드하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingDemoData = false);
+      }
+    }
   }
 
   Future<void> _clearAllData() async {
+    if (_isClearingData) {
+      return;
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -585,32 +659,57 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       return;
     }
 
-    await ref.read(lifeRecordStoreProvider).deleteAllData();
-    ref.read(localDataRevisionProvider.notifier).bump();
-    ref.invalidate(appSettingsProvider);
-    ref.invalidate(localDataInitializationProvider);
-    ref.invalidate(onDeviceRuntimeStatusProvider);
-    if (!mounted) {
-      return;
+    setState(() => _isClearingData = true);
+    try {
+      await ref.read(lifeRecordStoreProvider).deleteAllData();
+      ref.read(localDataRevisionProvider.notifier).bump();
+      ref.invalidate(appSettingsProvider);
+      ref.invalidate(localDataInitializationProvider);
+      ref.invalidate(onDeviceRuntimeStatusProvider);
+      if (!mounted) {
+        return;
+      }
+      _llmPathController.clear();
+      _embedderPathController.clear();
+      _showMessage('모든 로컬 데이터를 삭제했습니다.');
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } catch (_) {
+      if (mounted) {
+        _showMessage('로컬 데이터를 삭제하지 못했습니다. 앱을 다시 연 뒤 다시 시도해 주세요.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isClearingData = false);
+      }
     }
-    _llmPathController.clear();
-    _embedderPathController.clear();
-    _showMessage('모든 로컬 데이터를 삭제했습니다.');
-    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   Future<void> _saveModelPaths() async {
-    await ref
-        .read(appSettingsProvider.notifier)
-        .saveModelPaths(
-          llmModelPath: _llmPathController.text,
-          embedderModelPath: _embedderPathController.text,
-        );
-    ref.invalidate(onDeviceRuntimeStatusProvider);
-    if (!mounted) {
+    if (_isSavingModelPaths) {
       return;
     }
-    _showMessage('모델 경로를 저장했습니다.');
+    setState(() => _isSavingModelPaths = true);
+    try {
+      await ref
+          .read(appSettingsProvider.notifier)
+          .saveModelPaths(
+            llmModelPath: _llmPathController.text,
+            embedderModelPath: _embedderPathController.text,
+          );
+      ref.invalidate(onDeviceRuntimeStatusProvider);
+      if (!mounted) {
+        return;
+      }
+      _showMessage('모델 경로를 저장했습니다.');
+    } catch (_) {
+      if (mounted) {
+        _showMessage('모델 경로를 저장하지 못했습니다. 입력값을 확인해 주세요.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSavingModelPaths = false);
+      }
+    }
   }
 
   Future<void> _showNotesImportGuide() {

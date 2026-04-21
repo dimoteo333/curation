@@ -1,4 +1,5 @@
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/services.dart';
 
 class PickedImportFile {
   const PickedImportFile({required this.path, required this.name});
@@ -16,11 +17,18 @@ class FilePickerImportFilePicker implements ImportFilePicker {
 
   @override
   Future<List<PickedImportFile>> pickFiles() async {
-    final result = await FilePicker.platform.pickFiles(
-      allowMultiple: true,
-      type: FileType.custom,
-      allowedExtensions: const <String>['txt', 'md'],
-    );
+    final FilePickerResult? result;
+    try {
+      result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        type: FileType.custom,
+        allowedExtensions: const <String>['txt', 'md'],
+      );
+    } on MissingPluginException {
+      return const <PickedImportFile>[];
+    } on PlatformException {
+      return const <PickedImportFile>[];
+    }
     if (result == null) {
       return const <PickedImportFile>[];
     }

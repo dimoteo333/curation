@@ -32,7 +32,9 @@ class ImportHistoryEntry {
       importSource: json['import_source'] as String? ?? 'unknown',
       label: json['label'] as String? ?? '',
       detail: json['detail'] as String?,
-      importedAt: DateTime.parse(json['imported_at'] as String),
+      importedAt:
+          DateTime.tryParse(json['imported_at'] as String? ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0),
       count: (json['count'] as num?)?.toInt(),
     );
   }
@@ -176,44 +178,49 @@ class ImportHistoryService {
       return <ImportHistoryEntry>[];
     }
 
-    final decoded = jsonDecode(rawEntries) as List<dynamic>;
-    return decoded
-        .whereType<Map<dynamic, dynamic>>()
-        .map(
-          (entry) =>
-              ImportHistoryEntry.fromJson(Map<String, dynamic>.from(entry)),
-        )
-        .toList(growable: true);
+    try {
+      final decoded = jsonDecode(rawEntries) as List<dynamic>;
+      return decoded
+          .whereType<Map<dynamic, dynamic>>()
+          .map(
+            (entry) =>
+                ImportHistoryEntry.fromJson(Map<String, dynamic>.from(entry)),
+          )
+          .toList(growable: true);
+    } on FormatException {
+      return <ImportHistoryEntry>[];
+    } on TypeError {
+      return <ImportHistoryEntry>[];
+    }
   }
 
   Map<String, Map<String, String>> _loadSourceIndex() {
-    final rawIndex = sharedPreferences.getString(_sourceIndexKey);
-    if (rawIndex == null || rawIndex.isEmpty) {
-      return <String, Map<String, String>>{};
-    }
-
-    final decoded = jsonDecode(rawIndex) as Map<String, dynamic>;
-    return <String, Map<String, String>>{
-      for (final entry in decoded.entries)
-        entry.key: Map<String, String>.from(
-          entry.value as Map<dynamic, dynamic>,
-        ),
-    };
+    return _loadStringIndex(_sourceIndexKey);
   }
 
   Map<String, Map<String, String>> _loadFileIndex() {
-    final rawIndex = sharedPreferences.getString(_fileIndexKey);
+    return _loadStringIndex(_fileIndexKey);
+  }
+
+  Map<String, Map<String, String>> _loadStringIndex(String key) {
+    final rawIndex = sharedPreferences.getString(key);
     if (rawIndex == null || rawIndex.isEmpty) {
       return <String, Map<String, String>>{};
     }
 
-    final decoded = jsonDecode(rawIndex) as Map<String, dynamic>;
-    return <String, Map<String, String>>{
-      for (final entry in decoded.entries)
-        entry.key: Map<String, String>.from(
-          entry.value as Map<dynamic, dynamic>,
-        ),
-    };
+    try {
+      final decoded = jsonDecode(rawIndex) as Map<String, dynamic>;
+      return <String, Map<String, String>>{
+        for (final entry in decoded.entries)
+          entry.key: Map<String, String>.from(
+            entry.value as Map<dynamic, dynamic>,
+          ),
+      };
+    } on FormatException {
+      return <String, Map<String, String>>{};
+    } on TypeError {
+      return <String, Map<String, String>>{};
+    }
   }
 
   DateTime? _loadCalendarLastSyncAt() {

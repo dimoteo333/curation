@@ -105,6 +105,15 @@ class _SharedImportLifecycleGateState
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('공유된 메모를 가져오지 못했습니다. 파일을 확인한 뒤 다시 시도해 주세요.'),
+        ),
+      );
     } finally {
       _importInFlight = false;
     }

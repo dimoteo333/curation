@@ -1,5 +1,6 @@
 import 'package:device_calendar_plus/device_calendar_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/security/input_sanitizer.dart';
 import '../../domain/entities/life_record.dart';
@@ -98,7 +99,14 @@ class PluginDeviceCalendarGateway implements DeviceCalendarGateway {
     required DateTime start,
     required DateTime end,
   }) async {
-    final calendars = await _plugin.listCalendars();
+    final List<Calendar> calendars;
+    try {
+      calendars = await _plugin.listCalendars();
+    } on MissingPluginException {
+      return const <CalendarImportEvent>[];
+    } on PlatformException {
+      return const <CalendarImportEvent>[];
+    }
     final visibleCalendars = calendars.where((calendar) => !calendar.hidden);
     final calendarNameById = <String, String>{
       for (final calendar in visibleCalendars) calendar.id: calendar.name,
@@ -107,11 +115,18 @@ class PluginDeviceCalendarGateway implements DeviceCalendarGateway {
       return const <CalendarImportEvent>[];
     }
 
-    final events = await _plugin.listEvents(
-      start,
-      end,
-      calendarIds: calendarNameById.keys.toList(growable: false),
-    );
+    final List<Event> events;
+    try {
+      events = await _plugin.listEvents(
+        start,
+        end,
+        calendarIds: calendarNameById.keys.toList(growable: false),
+      );
+    } on MissingPluginException {
+      return const <CalendarImportEvent>[];
+    } on PlatformException {
+      return const <CalendarImportEvent>[];
+    }
     return events
         .map(
           (event) => CalendarImportEvent(
@@ -137,12 +152,24 @@ class PluginDeviceCalendarGateway implements DeviceCalendarGateway {
 
   @override
   Future<CalendarImportPermissionStatus> permissionStatus() async {
-    return _mapPermissionStatus(await _plugin.hasPermissions());
+    try {
+      return _mapPermissionStatus(await _plugin.hasPermissions());
+    } on MissingPluginException {
+      return CalendarImportPermissionStatus.restricted;
+    } on PlatformException {
+      return CalendarImportPermissionStatus.restricted;
+    }
   }
 
   @override
   Future<CalendarImportPermissionStatus> requestPermission() async {
-    return _mapPermissionStatus(await _plugin.requestPermissions());
+    try {
+      return _mapPermissionStatus(await _plugin.requestPermissions());
+    } on MissingPluginException {
+      return CalendarImportPermissionStatus.restricted;
+    } on PlatformException {
+      return CalendarImportPermissionStatus.restricted;
+    }
   }
 
   CalendarImportPermissionStatus _mapPermissionStatus(
