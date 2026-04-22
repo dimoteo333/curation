@@ -8,10 +8,12 @@ class PickedImportFile {
   final String name;
 }
 
+/// File picker boundary for text and Markdown imports.
 abstract class ImportFilePicker {
   Future<List<PickedImportFile>> pickFiles();
 }
 
+/// File picker implementation backed by the platform file picker plugin.
 class FilePickerImportFilePicker implements ImportFilePicker {
   const FilePickerImportFilePicker();
 

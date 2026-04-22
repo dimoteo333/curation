@@ -15,6 +15,7 @@ import 'providers.dart';
 import 'state/app_shell_controller.dart';
 import 'theme/curator_theme.dart';
 
+/// Root widget for the Curator mobile client.
 class CuratorApp extends StatelessWidget {
   const CuratorApp({super.key});
 

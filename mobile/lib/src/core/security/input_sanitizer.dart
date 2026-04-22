@@ -12,6 +12,7 @@ class InputValidationException implements Exception {
   String toString() => message;
 }
 
+/// Centralized validation and normalization for user-controlled text inputs.
 class InputSanitizer {
   const InputSanitizer._();
 

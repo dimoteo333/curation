@@ -75,6 +75,7 @@ class CalendarImportResult {
   bool get hasImportedRecords => importedCount > 0;
 }
 
+/// Platform calendar boundary used by the import service and tests.
 abstract class DeviceCalendarGateway {
   Future<CalendarImportPermissionStatus> permissionStatus();
 
@@ -88,6 +89,7 @@ abstract class DeviceCalendarGateway {
   });
 }
 
+/// Calendar gateway backed by `device_calendar_plus`.
 class PluginDeviceCalendarGateway implements DeviceCalendarGateway {
   PluginDeviceCalendarGateway({DeviceCalendar? plugin})
     : _plugin = plugin ?? DeviceCalendar.instance;
@@ -189,6 +191,7 @@ class PluginDeviceCalendarGateway implements DeviceCalendarGateway {
   }
 }
 
+/// Imports recent device calendar events into the local life-record store.
 class CalendarImportService {
   CalendarImportService({
     required this.recordStore,

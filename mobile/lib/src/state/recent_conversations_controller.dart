@@ -27,7 +27,8 @@ class RecentConversation {
       question: json['question'] as String? ?? '',
       preview: json['preview'] as String? ?? '',
       askedAt:
-          DateTime.tryParse(json['asked_at'] as String? ?? '') ?? DateTime.now(),
+          DateTime.tryParse(json['asked_at'] as String? ?? '') ??
+          DateTime.now(),
     );
   }
 }
@@ -51,9 +52,8 @@ class RecentConversationsController extends Notifier<List<RecentConversation>> {
     return decoded
         .whereType<Map<dynamic, dynamic>>()
         .map(
-          (item) => RecentConversation.fromJson(
-            Map<String, dynamic>.from(item),
-          ),
+          (item) =>
+              RecentConversation.fromJson(Map<String, dynamic>.from(item)),
         )
         .toList(growable: false);
   }
@@ -78,7 +78,9 @@ class RecentConversationsController extends Notifier<List<RecentConversation>> {
         .read(sharedPreferencesProvider)
         .setString(
           _storageKey,
-          jsonEncode(state.map((item) => item.toJson()).toList(growable: false)),
+          jsonEncode(
+            state.map((item) => item.toJson()).toList(growable: false),
+          ),
         );
   }
 

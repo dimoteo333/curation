@@ -52,7 +52,9 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                     borderRadius: BorderRadius.circular(999),
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('필터 옵션은 아래 칩에서 조절할 수 있습니다.')),
+                        const SnackBar(
+                          content: Text('필터 옵션은 아래 칩에서 조절할 수 있습니다.'),
+                        ),
                       );
                     },
                     child: Ink(
@@ -122,9 +124,13 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   }
 
   List<LifeRecord> _applyFilter(List<LifeRecord> records) {
-    return records.where((record) {
-      return _selectedSources.contains(_timelineSourceId(record.importSource));
-    }).toList(growable: false);
+    return records
+        .where((record) {
+          return _selectedSources.contains(
+            _timelineSourceId(record.importSource),
+          );
+        })
+        .toList(growable: false);
   }
 
   void _toggleSource(String source) {
@@ -156,10 +162,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 }
 
 class _TimelineBody extends StatelessWidget {
-  const _TimelineBody({
-    required this.records,
-    required this.onOpenRecord,
-  });
+  const _TimelineBody({required this.records, required this.onOpenRecord});
 
   final List<LifeRecord> records;
   final ValueChanged<LifeRecord> onOpenRecord;
@@ -178,11 +181,7 @@ class _TimelineBody extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Icon(
-              Icons.inbox_outlined,
-              size: 28,
-              color: palette.ink3,
-            ),
+            Icon(Icons.inbox_outlined, size: 28, color: palette.ink3),
             const SizedBox(height: 12),
             Text(
               '아직 기록이 없습니다',
@@ -232,10 +231,7 @@ class _TimelineBody extends StatelessWidget {
 }
 
 class _TimelineRecordCard extends StatelessWidget {
-  const _TimelineRecordCard({
-    required this.record,
-    required this.onTap,
-  });
+  const _TimelineRecordCard({required this.record, required this.onTap});
 
   final LifeRecord record;
   final VoidCallback onTap;
@@ -405,9 +401,7 @@ class _SourceFilterChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: active ? palette.terra : Colors.white.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: active ? palette.terraDeep : palette.line,
-          ),
+          border: Border.all(color: active ? palette.terraDeep : palette.line),
         ),
         child: Text(
           label,
@@ -434,7 +428,11 @@ Map<String, List<LifeRecord>> _groupRecords(List<LifeRecord> records) {
   };
 
   for (final record in records) {
-    final date = DateTime(record.createdAt.year, record.createdAt.month, record.createdAt.day);
+    final date = DateTime(
+      record.createdAt.year,
+      record.createdAt.month,
+      record.createdAt.day,
+    );
     final difference = today.difference(date).inDays;
     if (difference <= 0) {
       result['오늘']!.add(record);

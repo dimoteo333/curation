@@ -20,6 +20,7 @@ class DatabaseEncryptionResetRequiredException implements Exception {
   String toString() => message;
 }
 
+/// Minimal secure key-value storage used for encryption keys.
 abstract class SecureKeyStore {
   Future<String?> read(String key);
 
@@ -28,6 +29,7 @@ abstract class SecureKeyStore {
   Future<void> delete(String key);
 }
 
+/// Secure key store backed by the platform keychain/keystore plugin.
 class FlutterSecureKeyStore implements SecureKeyStore {
   FlutterSecureKeyStore({FlutterSecureStorage? storage})
     : _storage = storage ?? const FlutterSecureStorage();
@@ -68,6 +70,7 @@ class FlutterSecureKeyStore implements SecureKeyStore {
   }
 }
 
+/// Encrypts personal text fields before they are written to local SQLite.
 class DatabaseEncryption {
   DatabaseEncryption({
     required SecureKeyStore secureKeyStore,

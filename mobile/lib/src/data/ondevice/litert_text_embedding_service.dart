@@ -1,6 +1,7 @@
 import '../../domain/services/text_embedding_service.dart';
 import 'litert_method_channel_bridge.dart';
 
+/// Embedding service that uses native LiteRT when ready and Dart fallback otherwise.
 class LiteRtTextEmbeddingService implements TextEmbeddingService {
   const LiteRtTextEmbeddingService({
     required this.bridge,

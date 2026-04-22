@@ -27,6 +27,7 @@ class FileImportResult {
   bool get hasImportedRecords => importedCount > 0;
 }
 
+/// Parses local text files and persists them as life records.
 class FileRecordImportService {
   FileRecordImportService({
     required this.recordStore,

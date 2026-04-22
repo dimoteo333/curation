@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import '../../domain/services/text_embedding_service.dart';
 
+/// Deterministic Dart semantic embedding fallback used when native embedding is unavailable.
 class SemanticEmbeddingService implements TextEmbeddingService {
   const SemanticEmbeddingService({this.lexicalDimensions = 160});
 

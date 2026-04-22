@@ -17,6 +17,7 @@ class LocalDataStats {
   final Map<String, int> sourceCounts;
 }
 
+/// Coordinates local record storage, embedding, encryption, and destructive reset.
 class LifeRecordStore {
   LifeRecordStore({
     required this.vectorDb,

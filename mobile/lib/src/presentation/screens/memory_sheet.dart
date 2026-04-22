@@ -59,10 +59,7 @@ class MemorySheetRecord {
 }
 
 class MemorySheet extends StatelessWidget {
-  const MemorySheet({
-    super.key,
-    required this.record,
-  });
+  const MemorySheet({super.key, required this.record});
 
   final MemorySheetRecord record;
 
@@ -280,7 +277,9 @@ class MemorySheet extends StatelessWidget {
   }
 
   void _showActionMessage(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -309,9 +308,7 @@ class _MemoryActionButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: accent ? palette.terra : Colors.white.withValues(alpha: 0.55),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: accent ? palette.terraDeep : palette.line,
-          ),
+          border: Border.all(color: accent ? palette.terraDeep : palette.line),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -344,10 +341,7 @@ class _MemoryActionButton extends StatelessWidget {
 }
 
 class _TagChip extends StatelessWidget {
-  const _TagChip({
-    required this.label,
-    this.accent = false,
-  });
+  const _TagChip({required this.label, this.accent = false});
 
   final String label;
   final bool accent;
@@ -364,9 +358,7 @@ class _TagChip extends StatelessWidget {
             : palette.ink.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: accent
-              ? palette.terra.withValues(alpha: 0.18)
-              : palette.line2,
+          color: accent ? palette.terra.withValues(alpha: 0.18) : palette.line2,
         ),
       ),
       child: Text(

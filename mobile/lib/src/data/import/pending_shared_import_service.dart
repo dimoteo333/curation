@@ -18,6 +18,7 @@ class PendingSharedImportResult {
   bool get hadPendingFiles => pendingFileCount > 0;
 }
 
+/// Platform bridge for files delivered through the iOS share extension.
 abstract class PendingSharedImportBridge {
   Future<List<PickedImportFile>> listPendingFiles();
 
@@ -26,6 +27,7 @@ abstract class PendingSharedImportBridge {
   void setResumeHandler(PendingSharedResumeHandler? onResume);
 }
 
+/// Method-channel implementation of the pending shared-file bridge.
 class MethodChannelPendingSharedImportBridge
     implements PendingSharedImportBridge {
   static const MethodChannel _channel = MethodChannel(
@@ -74,9 +76,12 @@ class MethodChannelPendingSharedImportBridge
     }
 
     try {
-      await _channel.invokeMethod<void>('clearPendingSharedFiles', <String, Object>{
-        'paths': files.map((file) => file.path).toList(growable: false),
-      });
+      await _channel.invokeMethod<void>(
+        'clearPendingSharedFiles',
+        <String, Object>{
+          'paths': files.map((file) => file.path).toList(growable: false),
+        },
+      );
     } on MissingPluginException {
       return;
     } on PlatformException {
@@ -99,6 +104,7 @@ class MethodChannelPendingSharedImportBridge
   }
 }
 
+/// Drains pending shared files into the normal file import pipeline.
 class PendingSharedImportService {
   const PendingSharedImportService({
     required this.bridge,

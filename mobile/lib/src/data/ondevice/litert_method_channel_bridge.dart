@@ -178,6 +178,7 @@ class OnDeviceRuntimeStatus {
   }
 }
 
+/// Boundary for native on-device model preparation, generation, and embedding.
 abstract class OnDeviceLlmBridge {
   Future<OnDeviceRuntimeStatus> prepare({
     String? llmModelPath,
@@ -197,6 +198,7 @@ abstract class OnDeviceLlmBridge {
   Future<List<double>> embed(String text);
 }
 
+/// Method-channel bridge for the native LiteRT-LM runtime.
 class MethodChannelOnDeviceLlmBridge implements OnDeviceLlmBridge {
   const MethodChannelOnDeviceLlmBridge();
 

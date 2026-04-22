@@ -13,6 +13,7 @@ import '../ondevice/semantic_embedding_service.dart';
 
 typedef DatabasePathResolver = Future<String> Function();
 
+/// Search result returned by the local vector database.
 class VectorSearchMatch {
   const VectorSearchMatch({required this.record, required this.score});
 
@@ -20,6 +21,7 @@ class VectorSearchMatch {
   final double score;
 }
 
+/// Encrypted local SQLite store with vector search and retrieval caches.
 class VectorDb {
   VectorDb({
     required this.databaseFactory,

@@ -167,14 +167,14 @@ final pendingSharedImportBridgeProvider = Provider<PendingSharedImportBridge>((
   return MethodChannelPendingSharedImportBridge();
 });
 
-final pendingSharedImportServiceProvider = Provider<PendingSharedImportService>((
-  ref,
-) {
-  return PendingSharedImportService(
-    bridge: ref.watch(pendingSharedImportBridgeProvider),
-    fileImportService: ref.watch(fileRecordImportServiceProvider),
-  );
-});
+final pendingSharedImportServiceProvider = Provider<PendingSharedImportService>(
+  (ref) {
+    return PendingSharedImportService(
+      bridge: ref.watch(pendingSharedImportBridgeProvider),
+      fileImportService: ref.watch(fileRecordImportServiceProvider),
+    );
+  },
+);
 
 final deviceCalendarGatewayProvider = Provider<DeviceCalendarGateway>((ref) {
   return PluginDeviceCalendarGateway();
