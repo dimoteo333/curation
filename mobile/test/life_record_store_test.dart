@@ -103,4 +103,50 @@ void main() {
     expect(await store.isEmpty(), isFalse);
     expect(preferences.getBool('local_records.demo_data_loaded'), isNull);
   });
+
+  test('deleteAllData 후 앱을 다시 시작해도 데모 데이터가 자동으로 들어오지 않는다', () async {
+    final databasePath = path.join(tempDirectory.path, 'restart-empty.db');
+    final preferences = await SharedPreferences.getInstance();
+    final secureKeyStore = InMemorySecureKeyStore();
+    final firstStore = LifeRecordStore(
+      vectorDb: VectorDb(
+        databaseFactory: databaseFactoryFfi,
+        databasePathResolver: () async => databasePath,
+        databaseEncryption: createTestDatabaseEncryption(
+          secureKeyStore: secureKeyStore,
+        ),
+      ),
+      databaseEncryption: createTestDatabaseEncryption(
+        secureKeyStore: secureKeyStore,
+      ),
+      embeddingService: const SemanticEmbeddingService(),
+      seedRecords: seededLifeRecords.take(2).toList(),
+      sharedPreferences: preferences,
+    );
+
+    await firstStore.loadDemoData();
+    expect(await firstStore.isEmpty(), isFalse);
+
+    await firstStore.deleteAllData();
+
+    final restartedStore = LifeRecordStore(
+      vectorDb: VectorDb(
+        databaseFactory: databaseFactoryFfi,
+        databasePathResolver: () async => databasePath,
+        databaseEncryption: createTestDatabaseEncryption(
+          secureKeyStore: secureKeyStore,
+        ),
+      ),
+      databaseEncryption: createTestDatabaseEncryption(
+        secureKeyStore: secureKeyStore,
+      ),
+      embeddingService: const SemanticEmbeddingService(),
+      seedRecords: seededLifeRecords.take(2).toList(),
+      sharedPreferences: preferences,
+    );
+
+    await restartedStore.initialize();
+
+    expect(await restartedStore.isEmpty(), isTrue);
+  });
 }

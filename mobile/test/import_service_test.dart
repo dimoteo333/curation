@@ -91,6 +91,8 @@ void main() {
     expect(record.metadata['parser'], 'markdown-header');
     expect(record.metadata['tag_count'], greaterThanOrEqualTo(2));
     expect(record.metadata['content_hash'], isNotEmpty);
+    expect(record.sourceId, record.metadata['content_hash']);
+    expect(record.id, 'file-${record.metadata['content_hash']}');
   });
 
   test('비어 있거나 지원하지 않는 파일은 건너뛴다', () async {

@@ -125,11 +125,11 @@ class FileRecordImportService {
       final tags = SemanticEmbeddingService.suggestTags(
         '$sanitizedTitle $sanitizedContent',
       );
-      final sourceId = 'file-$contentHash';
+      final sourceId = contentHash;
       return _ParsedImportFile(
         contentHash: contentHash,
         record: LifeRecord(
-          id: sourceId,
+          id: 'file-$contentHash',
           sourceId: sourceId,
           source: '파일',
           importSource: 'file',

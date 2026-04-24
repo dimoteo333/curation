@@ -20,7 +20,7 @@ void main() {
       FileImportHistoryRecord(
         contentHash: 'abc123',
         fileName: 'journal.txt',
-        sourceId: 'file-123',
+        sourceId: 'abc123',
         importedAt: importedAt,
       ),
     ]);

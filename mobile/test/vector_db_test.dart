@@ -555,6 +555,58 @@ void main() {
     expect(embeddings.single['doc_id'], 'note-1');
   });
 
+  test('cleanOrphanEmbeddings는 실행 중 생긴 orphan row도 정리한다', () async {
+    final databasePath = path.join(
+      tempDirectory.path,
+      'runtime-orphan-cleanup.db',
+    );
+    final sharedStore = InMemorySecureKeyStore();
+    final encryption = createTestDatabaseEncryption(
+      secureKeyStore: sharedStore,
+    );
+    final vectorDb = VectorDb(
+      databaseFactory: databaseFactoryFfi,
+      databasePathResolver: () async => databasePath,
+      databaseEncryption: encryption,
+    );
+    const embeddingService = _DeterministicEmbeddingService();
+
+    await vectorDb.upsertRecords(<LifeRecord>[
+      _buildRecord(
+        id: 'note-1',
+        title: '메모 1',
+        content: '정상 문서',
+        tags: const <String>['메모'],
+        createdAt: DateTime(2026, 4, 10),
+      ),
+    ], embeddingService);
+
+    final rawDb = await databaseFactoryFfi.openDatabase(
+      databasePath,
+      options: OpenDatabaseOptions(singleInstance: false),
+    );
+    await rawDb.insert('embeddings', <String, Object?>{
+      'doc_id': 'runtime-orphan-doc',
+      'dim': 3,
+      'vector_json': '[0.1, 0.2, 0.3]',
+      'normalized': 1,
+    });
+    await rawDb.close();
+
+    final deletedCount = await vectorDb.cleanOrphanEmbeddings();
+
+    final reopenedDb = await databaseFactoryFfi.openDatabase(
+      databasePath,
+      options: OpenDatabaseOptions(singleInstance: false),
+    );
+    final embeddings = await reopenedDb.query('embeddings');
+    await reopenedDb.close();
+
+    expect(deletedCount, 1);
+    expect(embeddings, hasLength(1));
+    expect(embeddings.single['doc_id'], 'note-1');
+  });
+
   test('100건 검색은 ANN prefilter로 100ms 안에 끝난다', () async {
     final vectorDb = VectorDb(
       databaseFactory: databaseFactoryFfi,

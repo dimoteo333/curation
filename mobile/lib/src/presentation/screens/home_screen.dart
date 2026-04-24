@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/local/life_record_store.dart';
+import '../../domain/entities/curated_response.dart';
 import '../../providers.dart';
 import '../../state/app_shell_controller.dart';
 import '../../state/recent_conversations_controller.dart';
@@ -344,6 +345,13 @@ class HomeScreen extends ConsumerWidget {
                                           ),
                                     ),
                                   ),
+                                  if (recentConversations[index]
+                                      .hasRuntimeBadge) ...[
+                                    const SizedBox(width: 8),
+                                    _RecentConversationRuntimeBadge(
+                                      conversation: recentConversations[index],
+                                    ),
+                                  ],
                                   const SizedBox(width: 8),
                                   Text(
                                     _relativeConversationTime(
@@ -434,6 +442,64 @@ class HomeScreen extends ConsumerWidget {
         askedAt: now.subtract(const Duration(days: 14)),
       ),
     ];
+  }
+}
+
+class _RecentConversationRuntimeBadge extends StatelessWidget {
+  const _RecentConversationRuntimeBadge({required this.conversation});
+
+  final RecentConversation conversation;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = theme.extension<CuratorPalette>()!;
+    final label = conversation.resolvedRuntimeBadgeLabel;
+    if (label == null) {
+      return const SizedBox.shrink();
+    }
+
+    final badgeStyle = switch (conversation.runtimePath) {
+      CurationRuntimePath.onDeviceNative => (
+        background: palette.sage.withValues(alpha: 0.14),
+        foreground: palette.sage,
+        border: palette.sage.withValues(alpha: 0.26),
+      ),
+      CurationRuntimePath.onDeviceFallback => (
+        background: palette.terraSoft.withValues(alpha: 0.18),
+        foreground: palette.terraDeep,
+        border: palette.terra.withValues(alpha: 0.28),
+      ),
+      CurationRuntimePath.remoteHarness => (
+        background: palette.paper2,
+        foreground: palette.ink2,
+        border: palette.line2,
+      ),
+      null => (
+        background: palette.paper2,
+        foreground: palette.ink2,
+        border: palette.line2,
+      ),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      decoration: BoxDecoration(
+        color: badgeStyle.background,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: badgeStyle.border),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          fontFamily: 'IBMPlexSansKR',
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
+          color: badgeStyle.foreground,
+          letterSpacing: 0.1,
+        ),
+      ),
+    );
   }
 }
 

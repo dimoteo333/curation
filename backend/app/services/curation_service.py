@@ -109,7 +109,7 @@ class CurationService:
             score += len(expanded_terms & tag_terms) * 4
             score += len(expanded_terms & title_terms) * 3
             score += self._phrase_match_bonus(record, expanded_terms)
-            if record.source == "diary":
+            if record.source in {"diary", "일기"}:
                 score += 2
             score += self._recency_bonus(record)
             ranked.append((score, record))

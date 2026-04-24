@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:curator_mobile/src/app.dart';
 import 'package:curator_mobile/src/data/local/life_record_store.dart';
 import 'package:curator_mobile/src/data/local/seed_records.dart';
@@ -69,6 +71,41 @@ void main() {
 
     expect(find.text('질문하기'), findsOneWidget);
     expect(find.byKey(const Key('questionTextField')), findsOneWidget);
+  });
+
+  testWidgets('홈 화면 최근 대화 카드에 런타임 경로 배지를 표시한다', (WidgetTester tester) async {
+    await _pumpApp(
+      tester,
+      bridge: const FakeOnDeviceLlmBridge(
+        runtimeStatus: OnDeviceRuntimeStatus(
+          llmReady: true,
+          embedderReady: true,
+          runtime: 'native-ready',
+          message: '네이티브 LLM과 임베더가 모두 준비되었습니다.',
+          platform: 'android',
+          llmModelConfigured: true,
+          embedderModelConfigured: true,
+          llmModelAvailable: true,
+          embedderModelAvailable: true,
+          fallbackActive: false,
+        ),
+      ),
+      mockPreferences: <String, Object>{
+        'app.onboarding_completed': true,
+        'app.recent_conversations': jsonEncode(<Map<String, String>>[
+          <String, String>{
+            'question': '어제도 같은 질문을 했나요?',
+            'preview': '비슷한 피로 흐름이 반복됐습니다.',
+            'asked_at': '2026-04-24T09:30:00.000',
+            'runtime_path': 'onDeviceNative',
+            'runtime_badge_label': '네이티브',
+          },
+        ]),
+      },
+    );
+
+    expect(find.text('어제도 같은 질문을 했나요?'), findsOneWidget);
+    expect(find.text('네이티브'), findsOneWidget);
   });
 
   testWidgets('질문 제출 후 답변 화면으로 이동한다', (WidgetTester tester) async {
@@ -265,10 +302,11 @@ Future<void> _pumpApp(
   WidgetTester tester, {
   required OnDeviceLlmBridge bridge,
   Size physicalSize = const Size(1400, 2800),
-}) async {
-  SharedPreferences.setMockInitialValues(const <String, Object>{
+  Map<String, Object> mockPreferences = const <String, Object>{
     'app.onboarding_completed': true,
-  });
+  },
+}) async {
+  SharedPreferences.setMockInitialValues(mockPreferences);
   final preferences = await SharedPreferences.getInstance();
   final pendingImportService = FakePendingSharedImportService();
   tester.view.physicalSize = physicalSize;

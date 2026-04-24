@@ -672,14 +672,7 @@ class VectorDb {
     TextEmbeddingService embeddingService,
   ) async {
     for (final record in records) {
-      final existing = await _findDocBySourceId(
-        txn,
-        record.importSource,
-        record.sourceId,
-      );
-      if (existing != null) {
-        await _deleteEmbeddingsByDocId(txn, existing['id']! as String);
-      }
+      await _deleteExistingRecordForUpsert(txn, record);
 
       final encryptedTitle = await databaseEncryption.encryptValue(
         record.title,
@@ -732,6 +725,28 @@ class VectorDb {
       return null;
     }
     return rows.first;
+  }
+
+  Future<void> _deleteExistingRecordForUpsert(
+    DatabaseExecutor db,
+    LifeRecord record,
+  ) async {
+    final existing = await _findDocBySourceId(
+      db,
+      record.importSource,
+      record.sourceId,
+    );
+    if (existing == null) {
+      return;
+    }
+
+    final existingDocumentId = existing['id']! as String;
+    await _deleteEmbeddingsByDocId(db, existingDocumentId);
+    await db.delete(
+      'documents',
+      where: 'id = ?',
+      whereArgs: <Object>[existingDocumentId],
+    );
   }
 
   Future<void> _deleteEmbeddingsByDocId(
