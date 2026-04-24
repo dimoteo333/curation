@@ -240,7 +240,10 @@ class CalendarImportService {
       end: now,
     );
     final dedupedEvents = _dedupeEvents(rawEvents);
-    final records = dedupedEvents.map(toLifeRecord).toList(growable: false);
+    final records = <LifeRecord>[];
+    for (final event in dedupedEvents) {
+      records.add(await toLifeRecord(event));
+    }
 
     if (records.isNotEmpty) {
       await recordStore.importRecords(records);
@@ -261,7 +264,7 @@ class CalendarImportService {
   }
 
   @visibleForTesting
-  LifeRecord toLifeRecord(CalendarImportEvent event) {
+  Future<LifeRecord> toLifeRecord(CalendarImportEvent event) async {
     final normalizedTitle = _normalizeTitle(event.title);
     final normalizedDescription = _normalizeDescription(event.description);
     final fallbackContent = _buildFallbackContent(
@@ -271,7 +274,7 @@ class CalendarImportService {
       isAllDay: event.isAllDay,
     );
     final content = normalizedDescription ?? fallbackContent;
-    final tags = _extractTags(event, normalizedTitle, content);
+    final tags = await _extractTags(event, normalizedTitle, content);
     final location = _normalizeMetadataValue(event.location);
 
     return LifeRecord(
@@ -336,11 +339,11 @@ class CalendarImportService {
     return trimmed.isEmpty ? null : trimmed;
   }
 
-  List<String> _extractTags(
+  Future<List<String>> _extractTags(
     CalendarImportEvent event,
     String title,
     String content,
-  ) {
+  ) async {
     final tagSeed = <String>[
       title,
       if (event.calendarName.trim().isNotEmpty) event.calendarName.trim(),

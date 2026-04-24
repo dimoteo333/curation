@@ -1,0 +1,179 @@
+{
+  "version": 1,
+  "normalization": {
+    "lowercase": true,
+    "collapse_whitespace": true,
+    "token_pattern": "[0-9A-Za-z가-힣]+",
+    "compact_pattern": "[0-9A-Za-z가-힣]",
+    "numeric_pattern": "^[0-9]+$",
+    "min_token_length": 2
+  },
+  "topic_rules": [
+    {
+      "key": "무기력",
+      "aliases": ["무기력", "기운없", "기력없", "의욕저하"],
+      "related": ["지침", "번아웃", "회복"]
+    },
+    {
+      "key": "지침",
+      "aliases": ["지침", "지치", "피곤", "피로", "멍했", "멍해"],
+      "related": ["무기력", "수면", "회복"]
+    },
+    {
+      "key": "번아웃",
+      "aliases": ["번아웃", "소진", "탈진", "과로"],
+      "related": ["마감", "무기력", "회복"]
+    },
+    {
+      "key": "마감",
+      "aliases": ["마감", "업무", "프로젝트", "회의", "압박", "우선순위"],
+      "related": ["번아웃", "지침"]
+    },
+    {
+      "key": "수면",
+      "aliases": ["수면", "잠", "불면", "뒤척", "새벽", "일찍 자", "늦게 자"],
+      "related": ["집중", "회복", "지침"]
+    },
+    {
+      "key": "회복",
+      "aliases": ["회복", "숨통", "맑아졌", "나아졌", "진정"],
+      "related": ["산책", "휴식", "수면", "운동", "대화"]
+    },
+    {
+      "key": "휴식",
+      "aliases": ["휴식", "쉬", "쉼", "재충전"],
+      "related": ["회복", "수면"]
+    },
+    {
+      "key": "산책",
+      "aliases": ["산책", "한강", "걷", "걸었", "바깥 공기"],
+      "related": ["회복", "휴식"]
+    },
+    {
+      "key": "운동",
+      "aliases": ["운동", "러닝", "달리기", "헬스", "근력", "스트레칭"],
+      "related": ["건강", "회복", "집중"]
+    },
+    {
+      "key": "집중",
+      "aliases": ["집중", "집중력", "리듬", "루틴"],
+      "related": ["수면", "회복", "성장"]
+    },
+    {
+      "key": "관계",
+      "aliases": ["관계", "친구", "가족", "엄마", "동료", "서운"],
+      "related": ["대화", "회복"]
+    },
+    {
+      "key": "대화",
+      "aliases": ["대화", "이야기", "말했", "통화", "화해"],
+      "related": ["관계", "회복"]
+    },
+    {
+      "key": "의욕",
+      "aliases": ["의욕", "아이디어", "다시 해볼"],
+      "related": ["회복", "창작", "성장"]
+    },
+    {
+      "key": "창작",
+      "aliases": ["창작", "글쓰기", "초안", "작업", "에세이"],
+      "related": ["의욕", "집중"]
+    },
+    {
+      "key": "성장",
+      "aliases": ["성장", "배움", "습관", "강의"],
+      "related": ["집중", "의욕"]
+    }
+  ],
+  "semantic_clusters": [
+    {
+      "key": "fatigue",
+      "aliases": ["무기력", "기운없", "기력없", "의욕저하", "의욕이 떨어", "지침", "지쳤", "피곤", "피로", "멍했", "멍하다"],
+      "related": ["burnout", "sleep", "work_pressure"]
+    },
+    {
+      "key": "burnout",
+      "aliases": ["번아웃", "소진", "탈진", "과로", "숨통이 안", "마음이 따라오지"],
+      "related": ["fatigue", "work_pressure"]
+    },
+    {
+      "key": "work_pressure",
+      "aliases": ["야근", "마감", "업무", "회사", "프로젝트", "회의", "일정", "압박", "우선순위"],
+      "related": ["burnout", "fatigue", "anxiety"]
+    },
+    {
+      "key": "sleep",
+      "aliases": ["수면", "잠", "늦게 자", "일찍 자", "숙면", "불면", "기상", "졸림", "낮잠"],
+      "related": ["fatigue", "recovery", "focus"]
+    },
+    {
+      "key": "recovery",
+      "aliases": ["회복", "휴식", "쉬", "쉼", "재충전", "숨통", "회복감", "맑아졌", "나아졌", "진정"],
+      "related": ["fatigue", "sleep", "focus", "walking"]
+    },
+    {
+      "key": "walking",
+      "aliases": ["산책", "한강", "걷", "걸었", "바깥 공기", "공기를 쐬"],
+      "related": ["recovery", "fatigue"]
+    },
+    {
+      "key": "focus",
+      "aliases": ["집중", "리듬", "루틴", "스트레칭", "정리", "집중력", "머리가 맑"],
+      "related": ["sleep", "recovery", "motivation"]
+    },
+    {
+      "key": "motivation",
+      "aliases": ["의욕", "아이디어", "사이드프로젝트", "사이드 프로젝트", "구현", "전환점"],
+      "related": ["recovery", "focus"]
+    },
+    {
+      "key": "anxiety",
+      "aliases": ["불안", "걱정", "초조", "죄책감", "답답", "버거"],
+      "related": ["fatigue", "work_pressure"]
+    },
+    {
+      "key": "exercise",
+      "aliases": ["운동", "러닝", "달리기", "헬스", "요가", "필라테스", "스트레칭"],
+      "related": ["health", "recovery", "focus"]
+    },
+    {
+      "key": "health",
+      "aliases": ["건강", "몸", "통증", "근육통", "컨디션", "식사", "호흡"],
+      "related": ["exercise", "recovery", "sleep"]
+    },
+    {
+      "key": "relationships",
+      "aliases": ["관계", "친구", "가족", "연인", "동료", "엄마", "아빠", "서운"],
+      "related": ["anxiety", "reflection", "recovery"]
+    },
+    {
+      "key": "reflection",
+      "aliases": ["회고", "기록", "배움", "성장", "습관", "정리", "돌아보"],
+      "related": ["focus", "motivation", "relationships"]
+    },
+    {
+      "key": "creativity",
+      "aliases": ["창작", "글쓰기", "그림", "초안", "작업", "아이디어", "스케치"],
+      "related": ["motivation", "focus", "recovery"]
+    }
+  ],
+  "stop_tokens": [
+    "오늘",
+    "요즘",
+    "이번",
+    "그날",
+    "그때",
+    "정말",
+    "조금",
+    "계속",
+    "너무",
+    "다시",
+    "마음",
+    "느낌",
+    "상태",
+    "하루",
+    "주말",
+    "오전",
+    "오후"
+  ]
+}

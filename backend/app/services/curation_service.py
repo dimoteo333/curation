@@ -1,24 +1,18 @@
 from __future__ import annotations
 
-import re
 from collections import Counter
 from dataclasses import dataclass
 from typing import TypedDict
 
+from backend.app.core.embedding_rules import (
+    TOPIC_RULES,
+    detect_topics,
+    normalize_text,
+    tokenize,
+)
 from backend.app.db.models import StoredRecord
 from backend.app.repositories.record_repository import RecordRepository
 from backend.app.schemas.curation import CurationQueryResponse, SupportingRecordResponse
-
-TOKEN_PATTERN = re.compile(r"[0-9A-Za-z가-힣]+")
-
-
-@dataclass(frozen=True)
-class _TopicRule:
-    key: str
-    aliases: tuple[str, ...]
-    related: tuple[str, ...] = ()
-
-
 @dataclass(frozen=True)
 class _RankedRecord:
     score: int
@@ -42,84 +36,6 @@ TOPIC_PRIORITY: tuple[str, ...] = (
     "의욕",
     "집중",
 )
-
-TOPIC_RULES: dict[str, _TopicRule] = {
-    "무기력": _TopicRule(
-        key="무기력",
-        aliases=("무기력", "기운없", "기력없", "의욕저하"),
-        related=("지침", "번아웃", "회복"),
-    ),
-    "지침": _TopicRule(
-        key="지침",
-        aliases=("지침", "지치", "피곤", "피로", "멍했", "멍해"),
-        related=("무기력", "수면", "회복"),
-    ),
-    "번아웃": _TopicRule(
-        key="번아웃",
-        aliases=("번아웃", "소진", "탈진", "과로"),
-        related=("마감", "무기력", "회복"),
-    ),
-    "마감": _TopicRule(
-        key="마감",
-        aliases=("마감", "업무", "프로젝트", "회의", "압박", "우선순위"),
-        related=("번아웃", "지침"),
-    ),
-    "수면": _TopicRule(
-        key="수면",
-        aliases=("수면", "잠", "불면", "뒤척", "새벽", "일찍 자", "늦게 자"),
-        related=("집중", "회복", "지침"),
-    ),
-    "회복": _TopicRule(
-        key="회복",
-        aliases=("회복", "숨통", "맑아졌", "나아졌", "진정"),
-        related=("산책", "휴식", "수면", "운동", "대화"),
-    ),
-    "휴식": _TopicRule(
-        key="휴식",
-        aliases=("휴식", "쉬", "쉼", "재충전"),
-        related=("회복", "수면"),
-    ),
-    "산책": _TopicRule(
-        key="산책",
-        aliases=("산책", "한강", "걷", "걸었", "바깥 공기"),
-        related=("회복", "휴식"),
-    ),
-    "운동": _TopicRule(
-        key="운동",
-        aliases=("운동", "러닝", "달리기", "헬스", "근력", "스트레칭"),
-        related=("건강", "회복", "집중"),
-    ),
-    "집중": _TopicRule(
-        key="집중",
-        aliases=("집중", "집중력", "리듬", "루틴"),
-        related=("수면", "회복", "성장"),
-    ),
-    "관계": _TopicRule(
-        key="관계",
-        aliases=("관계", "친구", "가족", "엄마", "동료", "서운"),
-        related=("대화", "회복"),
-    ),
-    "대화": _TopicRule(
-        key="대화",
-        aliases=("대화", "이야기", "말했", "통화", "화해"),
-        related=("관계", "회복"),
-    ),
-    "의욕": _TopicRule(
-        key="의욕",
-        aliases=("의욕", "아이디어", "다시 해볼"),
-        related=("회복", "창작", "성장"),
-    ),
-    "창작": _TopicRule(
-        key="창작",
-        aliases=("창작", "글쓰기", "초안", "작업", "에세이"),
-        related=("의욕", "집중"),
-    ),
-    "성장": _TopicRule(
-        key="성장",
-        aliases=("성장", "배움", "습관", "강의"),
-        related=("집중", "의욕"),
-    ),
-}
 
 RECOVERY_SIGNAL_LABELS: tuple[str, ...] = (
     "산책",
@@ -307,7 +223,7 @@ class CurationService:
     def _expand_terms(self, question: str) -> set[str]:
         tokens = self._tokenize(question)
         expanded = set(tokens)
-        normalized = question.lower()
+        normalized = normalize_text(question)
         for topic, rule in TOPIC_RULES.items():
             if any(alias in normalized for alias in rule.aliases):
                 expanded.add(topic)
@@ -354,7 +270,9 @@ class CurationService:
         return f"{excerpt[:85].rstrip()}..."
 
     def _phrase_match_bonus(self, record: StoredRecord, expanded_terms: set[str]) -> int:
-        normalized_haystack = " ".join((record.title, record.content, " ".join(record.tags))).lower()
+        normalized_haystack = normalize_text(
+            " ".join((record.title, record.content, " ".join(record.tags)))
+        )
         bonus = 0
         for term in expanded_terms:
             if len(term) < 2:
@@ -395,16 +313,10 @@ class CurationService:
         return 0
 
     def _tokenize(self, value: str) -> set[str]:
-        return {token.lower() for token in TOKEN_PATTERN.findall(value)}
+        return tokenize(value)
 
     def _detect_topics(self, text: str) -> set[str]:
-        normalized = text.lower()
-        matched = {
-            topic
-            for topic, rule in TOPIC_RULES.items()
-            if any(alias in normalized for alias in rule.aliases)
-        }
-        return matched
+        return detect_topics(text)
 
     def _related_topic_hits(
         self,

@@ -42,7 +42,7 @@ void main() {
       databasePath: path.join(tempDirectory.path, 'calendar.db'),
     );
 
-    final record = service.toLifeRecord(
+    final record = await service.toLifeRecord(
       CalendarImportEvent(
         calendarId: 'cal-1',
         calendarName: '개인',

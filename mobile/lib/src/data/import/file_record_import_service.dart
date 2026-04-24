@@ -122,7 +122,7 @@ class FileRecordImportService {
           : _parsePlainText(pickedFile.name, normalizedText);
       final sanitizedTitle = InputSanitizer.sanitizeTitle(parser.title);
       final sanitizedContent = InputSanitizer.sanitizeContent(parser.content);
-      final tags = SemanticEmbeddingService.suggestTags(
+      final tags = await SemanticEmbeddingService.suggestTags(
         '$sanitizedTitle $sanitizedContent',
       );
       final sourceId = contentHash;

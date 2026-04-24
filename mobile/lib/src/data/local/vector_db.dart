@@ -231,7 +231,7 @@ class VectorDb {
 
     final normalizedQuery = _normalizeQuery(queryVector);
     final queryTags = _normalizedTags(
-      SemanticEmbeddingService.suggestTags(question, maxTags: 6),
+      await SemanticEmbeddingService.suggestTags(question, maxTags: 6),
     );
     final indexSnapshot = await _loadIndexSnapshot();
     final candidates = _prefilterCandidates(indexSnapshot, queryTags);
