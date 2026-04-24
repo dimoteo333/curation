@@ -90,7 +90,8 @@ class ApiClient {
   }
 
   String _errorMessageForResponse(http.Response response) {
-    final normalizedBody = response.body.trim();
+    final normalizedBody =
+        utf8.decode(response.bodyBytes, allowMalformed: true).trim();
     if (normalizedBody.isEmpty) {
       return _defaultErrorMessage(response.statusCode);
     }
