@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/security/input_sanitizer.dart';
+import '../../domain/entities/curation_query_scope.dart';
 import '../../state/curation_controller.dart';
 import '../../state/app_shell_controller.dart';
 import '../../theme/curator_theme.dart';
@@ -27,18 +28,43 @@ class _AskScreenState extends ConsumerState<AskScreen> {
         (category: '루틴', question: '책 읽기 가장 잘 지켜진 달이 언제였지?'),
       ];
 
-  static const List<String> _scopeLabels = <String>[
-    '전체 기간',
-    '지난 1년',
-    '지난 한 달',
-    '모든 소스',
-  ];
+  static const List<({String label, CurationTimeScope scope})> _timeScopeChips =
+      <({String label, CurationTimeScope scope})>[
+        (label: '전체 기간', scope: CurationTimeScope.allTime),
+        (label: '지난 1년', scope: CurationTimeScope.pastYear),
+        (label: '지난 한 달', scope: CurationTimeScope.pastMonth),
+      ];
+
+  static const String _allSourcesLabel = '모든 소스';
+
+  static const Map<CurationTimeScope, String> _timeScopeLabels =
+      <CurationTimeScope, String>{
+        CurationTimeScope.allTime: '전체 기간',
+        CurationTimeScope.pastYear: '지난 1년',
+        CurationTimeScope.pastMonth: '지난 한 달',
+      };
 
   late final TextEditingController _controller;
   late final FocusNode _focusNode;
-  final Set<String> _activeScopes = <String>{'전체 기간', '모든 소스'};
+  CurationTimeScope _selectedTimeScope = CurationTimeScope.allTime;
   bool _focused = false;
   String? _inputError;
+
+  String _timeScopeKey(CurationTimeScope scope) {
+    return switch (scope) {
+      CurationTimeScope.allTime => 'allTime',
+      CurationTimeScope.pastYear => 'pastYear',
+      CurationTimeScope.pastMonth => 'pastMonth',
+    };
+  }
+
+  CurationQueryScope get _selectedScope {
+    return CurationQueryScope(timeScope: _selectedTimeScope);
+  }
+
+  String get _activeScopeSummary {
+    return _timeScopeLabels[_selectedTimeScope]!;
+  }
 
   @override
   void initState() {
@@ -287,21 +313,29 @@ class _AskScreenState extends ConsumerState<AskScreen> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                for (final label in _scopeLabels)
+                for (final chip in _timeScopeChips)
                   _ScopeChip(
-                    label: label,
-                    active: _activeScopes.contains(label),
+                    key: Key('scopeChip-${_timeScopeKey(chip.scope)}'),
+                    label: chip.label,
+                    active: _selectedTimeScope == chip.scope,
                     onTap: () {
-                      setState(() {
-                        if (_activeScopes.contains(label)) {
-                          _activeScopes.remove(label);
-                        } else {
-                          _activeScopes.add(label);
-                        }
-                      });
+                      setState(() => _selectedTimeScope = chip.scope);
                     },
                   ),
+                const _ScopeChip(
+                  key: Key('scopeChip-allSources'),
+                  label: _allSourcesLabel,
+                  active: true,
+                ),
               ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              '현재 범위: $_activeScopeSummary · $_allSourcesLabel',
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontFamily: 'IBMPlexSansKR',
+                color: palette.ink3,
+              ),
             ),
             const SizedBox(height: 24),
             Text(
@@ -360,7 +394,7 @@ class _AskScreenState extends ConsumerState<AskScreen> {
     unawaited(
       ref
           .read(curationControllerProvider.notifier)
-          .submitQuestion(normalizedQuestion),
+          .submitQuestion(normalizedQuestion, scope: _selectedScope),
     );
     if (!mounted) {
       return;
@@ -438,14 +472,15 @@ class _CircleIconButton extends StatelessWidget {
 
 class _ScopeChip extends StatelessWidget {
   const _ScopeChip({
+    super.key,
     required this.label,
     required this.active,
-    required this.onTap,
+    this.onTap,
   });
 
   final String label;
   final bool active;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../domain/entities/curation_query_scope.dart';
 import '../core/security/input_sanitizer.dart';
 import '../domain/entities/curated_response.dart';
 import '../providers.dart';
@@ -40,7 +41,10 @@ class CurationController extends Notifier<CurationViewState> {
     return const CurationViewState();
   }
 
-  Future<void> submitQuestion(String question) async {
+  Future<void> submitQuestion(
+    String question, {
+    CurationQueryScope scope = CurationQueryScope.all,
+  }) async {
     late final String normalizedQuestion;
     try {
       normalizedQuestion = InputSanitizer.sanitizeQuestion(question);
@@ -61,7 +65,7 @@ class CurationController extends Notifier<CurationViewState> {
 
     try {
       final useCase = ref.read(requestCurationUseCaseProvider);
-      final response = await useCase(normalizedQuestion);
+      final response = await useCase(normalizedQuestion, scope: scope);
       ref.invalidate(onDeviceRuntimeStatusProvider);
       state = state.copyWith(
         isLoading: false,

@@ -1,3 +1,4 @@
+import '../../domain/entities/curation_query_scope.dart';
 import '../../domain/entities/curated_response.dart';
 import '../../domain/repositories/curation_repository.dart';
 import '../../domain/services/llm_engine.dart';
@@ -11,15 +12,20 @@ class OnDeviceCurationRepository implements CurationRepository {
     required this.embeddingService,
     required this.llmEngine,
     required this.recordStore,
-  });
+    DateTime Function()? nowProvider,
+  }) : nowProvider = nowProvider ?? DateTime.now;
 
   final VectorDb vectorDb;
   final TextEmbeddingService embeddingService;
   final LlmEngine llmEngine;
   final LifeRecordStore recordStore;
+  final DateTime Function() nowProvider;
 
   @override
-  Future<CuratedResponse> curateQuestion(String question) async {
+  Future<CuratedResponse> curateQuestion(
+    String question, {
+    CurationQueryScope scope = CurationQueryScope.all,
+  }) async {
     await recordStore.initialize();
 
     final queryVector = await embeddingService.embed(question);
@@ -27,9 +33,13 @@ class OnDeviceCurationRepository implements CurationRepository {
       question,
       queryVector,
       limit: 5,
+      scope: scope,
     );
     final matches = rawMatches
         .where((VectorSearchMatch match) => match.score >= 0.18)
+        .where((VectorSearchMatch match) {
+          return scope.matchesRecord(match.record, now: nowProvider());
+        })
         .take(3)
         .toList(growable: false);
     if (matches.isEmpty) {

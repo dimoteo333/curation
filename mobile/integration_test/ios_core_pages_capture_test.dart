@@ -6,6 +6,7 @@ import 'package:curator_mobile/src/data/import/calendar_import_service.dart';
 import 'package:curator_mobile/src/data/import/import_history_service.dart';
 import 'package:curator_mobile/src/data/local/life_record_store.dart';
 import 'package:curator_mobile/src/data/ondevice/litert_method_channel_bridge.dart';
+import 'package:curator_mobile/src/domain/entities/curation_query_scope.dart';
 import 'package:curator_mobile/src/domain/entities/curated_response.dart';
 import 'package:curator_mobile/src/domain/entities/life_record.dart';
 import 'package:curator_mobile/src/domain/repositories/curation_repository.dart';
@@ -393,7 +394,10 @@ class _FakeCurationRepository implements CurationRepository {
   final CuratedResponse response;
 
   @override
-  Future<CuratedResponse> curateQuestion(String question) async {
+  Future<CuratedResponse> curateQuestion(
+    String question, {
+    CurationQueryScope scope = CurationQueryScope.all,
+  }) async {
     await Future<void>.delayed(const Duration(milliseconds: 150));
     return response;
   }

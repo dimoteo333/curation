@@ -4,6 +4,7 @@ import 'package:curator_mobile/src/app.dart';
 import 'package:curator_mobile/src/data/local/life_record_store.dart';
 import 'package:curator_mobile/src/data/local/seed_records.dart';
 import 'package:curator_mobile/src/data/ondevice/litert_method_channel_bridge.dart';
+import 'package:curator_mobile/src/domain/entities/curation_query_scope.dart';
 import 'package:curator_mobile/src/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -173,6 +174,43 @@ void main() {
     expect(find.text('답변이 도움이 되었나요?'), findsOneWidget);
   });
 
+  testWidgets('검색 범위 칩 선택을 질문 요청 scope로 전달한다', (WidgetTester tester) async {
+    final repository = FakeCurationRepository();
+    await _pumpApp(
+      tester,
+      bridge: const FakeOnDeviceLlmBridge(
+        runtimeStatus: OnDeviceRuntimeStatus(
+          llmReady: false,
+          embedderReady: false,
+          runtime: 'template-fallback',
+          message: '모델 경로가 없어 템플릿 폴백을 사용합니다.',
+          platform: 'flutter-test',
+          llmModelConfigured: false,
+          embedderModelConfigured: false,
+          llmModelAvailable: false,
+          embedderModelAvailable: false,
+          fallbackActive: true,
+        ),
+      ),
+      repository: repository,
+    );
+
+    await tester.tap(find.byKey(const Key('todayAskCard')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('scopeChip-pastYear')));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const Key('questionTextField')),
+      '지난 1년 안에서 반복된 피로가 있었나?',
+    );
+    await tester.tap(find.byKey(const Key('submitQuestionButton')));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
+
+    expect(repository.lastQuestion, '지난 1년 안에서 반복된 피로가 있었나?');
+    expect(repository.lastScope?.timeScope, CurationTimeScope.pastYear);
+  });
+
   testWidgets('답변의 참고 기록을 누르면 메모리 시트가 열린다', (WidgetTester tester) async {
     await _pumpApp(
       tester,
@@ -332,6 +370,7 @@ void main() {
 Future<void> _pumpApp(
   WidgetTester tester, {
   required OnDeviceLlmBridge bridge,
+  FakeCurationRepository? repository,
   Size physicalSize = const Size(1400, 2800),
   Map<String, Object> mockPreferences = const <String, Object>{
     'app.onboarding_completed': true,
@@ -349,7 +388,9 @@ Future<void> _pumpApp(
     ProviderScope(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(preferences),
-        curationRepositoryProvider.overrideWithValue(FakeCurationRepository()),
+        curationRepositoryProvider.overrideWithValue(
+          repository ?? FakeCurationRepository(),
+        ),
         onDeviceLlmBridgeProvider.overrideWithValue(bridge),
         databaseEncryptionProvider.overrideWithValue(
           createTestDatabaseEncryption(),

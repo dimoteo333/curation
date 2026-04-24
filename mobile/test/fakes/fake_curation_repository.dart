@@ -1,16 +1,31 @@
+import 'package:curator_mobile/src/domain/entities/curation_query_scope.dart';
 import 'package:curator_mobile/src/domain/entities/curated_response.dart';
 import 'package:curator_mobile/src/domain/repositories/curation_repository.dart';
 
 class FakeCurationRepository implements CurationRepository {
   FakeCurationRepository({
     this.responseDelay = const Duration(milliseconds: 80),
-  });
+    CuratedResponse Function(String question, CurationQueryScope scope)?
+    responseBuilder,
+  }) : _responseBuilder = responseBuilder;
 
   final Duration responseDelay;
+  final CuratedResponse Function(String question, CurationQueryScope scope)?
+  _responseBuilder;
+  String? lastQuestion;
+  CurationQueryScope? lastScope;
 
   @override
-  Future<CuratedResponse> curateQuestion(String question) async {
+  Future<CuratedResponse> curateQuestion(
+    String question, {
+    CurationQueryScope scope = CurationQueryScope.all,
+  }) async {
+    lastQuestion = question;
+    lastScope = scope;
     await Future<void>.delayed(responseDelay);
+    if (_responseBuilder != null) {
+      return _responseBuilder(question, scope);
+    }
     return CuratedResponse(
       insightTitle: '최근 기록에서 반복된 흐름',
       summary: '테스트용 질문과 가장 가까운 기록 두 건을 묶어 보여줍니다.',

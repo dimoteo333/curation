@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../core/security/database_encryption.dart';
+import '../../domain/entities/curation_query_scope.dart';
 import '../../domain/entities/life_record.dart';
 import '../../domain/services/text_embedding_service.dart';
 import '../ondevice/semantic_embedding_service.dart';
@@ -27,11 +28,13 @@ class VectorDb {
     required this.databaseFactory,
     required this.databasePathResolver,
     required this.databaseEncryption,
-  });
+    DateTime Function()? nowProvider,
+  }) : nowProvider = nowProvider ?? DateTime.now;
 
   final DatabaseFactory databaseFactory;
   final DatabasePathResolver databasePathResolver;
   final DatabaseEncryption databaseEncryption;
+  final DateTime Function() nowProvider;
 
   static const int _queryNormalizationCacheLimit = 48;
   static const int _searchResultCacheLimit = 50;
@@ -210,13 +213,14 @@ class VectorDb {
     int? topK,
     int limit = 5,
     int offset = 0,
+    CurationQueryScope scope = CurationQueryScope.all,
   }) async {
     final window = _resolveSearchWindow(
       topK: topK,
       limit: limit,
       offset: offset,
     );
-    final cacheKey = 'question:${_questionHash(question)}';
+    final cacheKey = 'question:${_questionHash(question)}:${scope.cacheKey}';
     final cachedResult = _getSearchResultCache(
       cacheKey,
       minimumResults: window.requestedResultCount,
@@ -234,13 +238,20 @@ class VectorDb {
       await SemanticEmbeddingService.suggestTags(question, maxTags: 6),
     );
     final indexSnapshot = await _loadIndexSnapshot();
-    final candidates = _prefilterCandidates(indexSnapshot, queryTags);
+    final candidates = _filterDocumentsByScope(
+      _prefilterCandidates(indexSnapshot, queryTags),
+      scope,
+    );
+    final scopedDocuments = _filterDocumentsByScope(
+      indexSnapshot.documents,
+      scope,
+    );
 
     final isFallbackFullScan = candidates.isEmpty;
     final rankedMatches = isFallbackFullScan
         ? _rankTopCandidates(
             normalizedQuery,
-            indexSnapshot.documents,
+            scopedDocuments,
             maxResults: math.max(
               window.requestedResultCount,
               _fallbackFullScanWindow,
@@ -840,6 +851,18 @@ class VectorDb {
       return const <_IndexedDocument>[];
     }
     return candidates.toList(growable: false);
+  }
+
+  List<_IndexedDocument> _filterDocumentsByScope(
+    Iterable<_IndexedDocument> documents,
+    CurationQueryScope scope,
+  ) {
+    return documents
+        .where(
+          (_IndexedDocument document) =>
+              scope.matchesRecord(document.record, now: nowProvider()),
+        )
+        .toList(growable: false);
   }
 
   List<VectorSearchMatch> _rankCandidates(

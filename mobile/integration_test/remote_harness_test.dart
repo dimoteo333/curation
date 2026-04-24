@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:curator_mobile/src/app.dart';
 import 'package:curator_mobile/src/providers.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:integration_test/integration_test.dart';
@@ -43,7 +44,10 @@ void main() {
     await tester.tap(find.byKey(const Key('navDock-ask')));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byKey(const Key('questionTextField')), question);
+    await tester.enterText(
+      find.byKey(const Key('questionTextField')),
+      question,
+    );
     await tester.tap(find.byKey(const Key('submitQuestionButton')));
     await tester.pump();
 
@@ -57,13 +61,14 @@ void main() {
     if (liveResponse != null) {
       expect(liveResponse.supportingRecordIds, isNotEmpty);
       expect(
-        find.byKey(ValueKey<String>('supportingRecord-${liveResponse.supportingRecordIds.first}')),
+        find.byKey(
+          ValueKey<String>(
+            'supportingRecord-${liveResponse.supportingRecordIds.first}',
+          ),
+        ),
         findsOneWidget,
       );
-      expect(
-        find.byKey(const Key('supportingRecordsCount')),
-        findsOneWidget,
-      );
+      expect(find.byKey(const Key('supportingRecordsCount')), findsOneWidget);
       expect(
         find.text(liveResponse.supportingRecordCount.toString()),
         findsOneWidget,
@@ -84,7 +89,9 @@ Future<_RemoteHarnessSnapshot?> _fetchLiveResponse(String question) async {
       Uri.parse('$_apiBaseUrl/api/v1/curation/query'),
     );
     request.headers.contentType = ContentType.json;
-    request.write(jsonEncode(<String, Object>{'question': question, 'top_k': 3}));
+    request.write(
+      jsonEncode(<String, Object>{'question': question, 'top_k': 3}),
+    );
     final response = await request.close();
     expect(response.statusCode, HttpStatus.ok);
 
