@@ -345,57 +345,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ),
                   const SizedBox(height: 34),
-                  _EditorialSection(
-                    title: '개발자 런타임',
-                    child: Column(
-                      children: [
-                        _ActionRow(
-                          key: const Key('developerRuntimeToggleButton'),
-                          title: '모델 경로와 런타임 디버그',
-                          subtitle: _developerRuntimeSummary(settings),
-                          actionLabel: _developerToolsExpanded ? '접기' : '열기',
-                          onTap: () {
-                            setState(() {
-                              _developerToolsExpanded =
-                                  !_developerToolsExpanded;
-                            });
-                          },
-                        ),
-                        if (_developerToolsExpanded) ...[
-                          const _HairlineDivider(),
-                          TextField(
-                            key: const Key('llmModelPathField'),
-                            controller: _llmPathController,
-                            decoration: const InputDecoration(
-                              labelText: 'LLM 모델 경로',
-                              hintText: '/path/to/gemma-4-E2B-it.litertlm',
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-                          TextField(
-                            key: const Key('embedderModelPathField'),
-                            controller: _embedderPathController,
-                            decoration: const InputDecoration(
-                              labelText: '임베딩 모델 경로',
-                              hintText: '/path/to/embedder.tflite',
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-                          _ActionRow(
-                            key: const Key('saveModelPathsButton'),
-                            title: '모델 경로 저장',
-                            subtitle: '개발자용 로컬 경로로만 사용됩니다.',
-                            actionLabel: _isSavingModelPaths ? '저장 중...' : '저장',
-                            onTap: _saveModelPaths,
-                          ),
-                          const SizedBox(height: 18),
-                          const _DescriptionBlock(
-                            text:
-                                'Android에서는 LiteRT-LM `.litertlm` 번들을 권장합니다. 예: `gemma-4-E2B-it.litertlm`. iOS는 현재 공개 Swift SDK가 없고, Python 경로는 공식 iOS 대상이 아니며, C++ source-build 브리지가 아직 앱에 포함되지 않아 `.litertlm` 입력 시 Dart 폴백을 유지합니다.',
-                          ),
-                        ],
-                      ],
-                    ),
+                  _DeveloperRuntimeSection(
+                    expanded: _developerToolsExpanded,
+                    summary: _developerRuntimeSummary(settings),
+                    llmPathController: _llmPathController,
+                    embedderPathController: _embedderPathController,
+                    isSavingModelPaths: _isSavingModelPaths,
+                    onToggle: () {
+                      setState(() {
+                        _developerToolsExpanded = !_developerToolsExpanded;
+                      });
+                    },
+                    onSave: _saveModelPaths,
                   ),
                   const SizedBox(height: 34),
                   _EditorialSection(
@@ -920,6 +881,95 @@ class _EditorialSection extends StatelessWidget {
         const SizedBox(height: 18),
         child,
       ],
+    );
+  }
+}
+
+class _DeveloperRuntimeSection extends StatelessWidget {
+  const _DeveloperRuntimeSection({
+    required this.expanded,
+    required this.summary,
+    required this.llmPathController,
+    required this.embedderPathController,
+    required this.isSavingModelPaths,
+    required this.onToggle,
+    required this.onSave,
+  });
+
+  final bool expanded;
+  final String summary;
+  final TextEditingController llmPathController;
+  final TextEditingController embedderPathController;
+  final bool isSavingModelPaths;
+  final VoidCallback onToggle;
+  final VoidCallback onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    return _EditorialSection(
+      title: '개발자 전용',
+      child: Container(
+        key: const Key('developerRuntimeSection'),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.52),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: Theme.of(
+              context,
+            ).extension<CuratorPalette>()!.outline.withValues(alpha: 0.32),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _DescriptionBlock(
+              text: '모델 경로와 런타임 디버그 설정은 일반 사용과 분리된 개발자 전용 영역입니다.',
+            ),
+            const SizedBox(height: 18),
+            _ActionRow(
+              key: const Key('developerRuntimeToggleButton'),
+              title: '모델 경로와 런타임 디버그',
+              subtitle: summary,
+              actionLabel: expanded ? '접기' : '열기',
+              onTap: onToggle,
+            ),
+            if (expanded) ...[
+              const _HairlineDivider(),
+              TextField(
+                key: const Key('llmModelPathField'),
+                controller: llmPathController,
+                decoration: const InputDecoration(
+                  labelText: 'LLM 모델 경로',
+                  hintText: '/path/to/gemma-4-E2B-it.litertlm',
+                ),
+              ),
+              const SizedBox(height: 18),
+              TextField(
+                key: const Key('embedderModelPathField'),
+                controller: embedderPathController,
+                decoration: const InputDecoration(
+                  labelText: '임베딩 모델 경로',
+                  hintText: '/path/to/embedder.tflite',
+                ),
+              ),
+              const SizedBox(height: 18),
+              _ActionRow(
+                key: const Key('saveModelPathsButton'),
+                title: '모델 경로 저장',
+                subtitle: '개발자용 로컬 경로로만 사용됩니다.',
+                actionLabel: isSavingModelPaths ? '저장 중...' : '저장',
+                onTap: onSave,
+              ),
+              const SizedBox(height: 18),
+              const _DescriptionBlock(
+                text:
+                    'Android에서는 LiteRT-LM `.litertlm` 번들을 권장합니다. 예: `gemma-4-E2B-it.litertlm`. iOS는 현재 공개 Swift SDK가 없고, Python 경로는 공식 iOS 대상이 아니며, C++ source-build 브리지가 아직 앱에 포함되지 않아 `.litertlm` 입력 시 Dart 폴백을 유지합니다.',
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

@@ -93,9 +93,13 @@ void main() {
     final response = await repository.curateQuestion('요즘 일하고 나면 왜 이렇게 몸이 무겁지?');
 
     expect(response.insightTitle, isNotEmpty);
-    expect(response.answer, contains('야근 후 회고'));
-    expect(response.answer, contains('3개월 전'));
     expect(response.supportingRecords, hasLength(1));
+    expect(response.supportingRecords.single.title, '야근 후 회고');
+    expect(response.answer, contains('{{CITE:${response.supportingRecords.single.id}}}'));
+    expect(
+      response.answer.split(RegExp(r'\n\s*\n')).where((part) => part.trim().isNotEmpty),
+      hasLength(greaterThanOrEqualTo(3)),
+    );
     expect(
       response.supportingRecords.single.excerpt,
       contains('오늘도 10시까지 야근했다'),

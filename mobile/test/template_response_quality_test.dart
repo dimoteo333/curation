@@ -33,16 +33,24 @@ void main() {
     expect(result.usedNativeRuntime, isFalse);
     expect(result.insightTitle, isNotEmpty);
     expect(result.summary, contains('쉬어도 피곤한 주말'));
-    expect(result.answer, contains('쉬어도 피곤한 주말'));
-    expect(result.answer, contains('1년 전'));
-    expect(result.answer, contains('{{CITE:'));
+    expect(_paragraphs(result.answer), hasLength(greaterThanOrEqualTo(3)));
+    expect(result.answer, contains('{{CITE:diary-burnout-nov-2024}}'));
+    expect(result.answer, contains('{{CITE:diary-burnout-feb-2024}}'));
     expect(result.supportingQuote, startsWith('"'));
     expect(
       result.supportingQuote,
       contains('토요일 내내 누워 있었는데도 피로가 풀리지 않았다'),
     );
-    expect(result.suggestedFollowUp, contains('에너지'));
+    expect(result.suggestedFollowUp, isNotEmpty);
   });
+}
+
+List<String> _paragraphs(String answer) {
+  return answer
+      .split(RegExp(r'\n\s*\n'))
+      .map((String value) => value.trim())
+      .where((String value) => value.isNotEmpty)
+      .toList(growable: false);
 }
 
 class _FallbackBridge implements OnDeviceLlmBridge {

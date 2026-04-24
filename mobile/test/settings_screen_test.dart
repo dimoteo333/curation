@@ -70,11 +70,19 @@ void main() {
     expect(find.text('사용 방식'), findsOneWidget);
     expect(find.text('캘린더'), findsOneWidget);
     expect(find.text('데모 데이터 로드'), findsNothing);
+    expect(find.byKey(const Key('developerRuntimeSection')), findsOneWidget);
+    expect(find.byKey(const Key('llmModelPathField')), findsNothing);
 
     await tester.tap(find.byType(Switch));
     await tester.pumpAndSettle();
 
     expect(preferences.getString('app.runtime_mode'), 'remote');
+
+    await tester.tap(find.byKey(const Key('developerRuntimeToggleButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('llmModelPathField')), findsOneWidget);
+    expect(find.byKey(const Key('embedderModelPathField')), findsOneWidget);
   });
 }
 

@@ -61,6 +61,7 @@ class NavDock extends StatelessWidget {
                 for (final item in items)
                   Expanded(
                     child: _NavItem(
+                      key: Key('navDock-${item.destination.name}'),
                       active: item.destination == activeDestination,
                       icon: item.icon,
                       label: item.label,
@@ -79,6 +80,7 @@ class NavDock extends StatelessWidget {
 
 class _NavItem extends StatelessWidget {
   const _NavItem({
+    super.key,
     required this.active,
     required this.icon,
     required this.label,

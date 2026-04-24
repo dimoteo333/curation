@@ -44,6 +44,7 @@ jobs:
       - name: Run Flutter integration tests
         env:
           API_BASE_URL: http://127.0.0.1:8000
+          CI_REMOTE_HARNESS_ASSERTIONS: "true"
         run: bash scripts/run-ios-sim-tests.sh
 
       - name: Upload artifacts

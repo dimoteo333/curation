@@ -652,6 +652,7 @@ class _SupportingRecordsSection extends StatelessWidget {
     final theme = Theme.of(context);
     final palette = theme.extension<CuratorPalette>()!;
     return Column(
+      key: const Key('supportingRecordsSection'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
@@ -674,6 +675,7 @@ class _SupportingRecordsSection extends StatelessWidget {
               ),
               child: Text(
                 '${records.length}',
+                key: const Key('supportingRecordsCount'),
                 style: theme.textTheme.labelMedium?.copyWith(
                   fontFamily: 'IBMPlexSansKR',
                   color: palette.ink3,
@@ -715,6 +717,7 @@ class _SupportingRecordCard extends StatelessWidget {
     final mood = _memoryMoodLabel(record.metadata['mood']?.toString());
 
     return InkWell(
+      key: ValueKey<String>('supportingRecord-${record.id}'),
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Ink(
