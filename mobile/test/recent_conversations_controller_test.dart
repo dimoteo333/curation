@@ -1,6 +1,5 @@
 import 'package:curator_mobile/src/domain/entities/curated_response.dart';
 import 'package:curator_mobile/src/providers.dart';
-import 'package:curator_mobile/src/state/recent_conversations_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
