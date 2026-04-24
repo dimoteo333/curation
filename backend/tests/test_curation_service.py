@@ -9,14 +9,12 @@ def test_curation_service_prioritizes_relevant_seed_records() -> None:
 
     response = service.curate("요즘 계속 지치고 무기력해요", top_k=2)
 
-    assert response.supporting_records
-    assert response.supporting_records[0].id in {
-        "diary-burnout-feb-2024",
-        "diary-burnout-nov-2024",
-    }
+    assert len(response.supporting_records) == 2
+    assert response.supporting_records[0].id == "diary-burnout-feb-2024"
     assert response.insight_title
-    assert "기록은" in response.summary
-    assert "회복 단서" in response.answer or "우선순위" in response.answer
+    assert "야근이 길어지던 주간 회고" in response.summary
+    assert any("회복" in record.relevance_reason for record in response.supporting_records)
+    assert response.suggested_follow_up
 
 
 def test_curation_service_surfaces_sleep_context_with_grounded_summary() -> None:
@@ -24,13 +22,12 @@ def test_curation_service_surfaces_sleep_context_with_grounded_summary() -> None
 
     response = service.curate("잠이 뒤집혀서 하루 종일 멍해요", top_k=2)
 
-    assert response.supporting_records
-    assert response.supporting_records[0].id in {
-        "diary-routine-reset-2023",
-        "diary-sleep-apr-2024",
-    }
+    assert len(response.supporting_records) == 2
+    assert response.supporting_records[0].id == "diary-routine-reset-2023"
     assert "수면" in response.insight_title
-    assert "생활 리듬" in response.summary or "새벽 세 시" in response.answer
+    assert "생활 리듬을 되돌린 날" in response.summary
+    assert all("수면" in record.relevance_reason for record in response.supporting_records)
+    assert "수면" in response.answer
 
 
 def test_curation_service_returns_empty_match_guidance_when_needed() -> None:
