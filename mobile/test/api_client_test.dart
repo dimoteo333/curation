@@ -87,7 +87,8 @@ void main() {
     final client = ApiClient(
       baseUrl: 'https://example.com',
       client: MockClient((http.Request request) async {
-        return http.Response('잘못된 요청입니다.', 400);
+        return http.Response('잘못된 요청입니다.', 400,
+            headers: {'content-type': 'text/plain; charset=utf-8'});
       }),
     );
 
