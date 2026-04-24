@@ -1,50 +1,62 @@
-import 'package:curator_mobile/src/app.dart';
-import 'package:curator_mobile/src/providers.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import 'support/integration_test_harness.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('온디바이스 큐레이션 결과를 렌더링한다', (WidgetTester tester) async {
-    final preferences = await SharedPreferences.getInstance();
-    await preferences.setBool('app.onboarding_completed', true);
+  testWidgets('빈 상태에서도 홈 화면을 정상 렌더링한다', (WidgetTester tester) async {
+    final preferences = await integrationTestPreferences(<String, Object>{
+      'app.onboarding_completed': true,
+    });
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [sharedPreferencesProvider.overrideWithValue(preferences)],
-        child: const CuratorApp(),
-      ),
+    await pumpIntegrationTestApp(tester, preferences: preferences);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('homeBrandLogo')), findsOneWidget);
+    expect(find.byKey(const Key('homeEmptyStateCard')), findsOneWidget);
+    expect(find.text('아직 가져온 기록이 없습니다'), findsOneWidget);
+  });
+
+  testWidgets('데모 레코드로 질문 응답을 렌더링한다', (WidgetTester tester) async {
+    final preferences = await integrationTestPreferences(<String, Object>{
+      'app.onboarding_completed': true,
+      'local_records.demo_data_loaded': true,
+    });
+
+    await pumpIntegrationTestApp(
+      tester,
+      preferences: preferences,
+      localRecords: testSeedRecords,
+      curationRepository: FakeCurationRepository(testCuratedResponse),
     );
+    await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.byKey(const Key('submitQuestionButton')));
+    expect(find.byKey(const Key('homeBrandLogo')), findsOneWidget);
+
+    await tester.ensureVisible(find.byKey(const Key('todayAskCard')));
+    await tester.tap(find.byKey(const Key('todayAskCard')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('questionTextField')),
+      '오늘 무기력한 이유',
+    );
+    expect(find.byKey(const Key('submitQuestionButton')), findsOneWidget);
+
     await tester.tap(find.byKey(const Key('submitQuestionButton')));
     await tester.pump();
 
-    await _pumpUntilFound(tester, find.byKey(const Key('responseSection')));
+    await pumpUntilFound(
+      tester,
+      find.byKey(const Key('supportingRecordsSection')),
+    );
+    await tester.pumpAndSettle();
 
-    expect(find.textContaining('최근 인사이트'), findsWidgets);
-    expect(find.byKey(const Key('askAnotherQuestionButton')), findsOneWidget);
-    expect(find.textContaining('무기력'), findsWidgets);
+    expect(find.byKey(const Key('supportingRecordsSection')), findsOneWidget);
+    expect(find.text('답변이 도움이 되었나요?'), findsOneWidget);
+    expect(find.text(testPrimarySupportingRecord.title), findsOneWidget);
   });
-}
-
-Future<void> _pumpUntilFound(
-  WidgetTester tester,
-  Finder finder, {
-  Duration timeout = const Duration(seconds: 10),
-  Duration step = const Duration(milliseconds: 200),
-}) async {
-  final end = DateTime.now().add(timeout);
-  while (DateTime.now().isBefore(end)) {
-    await tester.pump(step);
-    if (finder.evaluate().isNotEmpty) {
-      return;
-    }
-  }
-
-  throw TestFailure('Timed out waiting for integration result.');
 }

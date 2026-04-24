@@ -44,7 +44,7 @@ class ApiClient {
         }
 
         if (response.statusCode >= 400) {
-          throw ApiException(_errorMessageForResponse(response));
+          throw ApiException(_safeErrorMessageFor(response));
         }
 
         return _decodeSuccessResponse(response);
@@ -87,6 +87,14 @@ class ApiClient {
     }
 
     throw const ApiException('서버 응답 형식이 올바르지 않습니다.');
+  }
+
+  String _safeErrorMessageFor(http.Response response) {
+    try {
+      return _errorMessageForResponse(response);
+    } catch (_) {
+      return _defaultErrorMessage(response.statusCode);
+    }
   }
 
   String _errorMessageForResponse(http.Response response) {
