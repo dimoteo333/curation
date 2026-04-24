@@ -43,7 +43,7 @@ class LifeRecordStore {
   }
 
   Future<void> loadDemoData() async {
-    await vectorDb.initialize();
+    await initialize();
     await vectorDb.replaceAllRecords(seedRecords, embeddingService);
   }
 

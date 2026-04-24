@@ -66,11 +66,17 @@ void main() {
     expect(
       () => missingKeyInstance.decryptValue(encrypted),
       throwsA(
-        isA<DatabaseEncryptionResetRequiredException>().having(
-          (error) => error.reason,
-          'reason',
-          DatabaseEncryptionFailureReason.missingMasterKey,
-        ),
+        isA<DatabaseEncryptionResetRequiredException>()
+            .having(
+              (error) => error.reason,
+              'reason',
+              DatabaseEncryptionFailureReason.missingMasterKey,
+            )
+            .having(
+              (error) => error.message,
+              'message',
+              contains('Secure Storage'),
+            ),
       ),
     );
   });

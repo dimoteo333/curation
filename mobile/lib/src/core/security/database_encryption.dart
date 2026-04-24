@@ -84,6 +84,12 @@ class DatabaseEncryption {
   static const String _masterKeyStorageKey = 'curator.database.master_key.v1';
   static const int _masterKeyLengthBytes = 32;
   static const int _ivLengthBytes = 12;
+  static const String _missingMasterKeyMessage =
+      'Secure Storage에 저장된 마스터 키를 찾지 못해 기존 로컬 데이터를 읽을 수 없습니다. 데이터를 초기화한 뒤 다시 시작해 주세요.';
+  static const String _invalidMasterKeyMessage =
+      '저장된 마스터 키로 기존 로컬 데이터를 복호화할 수 없습니다. 데이터를 초기화한 뒤 다시 시작해 주세요.';
+  static const String _corruptedMasterKeyMessage =
+      '저장된 마스터 키가 손상되어 기존 로컬 데이터를 읽을 수 없습니다. 데이터를 초기화한 뒤 다시 시작해 주세요.';
 
   final SecureKeyStore _secureKeyStore;
   final String _appNamespace;
@@ -113,7 +119,7 @@ class DatabaseEncryption {
     if (!await hasMasterKey()) {
       throw const DatabaseEncryptionResetRequiredException(
         reason: DatabaseEncryptionFailureReason.missingMasterKey,
-        message: '암호화 키를 찾지 못해 기존 로컬 데이터를 읽을 수 없습니다. 데이터를 초기화한 뒤 다시 시작해 주세요.',
+        message: _missingMasterKeyMessage,
       );
     }
   }
@@ -154,7 +160,7 @@ class DatabaseEncryption {
     } catch (_) {
       throw const DatabaseEncryptionResetRequiredException(
         reason: DatabaseEncryptionFailureReason.invalidMasterKey,
-        message: '저장된 암호화 키로 기존 로컬 데이터를 복호화할 수 없습니다. 데이터를 초기화한 뒤 다시 시작해 주세요.',
+        message: _invalidMasterKeyMessage,
       );
     }
   }
@@ -197,7 +203,7 @@ class DatabaseEncryption {
     }
     throw const DatabaseEncryptionResetRequiredException(
       reason: DatabaseEncryptionFailureReason.missingMasterKey,
-      message: '암호화 키를 찾지 못해 기존 로컬 데이터를 읽을 수 없습니다. 데이터를 초기화한 뒤 다시 시작해 주세요.',
+      message: _missingMasterKeyMessage,
     );
   }
 
@@ -211,8 +217,7 @@ class DatabaseEncryption {
     } catch (_) {
       throw const DatabaseEncryptionResetRequiredException(
         reason: DatabaseEncryptionFailureReason.invalidMasterKey,
-        message:
-            '저장된 암호화 키가 손상되어 기존 로컬 데이터를 읽을 수 없습니다. 데이터를 초기화한 뒤 다시 시작해 주세요.',
+        message: _corruptedMasterKeyMessage,
       );
     }
   }
