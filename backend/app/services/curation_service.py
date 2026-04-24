@@ -24,7 +24,8 @@ class _RankedRecord:
     score: int
     record: StoredRecord
     matched_terms: tuple[str, ...]
-    matched_topics: tuple[str, ...]
+    direct_topics: tuple[str, ...]
+    related_topics: tuple[str, ...]
     recovery_signals: tuple[str, ...]
 
 
@@ -181,7 +182,7 @@ class CurationService:
         primary_signal = self._primary_signal(question_topics, top_themes)
         top_record = supporting_records[0]
         second_record = supporting_records[1] if len(supporting_records) > 1 else None
-        matched_signal_text = self._matched_signal_text(top_record)
+        matched_signal_clause = self._matched_signal_clause(top_record)
         action_hint = self._suggest_action(top_themes, top_record.recovery_signals)
         evidence_quote = self._build_excerpt(top_record.record)
         comparison_text = (
@@ -195,7 +196,7 @@ class CurationService:
             insight_title=self._insight_title(top_themes, primary_signal),
             summary=(
                 f'가장 가까운 기록은 {top_record.record.created_at.strftime("%Y-%m-%d")} '
-                f'"{top_record.record.title}"이며, 질문과 직접 맞닿는 단서는 {matched_signal_text}입니다.'
+                f'"{top_record.record.title}"이며, {matched_signal_clause}'
                 f"{comparison_text}"
             ),
             answer=(
@@ -250,9 +251,8 @@ class CurationService:
                 score += 1
             score += self._recency_bonus(record)
 
-            matched_topics = tuple(
-                self._sorted_labels(direct_topic_hits | related_topic_hits)
-            )
+            direct_topics = tuple(self._sorted_labels(direct_topic_hits))
+            related_topics = tuple(self._sorted_labels(related_topic_hits))
             recovery_signals = tuple(
                 self._sorted_labels(self._extract_recovery_signals(record_topics, record.tags))
             )
@@ -261,7 +261,8 @@ class CurationService:
                     score=score,
                     record=record,
                     matched_terms=tuple(sorted(overlap)),
-                    matched_topics=matched_topics,
+                    direct_topics=direct_topics,
+                    related_topics=related_topics,
                     recovery_signals=recovery_signals,
                 )
             )
@@ -276,7 +277,8 @@ class CurationService:
         counter: Counter[str] = Counter()
         for index, item in enumerate(ranked_records[:3]):
             weight = 4 - index
-            counter.update({topic: weight for topic in item.matched_topics})
+            counter.update({topic: weight for topic in item.direct_topics})
+            counter.update({topic: max(1, weight - 2) for topic in item.related_topics})
             counter.update({tag: 1 for tag in item.record.tags if tag in THEME_INSIGHT_TITLES})
         return [topic for topic, _ in counter.most_common(3)]
 
@@ -314,12 +316,33 @@ class CurationService:
         return expanded
 
     def _relevance_reason(self, ranked_record: _RankedRecord) -> str:
-        topic_label = ", ".join(ranked_record.matched_topics[:2])
-        recovery_label = ", ".join(ranked_record.recovery_signals[:2])
-        if topic_label and recovery_label:
-            return f"질문과 맞닿는 {topic_label} 흐름과 {recovery_label} 단서가 함께 남아 있는 기록입니다."
-        if topic_label:
-            return f"질문과 직접 겹치는 {topic_label} 흐름이 확인되는 기록입니다."
+        direct_label = ", ".join(ranked_record.direct_topics[:2])
+        related_label = ", ".join(ranked_record.related_topics[:2])
+        visible_recovery = tuple(
+            label
+            for label in ranked_record.recovery_signals
+            if label not in {*ranked_record.direct_topics, *ranked_record.related_topics}
+        )
+        recovery_label = ", ".join(visible_recovery[:2])
+        if direct_label:
+            companion_parts: list[str] = []
+            if related_label:
+                companion_parts.append(f"{related_label} 관련 흐름")
+            if recovery_label:
+                companion_parts.append(f"{recovery_label} 단서")
+            if companion_parts:
+                companions = " 그리고 ".join(companion_parts)
+                return (
+                    f"질문과 직접 맞닿는 {direct_label} 단서가 보이고, "
+                    f"{companions}도 함께 남아 있는 기록입니다."
+                )
+            return f"질문과 직접 맞닿는 {direct_label} 흐름이 확인되는 기록입니다."
+        if related_label and recovery_label:
+            return f"{related_label} 관련 흐름과 {recovery_label} 단서가 함께 남아 있는 기록입니다."
+        if related_label:
+            return f"질문과 이어지는 {related_label} 관련 흐름이 확인되는 기록입니다."
+        if recovery_label:
+            return f"질문과 가까운 맥락에서 {recovery_label} 단서가 남아 있는 기록입니다."
         if ranked_record.matched_terms:
             return f"질문과 가까운 표현({', '.join(ranked_record.matched_terms[:2])})이 포함된 기록입니다."
         return "현재 질문과 유사한 정서 또는 상황 맥락이 담긴 기록입니다."
@@ -408,13 +431,21 @@ class CurationService:
                 signals.add(signal)
         return signals
 
-    def _matched_signal_text(self, ranked_record: _RankedRecord) -> str:
-        labels = list(ranked_record.matched_topics[:2] or ranked_record.matched_terms[:2])
+    def _matched_signal_clause(self, ranked_record: _RankedRecord) -> str:
+        direct_labels = list(ranked_record.direct_topics[:2])
+        related_labels = list(ranked_record.related_topics[:2])
+        if direct_labels:
+            direct_text = ", ".join(direct_labels)
+            if related_labels:
+                related_text = ", ".join(related_labels)
+                return f"질문과 직접 맞닿는 단서는 {direct_text}이고, 관련 흐름은 {related_text}입니다."
+            return f"질문과 직접 맞닿는 단서는 {direct_text}입니다."
+        if related_labels:
+            return f"질문과 이어지는 관련 흐름은 {', '.join(related_labels)}입니다."
+        labels = list(ranked_record.matched_terms[:2])
         if not labels:
-            return "최근 피로 흐름"
-        if len(labels) == 1:
-            return labels[0]
-        return f"{labels[0]}, {labels[1]}"
+            return "질문과 직접 맞닿는 단서는 아직 선명하지 않습니다."
+        return f"질문과 가까운 표현은 {', '.join(labels)}입니다."
 
     def _sorted_labels(self, labels: set[str]) -> list[str]:
         priority = {label: index for index, label in enumerate(TOPIC_PRIORITY)}

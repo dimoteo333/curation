@@ -6,7 +6,7 @@ import pytest
 from backend.app.main import app
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_health_endpoint_reports_seeded_records() -> None:
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(
@@ -19,7 +19,7 @@ async def test_health_endpoint_reports_seeded_records() -> None:
         assert response.json() == {"status": "ok", "record_count": 14}
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_curation_query_returns_korean_curated_response() -> None:
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(

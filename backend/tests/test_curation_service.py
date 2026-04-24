@@ -17,6 +17,19 @@ def test_curation_service_prioritizes_relevant_seed_records() -> None:
     assert response.suggested_follow_up
 
 
+def test_curation_service_keeps_related_topics_out_of_direct_clues() -> None:
+    service = CurationService(SeedRecordRepository())
+
+    response = service.curate("요즘 계속 지치고 무기력해요", top_k=1)
+
+    assert len(response.supporting_records) == 1
+    assert "질문과 직접 맞닿는 단서는 무기력" in response.summary
+    assert "질문과 직접 맞닿는 단서는 수면" not in response.summary
+    assert "관련 흐름은 수면" in response.summary
+    assert "직접 맞닿는 수면" not in response.supporting_records[0].relevance_reason
+    assert "회복 관련 흐름" in response.supporting_records[0].relevance_reason
+
+
 def test_curation_service_surfaces_sleep_context_with_grounded_summary() -> None:
     service = CurationService(SeedRecordRepository())
 
