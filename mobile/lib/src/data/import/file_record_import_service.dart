@@ -140,6 +140,7 @@ class FileRecordImportService {
           metadata: <String, dynamic>{
             'content_hash': contentHash,
             'original_file_name': pickedFile.name,
+            'original_file_path': pickedFile.path,
             'file_extension': extension.replaceFirst('.', ''),
             'modified_at': stat.modified.toIso8601String(),
             'imported_at': _nowProvider().toIso8601String(),

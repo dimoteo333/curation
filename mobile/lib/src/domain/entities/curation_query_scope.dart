@@ -6,14 +6,17 @@ class CurationQueryScope {
   const CurationQueryScope({
     this.timeScope = CurationTimeScope.allTime,
     this.importSources = const <String>{},
+    this.excludedRecordIds = const <String>{},
   });
 
   static const CurationQueryScope all = CurationQueryScope();
 
   final CurationTimeScope timeScope;
   final Set<String> importSources;
+  final Set<String> excludedRecordIds;
 
   bool get hasSourceFilter => importSources.isNotEmpty;
+  bool get hasExcludedRecords => excludedRecordIds.isNotEmpty;
 
   DateTime? earliestCreatedAt(DateTime now) {
     return switch (timeScope) {
@@ -32,6 +35,9 @@ class CurationQueryScope {
     if (hasSourceFilter && !importSources.contains(record.importSource)) {
       return false;
     }
+    if (hasExcludedRecords && excludedRecordIds.contains(record.id)) {
+      return false;
+    }
     return true;
   }
 
@@ -40,6 +46,10 @@ class CurationQueryScope {
     final sourceKey = sortedSources.isEmpty
         ? 'all-sources'
         : sortedSources.join(',');
-    return '${timeScope.name}:$sourceKey';
+    final sortedExcludedIds = excludedRecordIds.toList()..sort();
+    final excludedKey = sortedExcludedIds.isEmpty
+        ? 'no-excluded-records'
+        : sortedExcludedIds.join(',');
+    return '${timeScope.name}:$sourceKey:$excludedKey';
   }
 }

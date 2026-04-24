@@ -30,6 +30,7 @@ import 'domain/services/llm_engine.dart';
 import 'domain/services/text_embedding_service.dart';
 import 'domain/use_cases/request_curation_use_case.dart';
 import 'state/app_settings_controller.dart';
+import 'state/excluded_records_controller.dart';
 import 'state/recent_conversations_controller.dart';
 
 final appConfigProvider = Provider<AppConfig>((ref) => const AppConfig());
@@ -54,6 +55,10 @@ final databaseEncryptionProvider = Provider<DatabaseEncryption>((ref) {
 final appSettingsProvider =
     NotifierProvider<AppSettingsController, AppSettings>(
       AppSettingsController.new,
+    );
+final excludedRecordIdsProvider =
+    NotifierProvider<ExcludedRecordsController, Set<String>>(
+      ExcludedRecordsController.new,
     );
 
 final httpClientProvider = Provider<http.Client>((ref) => http.Client());

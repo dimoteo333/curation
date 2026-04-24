@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/security/input_sanitizer.dart';
 import '../../domain/entities/curation_query_scope.dart';
+import '../../providers.dart';
 import '../../state/curation_controller.dart';
 import '../../state/app_shell_controller.dart';
 import '../../theme/curator_theme.dart';
@@ -59,7 +60,11 @@ class _AskScreenState extends ConsumerState<AskScreen> {
   }
 
   CurationQueryScope get _selectedScope {
-    return CurationQueryScope(timeScope: _selectedTimeScope);
+    final excludedRecordIds = ref.read(excludedRecordIdsProvider);
+    return CurationQueryScope(
+      timeScope: _selectedTimeScope,
+      excludedRecordIds: excludedRecordIds,
+    );
   }
 
   String get _activeScopeSummary {
@@ -90,6 +95,7 @@ class _AskScreenState extends ConsumerState<AskScreen> {
     final theme = Theme.of(context);
     final palette = theme.extension<CuratorPalette>()!;
     final curationState = ref.watch(curationControllerProvider);
+    final excludedRecordIds = ref.watch(excludedRecordIdsProvider);
 
     ref.listen<CuratorAppShellState>(curatorAppShellProvider, (previous, next) {
       final tabChangedToAsk =
@@ -331,7 +337,8 @@ class _AskScreenState extends ConsumerState<AskScreen> {
             ),
             const SizedBox(height: 10),
             Text(
-              '현재 범위: $_activeScopeSummary · $_allSourcesLabel',
+              '현재 범위: $_activeScopeSummary · $_allSourcesLabel'
+              '${excludedRecordIds.isEmpty ? '' : ' · 제외 ${excludedRecordIds.length}개'}',
               style: theme.textTheme.bodySmall?.copyWith(
                 fontFamily: 'IBMPlexSansKR',
                 color: palette.ink3,

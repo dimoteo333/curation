@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/security/input_sanitizer.dart';
 import '../../domain/entities/curated_response.dart';
+import '../../domain/entities/curation_query_scope.dart';
+import '../../providers.dart';
 import '../../state/curation_controller.dart';
 import '../../theme/curator_theme.dart';
 import '../widgets/curator_scene.dart';
@@ -360,11 +362,15 @@ class _AnswerScreenState extends ConsumerState<AnswerScreen> {
     if (normalizedQuestion == null) {
       return;
     }
+    final excludedRecordIds = ref.read(excludedRecordIdsProvider);
     setState(() => _followUpError = null);
     unawaited(
       ref
           .read(curationControllerProvider.notifier)
-          .submitQuestion(normalizedQuestion),
+          .submitQuestion(
+            normalizedQuestion,
+            scope: CurationQueryScope(excludedRecordIds: excludedRecordIds),
+          ),
     );
     if (!mounted) {
       return;
