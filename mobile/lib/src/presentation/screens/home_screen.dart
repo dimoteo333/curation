@@ -32,10 +32,10 @@ class HomeScreen extends ConsumerWidget {
     final stats = ref.watch(localDataStatsProvider);
     final statsValue = stats.asData?.value;
     final hasLocalRecords = (statsValue?.recordCount ?? 0) > 0;
-    final conversations = ref.watch(recentConversationsProvider);
-    final recentConversations = conversations.isEmpty && hasLocalRecords
-        ? _fallbackRecentConversations()
-        : conversations;
+    final recentConversations = ref
+        .watch(recentConversationsProvider)
+        .take(3)
+        .toList(growable: false);
     final now = DateTime.now();
     final privacyBannerText = switch (runtimeMode) {
       CurationRuntimeMode.remote => '서버를 통해 처리됩니다',
@@ -430,27 +430,6 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
-
-  List<RecentConversation> _fallbackRecentConversations() {
-    final now = DateTime.now();
-    return <RecentConversation>[
-      RecentConversation(
-        question: '지난 겨울엔 뭘 하면서 기분이 풀렸지?',
-        preview: '그때는 한강 산책과 작은 프로젝트가 도움이 됐어요.',
-        askedAt: now.subtract(const Duration(days: 4)),
-      ),
-      RecentConversation(
-        question: '이직하고 나서 한 달 동안 어땠지?',
-        preview: '적응에 시간이 걸렸지만, 3주차에 변화가 있었어요.',
-        askedAt: now.subtract(const Duration(days: 7)),
-      ),
-      RecentConversation(
-        question: '책 읽기 루틴이 가장 잘 지켜진 때는?',
-        preview: '2024년 9월, 출퇴근 지하철에서 매일 읽으셨네요.',
-        askedAt: now.subtract(const Duration(days: 14)),
-      ),
-    ];
-  }
 }
 
 class _RecentConversationRuntimeBadge extends StatelessWidget {
@@ -675,8 +654,8 @@ class _EmptyConversationState extends StatelessWidget {
     final theme = Theme.of(context);
     final palette = theme.extension<CuratorPalette>()!;
     final message = hasLocalRecords
-        ? '질문을 남기면 최근 대화가 여기에 쌓입니다.'
-        : '기록을 가져온 뒤 질문을 시작하면 최근 대화가 여기에 표시됩니다.';
+        ? '기록은 연결되어 있지만 아직 대화 기록이 없습니다. 첫 질문을 남기면 여기에 최근 대화가 쌓입니다.'
+        : '아직 대화 기록이 없습니다. 기록을 가져온 뒤 질문을 시작하면 여기에 최근 대화가 표시됩니다.';
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -687,12 +666,26 @@ class _EmptyConversationState extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Text(
-          message,
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontFamily: 'IBMPlexSansKR',
-            color: palette.ink3,
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '아직 대화 기록이 없습니다',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontFamily: 'IBMPlexSansKR',
+                fontWeight: FontWeight.w600,
+                color: palette.ink,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              message,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontFamily: 'IBMPlexSansKR',
+                color: palette.ink3,
+              ),
+            ),
+          ],
         ),
       ),
     );

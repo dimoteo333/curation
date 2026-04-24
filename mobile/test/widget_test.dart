@@ -79,6 +79,29 @@ void main() {
     expect(find.text('모든 처리가 기기 안에서 이루어집니다'), findsNothing);
   });
 
+  testWidgets('최근 대화가 없으면 빈 상태를 표시한다', (WidgetTester tester) async {
+    await _pumpApp(
+      tester,
+      bridge: const FakeOnDeviceLlmBridge(
+        runtimeStatus: OnDeviceRuntimeStatus(
+          llmReady: true,
+          embedderReady: true,
+          runtime: 'native-ready',
+          message: '네이티브 LLM과 임베더가 모두 준비되었습니다.',
+          platform: 'android',
+          llmModelConfigured: true,
+          embedderModelConfigured: true,
+          llmModelAvailable: true,
+          embedderModelAvailable: true,
+          fallbackActive: false,
+        ),
+      ),
+    );
+
+    expect(find.text('아직 대화 기록이 없습니다'), findsOneWidget);
+    expect(find.text('지난 겨울엔 뭘 하면서 기분이 풀렸지?'), findsNothing);
+  });
+
   testWidgets('오늘의 질문 카드를 누르면 질문 화면으로 이동한다', (WidgetTester tester) async {
     await _pumpApp(
       tester,
@@ -138,6 +161,58 @@ void main() {
 
     expect(find.text('어제도 같은 질문을 했나요?'), findsOneWidget);
     expect(find.text('네이티브'), findsOneWidget);
+  });
+
+  testWidgets('홈 화면 최근 대화는 최대 3개만 표시한다', (WidgetTester tester) async {
+    await _pumpApp(
+      tester,
+      bridge: const FakeOnDeviceLlmBridge(
+        runtimeStatus: OnDeviceRuntimeStatus(
+          llmReady: true,
+          embedderReady: true,
+          runtime: 'native-ready',
+          message: '네이티브 LLM과 임베더가 모두 준비되었습니다.',
+          platform: 'android',
+          llmModelConfigured: true,
+          embedderModelConfigured: true,
+          llmModelAvailable: true,
+          embedderModelAvailable: true,
+          fallbackActive: false,
+        ),
+      ),
+      mockPreferences: <String, Object>{
+        'app.onboarding_completed': true,
+        'app.recent_conversations': jsonEncode(<Map<String, String>>[
+          <String, String>{
+            'question': '첫 번째 질문',
+            'preview': '첫 번째 요약',
+            'asked_at': '2026-04-24T09:30:00.000',
+          },
+          <String, String>{
+            'question': '두 번째 질문',
+            'preview': '두 번째 요약',
+            'asked_at': '2026-04-24T09:20:00.000',
+          },
+          <String, String>{
+            'question': '세 번째 질문',
+            'preview': '세 번째 요약',
+            'asked_at': '2026-04-24T09:10:00.000',
+          },
+          <String, String>{
+            'question': '네 번째 질문',
+            'preview': '네 번째 요약',
+            'asked_at': '2026-04-24T09:00:00.000',
+          },
+        ]),
+      },
+    );
+
+    expect(find.text('첫 번째 질문'), findsOneWidget);
+    expect(find.text('두 번째 질문'), findsOneWidget);
+    expect(find.text('세 번째 질문'), findsOneWidget);
+    expect(find.text('네 번째 질문'), findsNothing);
+    expect(find.text('첫 번째 요약'), findsOneWidget);
+    expect(find.text('세 번째 요약'), findsOneWidget);
   });
 
   testWidgets('질문 제출 후 답변 화면으로 이동한다', (WidgetTester tester) async {
