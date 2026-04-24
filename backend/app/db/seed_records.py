@@ -8,7 +8,7 @@ from backend.app.db.models import StoredRecord
 SEEDED_RECORDS: tuple[StoredRecord, ...] = (
     StoredRecord(
         id="diary-burnout-feb-2024",
-        source="diary",
+        source="일기",
         title="야근이 길어지던 주간 회고",
         content=(
             "이번 주는 계속 야근이 이어져서 무기력했다. 퇴근 후에는 말할 힘도 없었다. "
@@ -19,7 +19,7 @@ SEEDED_RECORDS: tuple[StoredRecord, ...] = (
     ),
     StoredRecord(
         id="calendar-restorative-sat-2024",
-        source="calendar",
+        source="캘린더",
         title="토요일 오전 산책",
         content=(
             "한강 산책 50분. 지난주 내내 지쳤던 상태에서 일부러 바깥 공기를 쐬기로 했다. "
@@ -30,7 +30,7 @@ SEEDED_RECORDS: tuple[StoredRecord, ...] = (
     ),
     StoredRecord(
         id="memo-side-project-spring-2023",
-        source="memo",
+        source="메모",
         title="작은 사이드 프로젝트 아이디어",
         content=(
             "의욕이 떨어질 때는 새로운 아이디어를 짧게라도 구현해보면 회복이 빨랐다. "
@@ -42,7 +42,7 @@ SEEDED_RECORDS: tuple[StoredRecord, ...] = (
     ),
     StoredRecord(
         id="diary-routine-reset-2023",
-        source="diary",
+        source="일기",
         title="생활 리듬을 되돌린 날",
         content=(
             "이틀 연속 늦게 자고 나니 하루 종일 멍했다. 그날은 운동 대신 일찍 자고 "
@@ -54,7 +54,7 @@ SEEDED_RECORDS: tuple[StoredRecord, ...] = (
     ),
     StoredRecord(
         id="diary-project-pressure-2022",
-        source="diary",
+        source="일기",
         title="프로젝트 마감 직전의 기록",
         content=(
             "마감이 가까워지자 번아웃 비슷한 감각이 왔다. 해야 할 일은 많았지만 마음이 따라오지 않았다. "
@@ -65,7 +65,7 @@ SEEDED_RECORDS: tuple[StoredRecord, ...] = (
     ),
     StoredRecord(
         id="diary-sleep-apr-2024",
-        source="diary",
+        source="일기",
         title="새벽 세 시에 다시 깬 밤",
         content=(
             "새벽 세 시쯤 눈이 떠져서 한참 뒤척였다. 다음 날 회의에서 말이 자꾸 꼬였고 "
@@ -76,7 +76,7 @@ SEEDED_RECORDS: tuple[StoredRecord, ...] = (
     ),
     StoredRecord(
         id="memo-running-reset-2024",
-        source="memo",
+        source="메모",
         title="퇴근 후 20분 러닝 메모",
         content=(
             "퇴근 후 20분만 천천히 달려도 머리가 정리됐다. 몸은 피곤했지만 샤워를 하고 나면 "
@@ -88,7 +88,7 @@ SEEDED_RECORDS: tuple[StoredRecord, ...] = (
     ),
     StoredRecord(
         id="diary-relationship-apology-2024",
-        source="diary",
+        source="일기",
         title="친구와의 대화가 풀린 저녁",
         content=(
             "괜히 서운했던 마음을 오래 끌고 갔는데, 저녁에 차분히 이야기하니 오해가 많이 풀렸다. "
@@ -100,7 +100,7 @@ SEEDED_RECORDS: tuple[StoredRecord, ...] = (
     ),
     StoredRecord(
         id="calendar-family-lunch-2024",
-        source="calendar",
+        source="캘린더",
         title="엄마와 점심",
         content=(
             "엄마와 점심을 먹으며 최근에 힘들었던 이야기를 조금 꺼냈다. 조언보다도 그냥 들어주는 "
@@ -111,7 +111,7 @@ SEEDED_RECORDS: tuple[StoredRecord, ...] = (
     ),
     StoredRecord(
         id="diary-growth-course-2024",
-        source="diary",
+        source="일기",
         title="작은 공부 루틴이 생긴 주",
         content=(
             "하루 15분씩 강의를 듣고 메모를 남겼다. 양은 적었지만 매일 쌓이니 스스로를 덜 "
@@ -122,7 +122,7 @@ SEEDED_RECORDS: tuple[StoredRecord, ...] = (
     ),
     StoredRecord(
         id="memo-writing-draft-2024",
-        source="memo",
+        source="메모",
         title="에세이 초안을 밀어붙인 밤",
         content=(
             "완성되지 않은 문장을 오래 붙잡고 있었지만, 세 문단만 쓰기로 하니 오히려 끝까지 갔다. "
@@ -134,7 +134,7 @@ SEEDED_RECORDS: tuple[StoredRecord, ...] = (
     ),
     StoredRecord(
         id="diary-burnout-nov-2024",
-        source="diary",
+        source="일기",
         title="쉬어도 피곤한 주말",
         content=(
             "토요일 내내 누워 있었는데도 피로가 풀리지 않았다. 쉬는 시간에도 머릿속에서 "
@@ -146,7 +146,7 @@ SEEDED_RECORDS: tuple[StoredRecord, ...] = (
     ),
     StoredRecord(
         id="calendar-gym-morning-2025",
-        source="calendar",
+        source="캘린더",
         title="아침 헬스장",
         content=(
             "출근 전에 가볍게 근력 운동을 했다. 오전 회의에서 집중이 덜 흔들렸고 점심 이후에도 "
@@ -157,7 +157,7 @@ SEEDED_RECORDS: tuple[StoredRecord, ...] = (
     ),
     StoredRecord(
         id="diary-creative-retreat-2025",
-        source="diary",
+        source="일기",
         title="혼자 카페에 앉아 초안을 정리한 오후",
         content=(
             "사람 많은 일정에서 잠시 빠져나와 카페에 앉으니 머리가 조금 잠잠해졌다. "

@@ -1,5 +1,18 @@
 enum CurationRuntimePath { onDeviceNative, onDeviceFallback, remoteHarness }
 
+extension CurationRuntimePathPresentation on CurationRuntimePath {
+  String get runtimeBadgeLabel {
+    switch (this) {
+      case CurationRuntimePath.onDeviceNative:
+        return '네이티브';
+      case CurationRuntimePath.onDeviceFallback:
+        return '폴백';
+      case CurationRuntimePath.remoteHarness:
+        return '원격';
+    }
+  }
+}
+
 class CurationRuntimeInfo {
   const CurationRuntimeInfo({
     required this.path,
@@ -11,6 +24,7 @@ class CurationRuntimeInfo {
   final String label;
   final String message;
 
+  String get runtimeBadgeLabel => path.runtimeBadgeLabel;
   bool get isFallback => path == CurationRuntimePath.onDeviceFallback;
 }
 

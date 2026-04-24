@@ -15,6 +15,8 @@ SOURCE_MAP = {
     "memo": "메모",
 }
 
+MOBILE_SOURCES = set(SOURCE_MAP.values())
+
 
 def parse_backend_records(text: str) -> dict[str, str]:
     pattern = re.compile(
@@ -45,7 +47,9 @@ def main() -> int:
         )
 
     for record_id, backend_source in sorted(backend_records.items()):
-        expected_mobile_source = SOURCE_MAP.get(backend_source)
+        expected_mobile_source = (
+            backend_source if backend_source in MOBILE_SOURCES else SOURCE_MAP.get(backend_source)
+        )
         actual_mobile_source = mobile_records.get(record_id)
         if expected_mobile_source is None:
             errors.append(

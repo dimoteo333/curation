@@ -2,7 +2,7 @@ name: ios-simulator
 
 on:
   pull_request:
-    branches: [master, main]
+    branches: [develop, master, main]
 
 jobs:
   ios-e2e:

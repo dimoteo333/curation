@@ -4,6 +4,17 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 void main() {
+  test('기본 요청 타임아웃은 10초다', () {
+    final client = ApiClient(
+      baseUrl: 'https://example.com',
+      client: MockClient((http.Request request) async {
+        return http.Response('{"ok":true}', 200);
+      }),
+    );
+
+    expect(client.requestTimeout, const Duration(seconds: 10));
+  });
+
   test('timeout 발생 시 한 번 재시도한 뒤 ApiException을 던진다', () async {
     var callCount = 0;
     final client = ApiClient(
@@ -70,6 +81,26 @@ void main() {
       ),
     );
     expect(callCount, 2);
+  });
+
+  test('400 plain text 응답은 본문 메시지를 보존한다', () async {
+    final client = ApiClient(
+      baseUrl: 'https://example.com',
+      client: MockClient((http.Request request) async {
+        return http.Response('잘못된 요청입니다.', 400);
+      }),
+    );
+
+    await expectLater(
+      () => client.postJson('/api/test', body: const <String, dynamic>{}),
+      throwsA(
+        isA<ApiException>().having(
+          (error) => error.message,
+          'message',
+          '잘못된 요청입니다.',
+        ),
+      ),
+    );
   });
 
   test('빈 200 응답은 명시적인 ApiException을 던진다', () async {
