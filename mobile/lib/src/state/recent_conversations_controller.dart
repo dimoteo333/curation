@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/config/app_preference_keys.dart';
 import '../domain/entities/curated_response.dart';
 import '../providers.dart';
 
@@ -77,12 +78,13 @@ class RecentConversation {
 }
 
 class RecentConversationsController extends Notifier<List<RecentConversation>> {
-  static const String _storageKey = 'app.recent_conversations';
   static const int _maxItems = 8;
 
   @override
   List<RecentConversation> build() {
-    final raw = ref.watch(sharedPreferencesProvider).getString(_storageKey);
+    final raw = ref
+        .watch(sharedPreferencesProvider)
+        .getString(AppPreferenceKeys.recentConversations);
     if (raw == null || raw.isEmpty) {
       return const <RecentConversation>[];
     }
@@ -122,7 +124,7 @@ class RecentConversationsController extends Notifier<List<RecentConversation>> {
     await ref
         .read(sharedPreferencesProvider)
         .setString(
-          _storageKey,
+          AppPreferenceKeys.recentConversations,
           jsonEncode(
             state.map((item) => item.toJson()).toList(growable: false),
           ),

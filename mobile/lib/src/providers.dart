@@ -30,6 +30,7 @@ import 'domain/services/llm_engine.dart';
 import 'domain/services/text_embedding_service.dart';
 import 'domain/use_cases/request_curation_use_case.dart';
 import 'state/app_settings_controller.dart';
+import 'state/excluded_calendars_controller.dart';
 import 'state/excluded_records_controller.dart';
 import 'state/recent_conversations_controller.dart';
 
@@ -59,6 +60,10 @@ final appSettingsProvider =
 final excludedRecordIdsProvider =
     NotifierProvider<ExcludedRecordsController, Set<String>>(
       ExcludedRecordsController.new,
+    );
+final excludedCalendarIdsProvider =
+    NotifierProvider<ExcludedCalendarsController, Set<String>>(
+      ExcludedCalendarsController.new,
     );
 
 final httpClientProvider = Provider<http.Client>((ref) => http.Client());
@@ -190,8 +195,15 @@ final calendarImportServiceProvider = Provider<CalendarImportService>((ref) {
     recordStore: ref.watch(lifeRecordStoreProvider),
     importHistoryService: ref.watch(importHistoryServiceProvider),
     calendarGateway: ref.watch(deviceCalendarGatewayProvider),
+    sharedPreferences: ref.watch(sharedPreferencesProvider),
   );
 });
+
+final availableCalendarSourcesProvider =
+    FutureProvider<List<DeviceCalendarSource>>((ref) async {
+      ref.watch(excludedCalendarIdsProvider);
+      return ref.watch(calendarImportServiceProvider).loadAvailableCalendars();
+    });
 
 final importHistorySnapshotProvider = FutureProvider<ImportHistorySnapshot>((
   ref,
@@ -242,7 +254,8 @@ class LocalDataInitializationRecoveryRequiredException implements Exception {
           title: '기존 로컬 데이터를 복구할 수 없습니다',
           message:
               '암호화 키를 찾지 못해 기기에 남아 있던 기록을 읽을 수 없습니다. 새로 시작할 수 있도록 로컬 데이터를 초기화해 주세요.',
-          lossDescription: '기기에 저장된 기록, 검색 인덱스, 가져오기 이력, 앱 설정이 삭제됩니다.',
+          lossDescription:
+              '기기에 저장된 기록, 검색 인덱스, 가져오기 이력, 최근 대화 기록이 삭제됩니다. 온보딩과 런타임 설정은 유지됩니다.',
         ),
       DatabaseEncryptionFailureReason.invalidMasterKey =>
         const LocalDataInitializationRecoveryRequiredException(
@@ -250,7 +263,8 @@ class LocalDataInitializationRecoveryRequiredException implements Exception {
           title: '로컬 데이터가 손상되었습니다',
           message:
               '저장된 암호화 키 또는 데이터 상태가 맞지 않아 기존 기록을 열 수 없습니다. 초기화 후 새로 시작할 수 있습니다.',
-          lossDescription: '기기에 저장된 기록, 검색 인덱스, 가져오기 이력, 앱 설정이 삭제됩니다.',
+          lossDescription:
+              '기기에 저장된 기록, 검색 인덱스, 가져오기 이력, 최근 대화 기록이 삭제됩니다. 온보딩과 런타임 설정은 유지됩니다.',
         ),
     };
   }
@@ -260,7 +274,8 @@ class LocalDataInitializationRecoveryRequiredException implements Exception {
           LocalDataInitializationRecoveryReason.missingKeyForExistingDatabase,
       title = '기존 로컬 데이터를 복구할 수 없습니다',
       message = '앱을 다시 설치하는 동안 암호화 키가 사라져 기존 로컬 데이터를 읽을 수 없습니다. 새로 시작하시겠습니까?',
-      lossDescription = '기기에 남아 있던 기록, 검색 인덱스, 가져오기 이력, 앱 설정이 삭제됩니다.',
+      lossDescription =
+          '기기에 남아 있던 기록, 검색 인덱스, 가져오기 이력, 최근 대화 기록이 삭제됩니다. 온보딩과 런타임 설정은 유지됩니다.',
       details = null;
 
   factory LocalDataInitializationRecoveryRequiredException.corruptedDatabase({
@@ -270,7 +285,8 @@ class LocalDataInitializationRecoveryRequiredException implements Exception {
       reason: LocalDataInitializationRecoveryReason.corruptedDatabase,
       title: '로컬 저장소를 다시 준비해야 합니다',
       message: '데이터베이스 파일이 손상되었거나 이전 초기화가 중간에 멈췄습니다. 초기화 후 다시 시작할 수 있습니다.',
-      lossDescription: '기기에 저장된 기록, 검색 인덱스, 가져오기 이력, 앱 설정이 삭제됩니다.',
+      lossDescription:
+          '기기에 저장된 기록, 검색 인덱스, 가져오기 이력, 최근 대화 기록이 삭제됩니다. 온보딩과 런타임 설정은 유지됩니다.',
       details: details,
     );
   }
@@ -282,7 +298,8 @@ class LocalDataInitializationRecoveryRequiredException implements Exception {
       reason: LocalDataInitializationRecoveryReason.unknown,
       title: '앱을 바로 열 수 없습니다',
       message: '로컬 데이터를 준비하는 중 문제가 발생했습니다. 다시 시도하거나 초기화 후 새로 시작할 수 있습니다.',
-      lossDescription: '초기화를 선택하면 기기에 저장된 기록, 검색 인덱스, 가져오기 이력, 앱 설정이 삭제됩니다.',
+      lossDescription:
+          '초기화를 선택하면 기기에 저장된 기록, 검색 인덱스, 가져오기 이력, 최근 대화 기록이 삭제됩니다. 온보딩과 런타임 설정은 유지됩니다.',
       details: details,
     );
   }

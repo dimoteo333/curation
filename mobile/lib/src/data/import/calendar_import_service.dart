@@ -1,7 +1,9 @@
 import 'package:device_calendar_plus/device_calendar_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/config/app_preference_keys.dart';
 import '../../core/security/input_sanitizer.dart';
 import '../../domain/entities/life_record.dart';
 import '../local/life_record_store.dart';
@@ -42,6 +44,13 @@ class CalendarImportEvent {
   final String? timeZone;
 }
 
+class DeviceCalendarSource {
+  const DeviceCalendarSource({required this.id, required this.name});
+
+  final String id;
+  final String name;
+}
+
 class CalendarSyncStatus {
   const CalendarSyncStatus({
     required this.syncEnabled,
@@ -77,6 +86,8 @@ class CalendarImportResult {
 
 /// Platform calendar boundary used by the import service and tests.
 abstract class DeviceCalendarGateway {
+  Future<List<DeviceCalendarSource>> listAvailableCalendars();
+
   Future<CalendarImportPermissionStatus> permissionStatus();
 
   Future<CalendarImportPermissionStatus> requestPermission();
@@ -86,6 +97,7 @@ abstract class DeviceCalendarGateway {
   Future<List<CalendarImportEvent>> listEvents({
     required DateTime start,
     required DateTime end,
+    required List<DeviceCalendarSource> calendars,
   });
 }
 
@@ -97,32 +109,46 @@ class PluginDeviceCalendarGateway implements DeviceCalendarGateway {
   final DeviceCalendar _plugin;
 
   @override
-  Future<List<CalendarImportEvent>> listEvents({
-    required DateTime start,
-    required DateTime end,
-  }) async {
+  Future<List<DeviceCalendarSource>> listAvailableCalendars() async {
     final List<Calendar> calendars;
     try {
       calendars = await _plugin.listCalendars();
     } on MissingPluginException {
-      return const <CalendarImportEvent>[];
+      return const <DeviceCalendarSource>[];
     } on PlatformException {
+      return const <DeviceCalendarSource>[];
+    }
+    return calendars
+        .where((calendar) => !calendar.hidden)
+        .map(
+          (calendar) =>
+              DeviceCalendarSource(id: calendar.id, name: calendar.name),
+        )
+        .toList(growable: false);
+  }
+
+  @override
+  Future<List<CalendarImportEvent>> listEvents({
+    required DateTime start,
+    required DateTime end,
+    required List<DeviceCalendarSource> calendars,
+  }) async {
+    if (calendars.isEmpty) {
       return const <CalendarImportEvent>[];
     }
-    final visibleCalendars = calendars.where((calendar) => !calendar.hidden);
+
     final calendarNameById = <String, String>{
-      for (final calendar in visibleCalendars) calendar.id: calendar.name,
+      for (final calendar in calendars) calendar.id: calendar.name,
     };
-    if (calendarNameById.isEmpty) {
-      return const <CalendarImportEvent>[];
-    }
 
     final List<Event> events;
     try {
       events = await _plugin.listEvents(
         start,
         end,
-        calendarIds: calendarNameById.keys.toList(growable: false),
+        calendarIds: calendars
+            .map((calendar) => calendar.id)
+            .toList(growable: false),
       );
     } on MissingPluginException {
       return const <CalendarImportEvent>[];
@@ -197,12 +223,14 @@ class CalendarImportService {
     required this.recordStore,
     required this.importHistoryService,
     required this.calendarGateway,
+    required this.sharedPreferences,
     DateTime Function()? nowProvider,
   }) : _nowProvider = nowProvider ?? DateTime.now;
 
   final LifeRecordStore recordStore;
   final ImportHistoryService importHistoryService;
   final DeviceCalendarGateway calendarGateway;
+  final SharedPreferences sharedPreferences;
   final DateTime Function() _nowProvider;
 
   Future<CalendarSyncStatus> loadStatus({required bool syncEnabled}) async {
@@ -223,6 +251,10 @@ class CalendarImportService {
     return calendarGateway.openAppSettings();
   }
 
+  Future<List<DeviceCalendarSource>> loadAvailableCalendars() async {
+    return calendarGateway.listAvailableCalendars();
+  }
+
   Future<CalendarImportResult> syncRecentEvents({int pastDays = 30}) async {
     final permissionStatus = await calendarGateway.requestPermission();
     if (permissionStatus != CalendarImportPermissionStatus.granted) {
@@ -235,9 +267,15 @@ class CalendarImportService {
     }
 
     final now = _nowProvider();
+    final availableCalendars = await loadAvailableCalendars();
+    final excludedCalendarIds = _loadExcludedCalendarIds();
+    final includedCalendars = availableCalendars
+        .where((calendar) => !excludedCalendarIds.contains(calendar.id))
+        .toList(growable: false);
     final rawEvents = await calendarGateway.listEvents(
       start: now.subtract(Duration(days: pastDays)),
       end: now,
+      calendars: includedCalendars,
     );
     final dedupedEvents = _dedupeEvents(rawEvents);
     final records = <LifeRecord>[];
@@ -261,6 +299,18 @@ class CalendarImportService {
       importedCount: records.length,
       lastSyncedAt: now,
     );
+  }
+
+  Set<String> _loadExcludedCalendarIds() {
+    final stored =
+        sharedPreferences.getStringList(
+          AppPreferenceKeys.excludedCalendarIds,
+        ) ??
+        const <String>[];
+    return stored
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet();
   }
 
   @visibleForTesting

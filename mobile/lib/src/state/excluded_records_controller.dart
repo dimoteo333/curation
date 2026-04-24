@@ -1,14 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/config/app_preference_keys.dart';
 import '../providers.dart';
 
 class ExcludedRecordsController extends Notifier<Set<String>> {
-  static const String _storageKey = 'app.excluded_record_ids';
-
   @override
   Set<String> build() {
     final stored =
-        ref.watch(sharedPreferencesProvider).getStringList(_storageKey) ??
+        ref
+            .watch(sharedPreferencesProvider)
+            .getStringList(AppPreferenceKeys.excludedRecordIds) ??
         const <String>[];
     return Set<String>.unmodifiable(
       stored.map((value) => value.trim()).where((value) => value.isNotEmpty),
@@ -40,13 +41,15 @@ class ExcludedRecordsController extends Notifier<Set<String>> {
 
   Future<void> clear() async {
     state = const <String>{};
-    await ref.read(sharedPreferencesProvider).remove(_storageKey);
+    await ref
+        .read(sharedPreferencesProvider)
+        .remove(AppPreferenceKeys.excludedRecordIds);
   }
 
   Future<void> _persist(Set<String> values) {
     final sorted = values.toList()..sort();
     return ref
         .read(sharedPreferencesProvider)
-        .setStringList(_storageKey, sorted);
+        .setStringList(AppPreferenceKeys.excludedRecordIds, sorted);
   }
 }

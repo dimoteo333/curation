@@ -24,6 +24,12 @@ void main() {
     SharedPreferences.setMockInitialValues(const <String, Object>{
       'app.onboarding_completed': true,
       'app.runtime_mode': 'remote',
+      'app.llm_model_path': '/models/llm.litertlm',
+      'app.excluded_calendar_ids': <String>['work'],
+      'app.recent_conversations': r'[{"question":"q"}]',
+
+      'app.excluded_record_ids': <String>['record-1'],
+      'import_history.entries': '[]',
     });
     tempDirectory = await Directory.systemTemp.createTemp('curator-store-');
   });
@@ -34,7 +40,7 @@ void main() {
     }
   });
 
-  test('deleteAllData는 로컬 DB와 SharedPreferences를 함께 지운다', () async {
+  test('deleteAllData는 로컬 DB를 지우고 설정 관련 SharedPreferences는 보존한다', () async {
     final databasePath = path.join(tempDirectory.path, 'store.db');
     final preferences = await SharedPreferences.getInstance();
     final encryption = createTestDatabaseEncryption();
@@ -57,7 +63,15 @@ void main() {
     await store.deleteAllData();
 
     expect(await File(databasePath).exists(), isFalse);
-    expect(preferences.getKeys(), isEmpty);
+    expect(preferences.getBool('app.onboarding_completed'), isTrue);
+    expect(preferences.getString('app.runtime_mode'), 'remote');
+    expect(preferences.getString('app.llm_model_path'), '/models/llm.litertlm');
+    expect(preferences.getStringList('app.excluded_calendar_ids'), <String>[
+      'work',
+    ]);
+    expect(preferences.getString('app.recent_conversations'), isNull);
+    expect(preferences.getStringList('app.excluded_record_ids'), isNull);
+    expect(preferences.getString('import_history.entries'), isNull);
     expect(await encryption.hasMasterKey(), isFalse);
   });
 

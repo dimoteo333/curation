@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/config/app_preference_keys.dart';
+
 class ImportHistoryEntry {
   const ImportHistoryEntry({
     required this.importSource,
@@ -73,11 +75,6 @@ class ImportHistorySnapshot {
 class ImportHistoryService {
   ImportHistoryService({required this.sharedPreferences});
 
-  static const String _entriesKey = 'import_history.entries';
-  static const String _sourceIndexKey = 'import_history.source_index';
-  static const String _fileIndexKey = 'import_history.file_index';
-  static const String _calendarLastSyncKey =
-      'import_history.calendar.last_sync';
   static const int _maxRecentEntries = 12;
 
   final SharedPreferences sharedPreferences;
@@ -173,7 +170,9 @@ class ImportHistoryService {
   }
 
   List<ImportHistoryEntry> _loadEntries() {
-    final rawEntries = sharedPreferences.getString(_entriesKey);
+    final rawEntries = sharedPreferences.getString(
+      AppPreferenceKeys.importHistoryEntries,
+    );
     if (rawEntries == null || rawEntries.isEmpty) {
       return <ImportHistoryEntry>[];
     }
@@ -195,11 +194,11 @@ class ImportHistoryService {
   }
 
   Map<String, Map<String, String>> _loadSourceIndex() {
-    return _loadStringIndex(_sourceIndexKey);
+    return _loadStringIndex(AppPreferenceKeys.importHistorySourceIndex);
   }
 
   Map<String, Map<String, String>> _loadFileIndex() {
-    return _loadStringIndex(_fileIndexKey);
+    return _loadStringIndex(AppPreferenceKeys.importHistoryFileIndex);
   }
 
   Map<String, Map<String, String>> _loadStringIndex(String key) {
@@ -224,7 +223,9 @@ class ImportHistoryService {
   }
 
   DateTime? _loadCalendarLastSyncAt() {
-    final rawValue = sharedPreferences.getString(_calendarLastSyncKey);
+    final rawValue = sharedPreferences.getString(
+      AppPreferenceKeys.importHistoryCalendarLastSync,
+    );
     if (rawValue == null || rawValue.isEmpty) {
       return null;
     }
@@ -242,14 +243,20 @@ class ImportHistoryService {
         .toList(growable: false);
 
     await sharedPreferences.setString(
-      _entriesKey,
+      AppPreferenceKeys.importHistoryEntries,
       jsonEncode(trimmedEntries.map((entry) => entry.toJson()).toList()),
     );
-    await sharedPreferences.setString(_sourceIndexKey, jsonEncode(sourceIndex));
-    await sharedPreferences.setString(_fileIndexKey, jsonEncode(fileIndex));
+    await sharedPreferences.setString(
+      AppPreferenceKeys.importHistorySourceIndex,
+      jsonEncode(sourceIndex),
+    );
+    await sharedPreferences.setString(
+      AppPreferenceKeys.importHistoryFileIndex,
+      jsonEncode(fileIndex),
+    );
     if (calendarLastSyncAt != null) {
       await sharedPreferences.setString(
-        _calendarLastSyncKey,
+        AppPreferenceKeys.importHistoryCalendarLastSync,
         calendarLastSyncAt.toIso8601String(),
       );
     }

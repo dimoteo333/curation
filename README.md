@@ -9,19 +9,27 @@ Life Curator: a fully on-device Personal RAG that searches the context of a user
 
 ## 1. Overview
 
-Curator is a privacy-first, on-device **life curation engine** that indexes a user’s personal records and answers questions using only that data.
+Curator is a privacy-first, on-device-first **life curation engine** that indexes a user’s personal records and answers questions from that local context.
 
-Instead of searching the web, Curator runs a Retrieval-Augmented Generation (RAG) pipeline over the user’s own **Small Data**:
+The repository currently ships a working mobile app and a FastAPI development harness. The mobile app focuses on local ingestion, local storage, local retrieval, and Korean-first UX.
 
-- Diaries and journaling apps
-- Notes (Apple Notes, etc.)
-- Calendars (Google Calendar, Apple Calendar)
-- To‑do lists
-- Blog posts and exported documents
-- Photo captions and simple visual notes (via OCR)
-- Voice memos transcribed to text (via STT)
+### Implemented Today
 
-All text understanding and answer generation happens **locally on the phone** using **LiteRT‑LM + Gemma‑4‑E2B**, without sending raw personal data to external servers.
+- Korean-first mobile UX for onboarding, asking questions, viewing answers, and settings
+- Local encrypted SQLite record storage plus on-device vector retrieval
+- Local `.txt` and `.md` file import
+- Device calendar import for recent events
+- Calendar source-level opt-out for individual calendars
+- Import history, recent conversation history, and local data reset
+- On-device-first runtime with a remote harness mode for development/testing
+
+### Roadmap
+
+- 🔜 OCR-based image or photo-caption import
+- 🔜 STT-based voice memo transcription import
+- 🔜 Blog/document import beyond plain text and Markdown
+- 🔜 To-do app integrations
+- 🔜 Broader Apple Notes / OS-level source integrations where platform support is reliable
 
 
 ## 2. Core Product Concept
@@ -57,7 +65,7 @@ Curator does **RAG only over personal data**, not over the public web.
 
 - **Primary UX language:** Korean.
 - **LLM instruction language:** Korean system prompt and templates.
-- **Input:** Korean user questions (free‑form text or speech → STT).
+- **Input:** Korean user questions (free-form text).
 - **Output:** Korean natural language answers, explanations, and references to past records.
 - The model is allowed to use English internally, but all visible text to the user (UI labels, explanations, suggestions) must be Korean.
 
@@ -66,24 +74,29 @@ Curator does **RAG only over personal data**, not over the public web.
 
 ### 4.1 Components
 
-- **On‑device LLM engine**
-  - LiteRT‑LM runtime.
-  - Gemma‑4‑E2B‑it model (LiteRT‑LM compatible build).
+- **On-device app runtime**
+  - Korean onboarding, ask, answer, timeline, and settings flows
+  - On-device-first runtime selection with a remote harness fallback for development
 - **Local vector DB**
-  - On‑device ANN index (e.g., SQLite + HNSW or another mobile‑friendly ANN library).
-- **Connectors (ingestion)**
-  - Google Calendar: event titles, descriptions, locations, notes.
-  - Apple Notes / To‑do / Calendar: via OS APIs or exports.
-  - Blogs / documents: Markdown or text exports imported into the app.
-  - Photo captions + basic OCR from images.
-  - Voice memos → STT → text notes.
-- **Pre‑processing pipeline**
-  - Text normalization (Korean + other languages).
-  - Metadata extraction: timestamps, locations, tags, project IDs, mood labels.
+  - Encrypted SQLite-backed local record storage
+  - Local vector retrieval over imported records
+- **Implemented connectors**
+  - Local `.txt` / `.md` file imports
+  - Device calendar imports through the OS calendar store
+- **Pre-processing pipeline**
+  - Text normalization and metadata extraction
+  - Source-aware deduplication for local records
 - **Query engine**
-  - Query analysis and embedding.
-  - Vector search.
-  - Context assembly for the LLM.
+  - Query analysis and embedding
+  - Vector search and Korean prompt/context assembly
+
+### 4.2 Planned Connectors
+
+- 🔜 Apple Notes deeper integration where platform access is stable
+- 🔜 To-do source integration
+- 🔜 Blog/document import formats beyond `.txt` / `.md`
+- 🔜 OCR-based image import
+- 🔜 STT-based voice memo import
 
 ### 4.2 Data Flow
 
@@ -247,7 +260,7 @@ return answer
 
 - All LLM inference (Gemma‑4‑E2B) and vector search must run **fully on device**.
 - No raw personal content (diaries, notes, transcripts, captions) is sent to any external server.
-- Optional cloud backup or multi‑device sync, if ever added, must use end‑to‑end encryption where only the user holds the keys.
+- Optional cloud backup or multi-device sync, if ever added, must use end-to-end encryption where only the user holds the keys.
 - Access to calendars, photos, microphone, and files must use standard OS permission dialogs.
 - Users must be able to exclude specific sources (e.g., work calendar) from ingestion.
 
@@ -261,22 +274,26 @@ return answer
 - On lower‑end devices, quantization and careful scheduling are required to avoid thermal and battery issues.
 
 
-## 11. Implementation Checklist (for Engineers / AI Agents)
+## 11. Delivery Status
 
-- [ ] Integrate LiteRT‑LM runtime on the target platform (Android / iOS).
-- [ ] Download and bundle a LiteRT‑LM compatible Gemma‑4‑E2B‑it model.
-- [ ] Implement a local vector DB (SQLite + ANN index) for embeddings.
-- [ ] Build ingestion pipelines for:
-      - Google Calendar (read‑only)
-      - Apple Notes / To‑do / Calendar (where available)
-      - Local file imports (Markdown, text, HTML exports)
-      - Photo captions and basic OCR
-      - Voice memos → STT → text
-- [ ] Implement Korean‑first UX (all prompts and UI strings in Korean).
-- [ ] Implement the Korean RAG prompt templates.
-- [ ] Implement query → embed → search → context assembly → generate pipeline.
-- [ ] Add a feedback mechanism (helpful / not helpful) and basic logging **on device**.
-- [ ] Add privacy controls and source‑level toggles.
+### Shipping
+
+- [x] Local vector DB with encrypted personal text fields
+- [x] Local file import for `.txt` and `.md`
+- [x] Device calendar import
+- [x] Source-level calendar opt-out controls
+- [x] Korean-first UX and Korean prompt templates
+- [x] Query → embed → search → context assembly pipeline
+- [x] Local privacy controls, import history, and delete-local-data flow
+
+### In Progress / Planned
+
+- [ ] 🔜 Broader LiteRT-LM native-runtime maturity across platforms
+- [ ] 🔜 Apple Notes / To-do / Calendar integrations where platform support is dependable
+- [ ] 🔜 Blog/document import beyond plain text and Markdown
+- [ ] 🔜 OCR-based image import
+- [ ] 🔜 Voice memo STT import
+- [ ] 🔜 On-device feedback and ranking-improvement loop
 
 ---
 

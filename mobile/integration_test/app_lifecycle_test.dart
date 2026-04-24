@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:curator_mobile/src/app.dart';
 import 'package:curator_mobile/src/core/config/app_build_info.dart';
+import 'package:curator_mobile/src/core/config/app_preference_keys.dart';
 import 'package:curator_mobile/src/core/security/database_encryption.dart';
 import 'package:curator_mobile/src/data/local/life_record_store.dart';
 import 'package:curator_mobile/src/data/local/seed_records.dart';
@@ -106,7 +107,7 @@ void main() {
     expect(find.byKey(const Key('openSettingsButton')), findsOneWidget);
   });
 
-  testWidgets('data reset는 복구 화면 뒤에 fresh state로 돌아간다', (
+  testWidgets('data reset는 설정을 유지한 채 복구 화면 뒤에 메인 앱으로 돌아간다', (
     WidgetTester tester,
   ) async {
     final preferences = await SharedPreferences.getInstance();
@@ -117,7 +118,9 @@ void main() {
       preferences: preferences,
       onReset: () async {
         shouldRecover = false;
-        await preferences.clear();
+        for (final key in AppPreferenceKeys.dataKeysDeletedOnReset) {
+          await preferences.remove(key);
+        }
       },
     );
 
@@ -160,10 +163,10 @@ void main() {
     );
 
     await tester.tap(find.byKey(const Key('localDataRecoveryResetButton')));
-    await _pumpUntilFound(tester, find.text('큐레이터 시작하기'));
+    await _pumpUntilFound(tester, find.byKey(const Key('homeEmptyStateCard')));
 
-    expect(find.text('큐레이터 시작하기'), findsOneWidget);
-    expect(preferences.getBool('app.onboarding_completed'), isNot(isTrue));
+    expect(find.byKey(const Key('homeEmptyStateCard')), findsOneWidget);
+    expect(preferences.getBool('app.onboarding_completed'), isTrue);
   });
 }
 

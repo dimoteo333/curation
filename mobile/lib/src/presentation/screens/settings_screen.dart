@@ -50,6 +50,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final settings = ref.watch(appSettingsProvider);
     final runtimeStatus = ref.watch(onDeviceRuntimeStatusProvider);
     final calendarStatus = ref.watch(calendarSyncStatusProvider);
+    final availableCalendarSources = ref.watch(
+      availableCalendarSourcesProvider,
+    );
+    final excludedCalendarIds = ref.watch(excludedCalendarIdsProvider);
     final dataStats = ref.watch(localDataStatsProvider);
     final importHistory = ref.watch(importHistorySnapshotProvider);
     final buildInfo = ref.watch(appBuildInfoProvider);
@@ -182,6 +186,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             actionLabel: '보기',
                             onTap: _showGoogleCalendarNote,
                           ),
+                          if (status.hasPermission) ...[
+                            const _HairlineDivider(),
+                            _buildCalendarSourceSelector(
+                              availableCalendarSources:
+                                  availableCalendarSources,
+                              excludedCalendarIds: excludedCalendarIds,
+                              theme: theme,
+                              palette: palette,
+                            ),
+                          ],
                           if (status.permissionStatus ==
                                   CalendarImportPermissionStatus.denied ||
                               status.permissionStatus ==
@@ -265,7 +279,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           _ActionRow(
                             key: const Key('settingsClearDataButton'),
                             title: '모든 데이터 삭제',
-                            subtitle: '로컬 기록, 인덱스, 앱 설정을 모두 제거합니다.',
+                            subtitle: '로컬 기록, 인덱스, 가져오기 이력을 지우고 설정은 유지합니다.',
                             actionLabel: _isClearingData ? '삭제 중...' : '삭제',
                             destructive: true,
                             onTap: _clearAllData,
@@ -481,6 +495,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (!enabled) {
         await controller.setCalendarSyncEnabled(false);
         ref.invalidate(calendarSyncStatusProvider);
+        ref.invalidate(availableCalendarSourcesProvider);
         if (!mounted) {
           return;
         }
@@ -494,6 +509,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (permissionStatus != CalendarImportPermissionStatus.granted) {
         await controller.setCalendarSyncEnabled(false);
         ref.invalidate(calendarSyncStatusProvider);
+        ref.invalidate(availableCalendarSourcesProvider);
         if (!mounted) {
           return;
         }
@@ -503,9 +519,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       await controller.setCalendarSyncEnabled(true);
       ref.invalidate(calendarSyncStatusProvider);
+      ref.invalidate(availableCalendarSourcesProvider);
       await _syncCalendar();
     } catch (_) {
       ref.invalidate(calendarSyncStatusProvider);
+      ref.invalidate(availableCalendarSourcesProvider);
       if (!mounted) {
         return;
       }
@@ -559,6 +577,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _openCalendarPermissionSettings() async {
     try {
       await ref.read(calendarImportServiceProvider).openAppSettings();
+      ref.invalidate(availableCalendarSourcesProvider);
       if (!mounted) {
         return;
       }
@@ -602,7 +621,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       builder: (context) {
         return AlertDialog(
           title: const Text('모든 데이터를 삭제할까요?'),
-          content: const Text('가져온 기록, 시드 데이터, 로컬 인덱스, 저장된 앱 설정이 모두 삭제됩니다.'),
+          content: const Text(
+            '가져온 기록, 시드 데이터, 로컬 인덱스, 최근 대화, 가져오기 이력이 삭제됩니다.\n'
+            '온보딩 상태와 런타임 설정, 캘린더 소스 선택은 유지됩니다.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
@@ -627,11 +649,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ref.invalidate(appSettingsProvider);
       ref.invalidate(localDataInitializationProvider);
       ref.invalidate(onDeviceRuntimeStatusProvider);
+      ref.invalidate(recentConversationsProvider);
+      ref.invalidate(excludedRecordIdsProvider);
       if (!mounted) {
         return;
       }
-      _llmPathController.clear();
-      _embedderPathController.clear();
       _showMessage('모든 로컬 데이터를 삭제했습니다.');
       Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (_) {
@@ -746,7 +768,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Text(
               '큐레이터는 사용자가 직접 가져온 파일만 처리합니다.\n\n'
               '개인 기록은 기기 안의 암호화된 SQLite에 저장되며, 온디바이스 모드에서는 기록 내용이 외부로 전송되지 않습니다.\n\n'
-              '데이터는 사용자가 삭제하기 전까지 유지되며, 설정의 "모든 데이터 삭제"로 언제든 제거할 수 있습니다.\n\n'
+              '데이터는 사용자가 삭제하기 전까지 유지되며, 설정의 "모든 데이터 삭제"로 언제든 제거할 수 있습니다. 이때 온보딩과 런타임 같은 앱 설정은 유지됩니다.\n\n'
               '정책 원문: docs/privacy/PRIVACY_POLICY.md',
             ),
           ),
@@ -823,6 +845,92 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       return '동기화 완료, 저장된 일정 없음';
     }
     return '동기화 완료';
+  }
+
+  Widget _buildCalendarSourceSelector({
+    required AsyncValue<List<DeviceCalendarSource>> availableCalendarSources,
+    required Set<String> excludedCalendarIds,
+    required ThemeData theme,
+    required CuratorPalette palette,
+  }) {
+    return availableCalendarSources.when(
+      data: (sources) {
+        if (sources.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.only(top: 18),
+            child: _DescriptionBlock(
+              text: '선택 가능한 캘린더 소스를 아직 찾지 못했습니다. 권한과 기기 캘린더 계정 연결 상태를 확인해 주세요.',
+            ),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('가져올 캘린더 소스', style: theme.textTheme.bodyLarge),
+            const SizedBox(height: 6),
+            Text(
+              '체크를 해제한 캘린더는 다음 동기화부터 건너뜁니다.',
+              style: theme.textTheme.bodySmall?.copyWith(color: palette.label),
+            ),
+            const SizedBox(height: 12),
+            for (var index = 0; index < sources.length; index += 1) ...[
+              CheckboxListTile(
+                key: Key('settingsCalendarSourceCheckbox-${sources[index].id}'),
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: !excludedCalendarIds.contains(sources[index].id),
+                onChanged: (selected) => _setCalendarSourceEnabled(
+                  calendarId: sources[index].id,
+                  enabled: selected ?? true,
+                ),
+                title: Text(
+                  sources[index].name,
+                  style: theme.textTheme.bodyMedium,
+                ),
+                subtitle: excludedCalendarIds.contains(sources[index].id)
+                    ? Text(
+                        '다음 가져오기에서 제외됨',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: palette.label,
+                        ),
+                      )
+                    : null,
+              ),
+              if (index != sources.length - 1) const _HairlineDivider(),
+            ],
+          ],
+        );
+      },
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 18),
+        child: LinearProgressIndicator(minHeight: 1.5),
+      ),
+      error: (error, _) => _DescriptionBlock(
+        text: '캘린더 목록을 읽지 못했습니다: $error',
+        color: theme.colorScheme.error,
+      ),
+    );
+  }
+
+  Future<void> _setCalendarSourceEnabled({
+    required String calendarId,
+    required bool enabled,
+  }) async {
+    try {
+      await ref
+          .read(excludedCalendarIdsProvider.notifier)
+          .setExcluded(calendarId: calendarId, excluded: !enabled);
+      ref.invalidate(availableCalendarSourcesProvider);
+      if (!mounted) {
+        return;
+      }
+      _showMessage(enabled ? '캘린더 소스를 다시 포함했습니다.' : '이 캘린더 소스는 가져오기에서 제외됩니다.');
+    } catch (_) {
+      if (mounted) {
+        _showMessage('캘린더 소스 설정을 저장하지 못했습니다. 다시 시도해 주세요.');
+      }
+    }
   }
 
   String _formatDataSourceSummary(Map<String, int> sourceCounts) {

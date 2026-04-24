@@ -1,18 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/config/app_preference_keys.dart';
 import '../core/config/app_config.dart';
 import '../core/config/app_settings.dart';
 import '../providers.dart';
 
 class AppSettingsController extends Notifier<AppSettings> {
-  static const String _runtimeModeKey = 'app.runtime_mode';
-  static const String _llmModelPathKey = 'app.llm_model_path';
-  static const String _embedderModelPathKey = 'app.embedder_model_path';
-  static const String _onboardingCompletedKey = 'app.onboarding_completed';
-  static const String _firstRunVersionKey = 'app.first_run_version';
-  static const String _calendarSyncEnabledKey = 'app.calendar_sync_enabled';
-
   SharedPreferences get _preferences => ref.read(sharedPreferencesProvider);
   AppConfig get _config => ref.read(appConfigProvider);
   String get _currentVersion => ref.read(appBuildInfoProvider).versionLabel;
@@ -22,19 +16,23 @@ class AppSettingsController extends Notifier<AppSettings> {
     return AppSettings(
       runtimeMode: _runtimeMode(),
       currentVersion: _currentVersion,
-      firstRunVersion: _preferences.getString(_firstRunVersionKey),
-      llmModelPath: _storedPath(_llmModelPathKey) ?? _config.llmModelPath,
+      firstRunVersion: _preferences.getString(
+        AppPreferenceKeys.firstRunVersion,
+      ),
+      llmModelPath:
+          _storedPath(AppPreferenceKeys.llmModelPath) ?? _config.llmModelPath,
       embedderModelPath:
-          _storedPath(_embedderModelPathKey) ?? _config.embedderModelPath,
+          _storedPath(AppPreferenceKeys.embedderModelPath) ??
+          _config.embedderModelPath,
       onboardingCompleted:
-          _preferences.getBool(_onboardingCompletedKey) ?? false,
+          _preferences.getBool(AppPreferenceKeys.onboardingCompleted) ?? false,
       calendarSyncEnabled:
-          _preferences.getBool(_calendarSyncEnabledKey) ?? false,
+          _preferences.getBool(AppPreferenceKeys.calendarSyncEnabled) ?? false,
     );
   }
 
   Future<void> setRuntimeMode(CurationRuntimeMode mode) async {
-    await _preferences.setString(_runtimeModeKey, mode.value);
+    await _preferences.setString(AppPreferenceKeys.runtimeMode, mode.value);
     state = state.copyWith(runtimeMode: mode);
   }
 
@@ -46,16 +44,19 @@ class AppSettingsController extends Notifier<AppSettings> {
     final normalizedEmbedderPath = _normalizePath(embedderModelPath);
 
     if (normalizedLlmPath == null) {
-      await _preferences.remove(_llmModelPathKey);
+      await _preferences.remove(AppPreferenceKeys.llmModelPath);
     } else {
-      await _preferences.setString(_llmModelPathKey, normalizedLlmPath);
+      await _preferences.setString(
+        AppPreferenceKeys.llmModelPath,
+        normalizedLlmPath,
+      );
     }
 
     if (normalizedEmbedderPath == null) {
-      await _preferences.remove(_embedderModelPathKey);
+      await _preferences.remove(AppPreferenceKeys.embedderModelPath);
     } else {
       await _preferences.setString(
-        _embedderModelPathKey,
+        AppPreferenceKeys.embedderModelPath,
         normalizedEmbedderPath,
       );
     }
@@ -69,7 +70,7 @@ class AppSettingsController extends Notifier<AppSettings> {
   }
 
   Future<void> ensureFirstRunVersion() async {
-    final existing = _preferences.getString(_firstRunVersionKey);
+    final existing = _preferences.getString(AppPreferenceKeys.firstRunVersion);
     if (existing != null && existing.isNotEmpty) {
       state = state.copyWith(
         currentVersion: _currentVersion,
@@ -78,7 +79,10 @@ class AppSettingsController extends Notifier<AppSettings> {
       return;
     }
 
-    await _preferences.setString(_firstRunVersionKey, _currentVersion);
+    await _preferences.setString(
+      AppPreferenceKeys.firstRunVersion,
+      _currentVersion,
+    );
     state = state.copyWith(
       currentVersion: _currentVersion,
       firstRunVersion: _currentVersion,
@@ -87,7 +91,7 @@ class AppSettingsController extends Notifier<AppSettings> {
 
   Future<void> completeOnboarding() async {
     await ensureFirstRunVersion();
-    await _preferences.setBool(_onboardingCompletedKey, true);
+    await _preferences.setBool(AppPreferenceKeys.onboardingCompleted, true);
     state = state.copyWith(
       currentVersion: _currentVersion,
       firstRunVersion: state.firstRunVersion ?? _currentVersion,
@@ -96,12 +100,12 @@ class AppSettingsController extends Notifier<AppSettings> {
   }
 
   Future<void> setCalendarSyncEnabled(bool enabled) async {
-    await _preferences.setBool(_calendarSyncEnabledKey, enabled);
+    await _preferences.setBool(AppPreferenceKeys.calendarSyncEnabled, enabled);
     state = state.copyWith(calendarSyncEnabled: enabled);
   }
 
   CurationRuntimeMode _runtimeMode() {
-    final storedValue = _preferences.getString(_runtimeModeKey);
+    final storedValue = _preferences.getString(AppPreferenceKeys.runtimeMode);
     if (storedValue == null) {
       return _config.curationMode;
     }

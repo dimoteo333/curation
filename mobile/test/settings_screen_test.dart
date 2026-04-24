@@ -69,6 +69,11 @@ void main() {
 
     expect(find.text('사용 방식'), findsOneWidget);
     expect(find.text('캘린더'), findsOneWidget);
+    expect(find.text('가져올 캘린더 소스'), findsOneWidget);
+    expect(
+      find.byKey(const Key('settingsCalendarSourceCheckbox-personal')),
+      findsOneWidget,
+    );
     expect(find.text('데모 데이터 로드'), findsNothing);
     expect(find.byKey(const Key('developerRuntimeSection')), findsOneWidget);
     expect(find.byKey(const Key('llmModelPathField')), findsNothing);
@@ -77,6 +82,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(preferences.getString('app.runtime_mode'), 'remote');
+
+    await tester.tap(
+      find.byKey(const Key('settingsCalendarSourceCheckbox-work')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(preferences.getStringList('app.excluded_calendar_ids'), <String>[
+      'work',
+    ]);
 
     await tester.tap(find.byKey(const Key('developerRuntimeToggleButton')));
     await tester.pumpAndSettle();
@@ -90,9 +104,18 @@ class _FakeDeviceCalendarGateway implements DeviceCalendarGateway {
   const _FakeDeviceCalendarGateway();
 
   @override
+  Future<List<DeviceCalendarSource>> listAvailableCalendars() async {
+    return const <DeviceCalendarSource>[
+      DeviceCalendarSource(id: 'personal', name: '개인'),
+      DeviceCalendarSource(id: 'work', name: '업무'),
+    ];
+  }
+
+  @override
   Future<List<CalendarImportEvent>> listEvents({
     required DateTime start,
     required DateTime end,
+    required List<DeviceCalendarSource> calendars,
   }) async {
     return const <CalendarImportEvent>[];
   }

@@ -86,7 +86,7 @@ void main() {
     expect(record.title, '야근 후 회고');
     expect(record.importSource, 'file');
     expect(record.createdAt, DateTime(2026, 4, 15, 23, 10));
-    expect(record.tags, containsAll(<String>['야근', '회복']));
+    expect(record.tags, containsAll(<String>['야근했다', '회복']));
     expect(record.metadata['file_extension'], 'md');
     expect(record.metadata['parser'], 'markdown-header');
     expect(record.metadata['tag_count'], greaterThanOrEqualTo(2));

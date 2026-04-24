@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/config/app_preference_keys.dart';
 import '../../core/security/database_encryption.dart';
 import '../../domain/entities/life_record.dart';
 import '../../domain/services/text_embedding_service.dart';
@@ -55,7 +56,9 @@ class LifeRecordStore {
   Future<void> deleteAllData() async {
     await vectorDb.deleteAllData();
     await databaseEncryption.deleteMasterKey();
-    await sharedPreferences.clear();
+    for (final key in AppPreferenceKeys.dataKeysDeletedOnReset) {
+      await sharedPreferences.remove(key);
+    }
   }
 
   Future<LocalDataStats> loadStats() async {
