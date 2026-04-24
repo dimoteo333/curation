@@ -45,6 +45,37 @@ void main() {
     expect(find.byKey(const Key('todayAskCard')), findsOneWidget);
 
     expect(find.text('타임라인'), findsOneWidget);
+    expect(find.text('모든 처리가 기기 안에서 이루어집니다'), findsOneWidget);
+    expect(find.text('서버를 통해 처리됩니다'), findsNothing);
+  });
+
+  testWidgets('홈 화면 privacy 배너는 remote 모드에서 서버 처리 문구를 표시한다', (
+    WidgetTester tester,
+  ) async {
+    await _pumpApp(
+      tester,
+      bridge: const FakeOnDeviceLlmBridge(
+        runtimeStatus: OnDeviceRuntimeStatus(
+          llmReady: true,
+          embedderReady: true,
+          runtime: 'remote-harness',
+          message: '원격 하네스를 사용 중입니다.',
+          platform: 'flutter-test',
+          llmModelConfigured: false,
+          embedderModelConfigured: false,
+          llmModelAvailable: false,
+          embedderModelAvailable: false,
+          fallbackActive: false,
+        ),
+      ),
+      mockPreferences: const <String, Object>{
+        'app.onboarding_completed': true,
+        'app.runtime_mode': 'remote',
+      },
+    );
+
+    expect(find.text('서버를 통해 처리됩니다'), findsOneWidget);
+    expect(find.text('모든 처리가 기기 안에서 이루어집니다'), findsNothing);
   });
 
   testWidgets('오늘의 질문 카드를 누르면 질문 화면으로 이동한다', (WidgetTester tester) async {

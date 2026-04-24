@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/config/app_config.dart';
 import '../../data/local/life_record_store.dart';
 import '../../domain/entities/curated_response.dart';
 import '../../providers.dart';
@@ -25,6 +26,9 @@ class HomeScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final palette = theme.extension<CuratorPalette>()!;
     final shell = ref.read(curatorAppShellProvider.notifier);
+    final runtimeMode = ref.watch(
+      appSettingsProvider.select((settings) => settings.runtimeMode),
+    );
     final stats = ref.watch(localDataStatsProvider);
     final statsValue = stats.asData?.value;
     final hasLocalRecords = (statsValue?.recordCount ?? 0) > 0;
@@ -33,6 +37,10 @@ class HomeScreen extends ConsumerWidget {
         ? _fallbackRecentConversations()
         : conversations;
     final now = DateTime.now();
+    final privacyBannerText = switch (runtimeMode) {
+      CurationRuntimeMode.remote => '서버를 통해 처리됩니다',
+      CurationRuntimeMode.onDevice => '모든 처리가 기기 안에서 이루어집니다',
+    };
 
     return CuratorBackdrop(
       child: SafeArea(
@@ -410,7 +418,7 @@ class HomeScreen extends ConsumerWidget {
                 Icon(Icons.shield_outlined, size: 14, color: palette.sage),
                 const SizedBox(width: 6),
                 Text(
-                  '모든 처리가 기기 안에서 이루어집니다',
+                  privacyBannerText,
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontFamily: 'IBMPlexSansKR',
                   ),
