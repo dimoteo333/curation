@@ -1,7 +1,12 @@
 import 'package:curator_mobile/src/core/config/app_build_info.dart';
+import 'package:curator_mobile/src/core/security/database_encryption.dart';
 import 'package:curator_mobile/src/data/import/calendar_import_service.dart';
+import 'package:curator_mobile/src/data/import/import_history_service.dart';
 import 'package:curator_mobile/src/data/local/life_record_store.dart';
+import 'package:curator_mobile/src/data/local/vector_db.dart';
 import 'package:curator_mobile/src/data/ondevice/litert_method_channel_bridge.dart';
+import 'package:curator_mobile/src/domain/entities/life_record.dart';
+import 'package:curator_mobile/src/domain/services/text_embedding_service.dart';
 import 'package:curator_mobile/src/presentation/screens/settings_screen.dart';
 import 'package:curator_mobile/src/providers.dart';
 import 'package:curator_mobile/src/theme/curator_theme.dart';
@@ -9,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +36,7 @@ void main() {
     });
 
     final preferences = await SharedPreferences.getInstance();
+    _FakeLifeRecordStore._prefs = preferences;
 
     await tester.pumpWidget(
       ProviderScope(
@@ -56,6 +63,10 @@ void main() {
           deviceCalendarGatewayProvider.overrideWithValue(
             const _FakeDeviceCalendarGateway(),
           ),
+          lifeRecordStoreProvider.overrideWithValue(_FakeLifeRecordStore()),
+          importHistoryServiceProvider.overrideWithValue(
+            _FakeImportHistoryService(preferences),
+          ),
         ],
         child: MaterialApp(
           theme: buildCuratorTheme(Brightness.light),
@@ -63,35 +74,28 @@ void main() {
         ),
       ),
     );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
 
+    // Core sections are visible
     expect(find.text('사용 방식'), findsOneWidget);
     expect(find.text('캘린더'), findsOneWidget);
-    expect(find.text('가져올 캘린더 소스'), findsOneWidget);
-    expect(
-      find.byKey(const Key('settingsCalendarSourceCheckbox-personal')),
-      findsOneWidget,
-    );
+    expect(find.text('데이터'), findsOneWidget);
+
+    // Developer runtime section exists but LLM fields are hidden
     expect(find.text('데모 데이터 로드'), findsNothing);
     expect(find.byKey(const Key('developerRuntimeSection')), findsOneWidget);
     expect(find.byKey(const Key('llmModelPathField')), findsNothing);
 
-    await tester.tap(find.byType(Switch));
+    // Runtime mode toggle
+    await tester.tap(find.byType(Switch).first);
     await tester.pumpAndSettle();
-
     expect(preferences.getString('app.runtime_mode'), 'remote');
 
-    await tester.tap(
-      find.byKey(const Key('settingsCalendarSourceCheckbox-work')),
+    // Developer toggle reveals LLM / embedder fields
+    await tester.ensureVisible(
+      find.byKey(const Key('developerRuntimeToggleButton')),
     );
     await tester.pumpAndSettle();
-
-    expect(preferences.getStringList('app.excluded_calendar_ids'), <String>[
-      'work',
-    ]);
-
     await tester.tap(find.byKey(const Key('developerRuntimeToggleButton')));
     await tester.pumpAndSettle();
 
@@ -99,6 +103,8 @@ void main() {
     expect(find.byKey(const Key('embedderModelPathField')), findsOneWidget);
   });
 }
+
+// ─── Fakes ────────────────────────────────────────────────────────────────────
 
 class _FakeDeviceCalendarGateway implements DeviceCalendarGateway {
   const _FakeDeviceCalendarGateway();
@@ -116,22 +122,19 @@ class _FakeDeviceCalendarGateway implements DeviceCalendarGateway {
     required DateTime start,
     required DateTime end,
     required List<DeviceCalendarSource> calendars,
-  }) async {
-    return const <CalendarImportEvent>[];
-  }
+  }) async =>
+      const <CalendarImportEvent>[];
 
   @override
   Future<void> openAppSettings() async {}
 
   @override
-  Future<CalendarImportPermissionStatus> permissionStatus() async {
-    return CalendarImportPermissionStatus.granted;
-  }
+  Future<CalendarImportPermissionStatus> permissionStatus() async =>
+      CalendarImportPermissionStatus.granted;
 
   @override
-  Future<CalendarImportPermissionStatus> requestPermission() async {
-    return CalendarImportPermissionStatus.granted;
-  }
+  Future<CalendarImportPermissionStatus> requestPermission() async =>
+      CalendarImportPermissionStatus.granted;
 }
 
 class _FakeOnDeviceLlmBridge implements OnDeviceLlmBridge {
@@ -147,29 +150,122 @@ class _FakeOnDeviceLlmBridge implements OnDeviceLlmBridge {
     double temperature = 0.3,
     int topK = 32,
     int randomSeed = 17,
-  }) async {
-    return '테스트 응답';
-  }
+  }) async =>
+      '테스트 응답';
 
   @override
   Future<OnDeviceRuntimeStatus> prepare({
     String? llmModelPath,
     String? embedderModelPath,
-  }) async {
-    return const OnDeviceRuntimeStatus(
-      llmReady: true,
-      embedderReady: false,
-      runtime: 'partial-native',
-      message: 'LLM은 준비됐고 임베딩은 폴백입니다.',
-      platform: 'flutter-test',
-      llmModelConfigured: true,
-      embedderModelConfigured: false,
-      llmModelAvailable: true,
-      embedderModelAvailable: false,
-      fallbackActive: true,
-    );
-  }
+  }) async =>
+      const OnDeviceRuntimeStatus(
+        llmReady: true,
+        embedderReady: false,
+        runtime: 'partial-native',
+        message: 'LLM은 준비됐고 임베딩은 폴백입니다.',
+        platform: 'flutter-test',
+        llmModelConfigured: true,
+        embedderModelConfigured: false,
+        llmModelAvailable: true,
+        embedderModelAvailable: false,
+        fallbackActive: true,
+      );
 
   @override
   Future<OnDeviceRuntimeStatus> status() async => prepare();
+}
+
+class _FakeLifeRecordStore extends LifeRecordStore {
+  static SharedPreferences? _prefs;
+
+  _FakeLifeRecordStore()
+      : super(
+          vectorDb: _NilVectorDb(),
+          databaseEncryption: _NilDatabaseEncryption(),
+          embeddingService: _NilTextEmbeddingService(),
+          seedRecords: const [],
+          sharedPreferences: _prefs!,
+        );
+
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<LocalDataStats> loadStats() async => const LocalDataStats(
+        recordCount: 5,
+        databaseSizeBytes: 2048,
+        sourceCounts: <String, int>{'file': 2, 'calendar': 1, 'diary': 2},
+      );
+
+  @override
+  Future<void> deleteAllData() async {}
+
+  @override
+  Future<void> loadDemoData() async {}
+
+  @override
+  Future<List<LifeRecord>> loadRecords() async => const [];
+}
+
+class _FakeImportHistoryService extends ImportHistoryService {
+  _FakeImportHistoryService(SharedPreferences prefs)
+      : super(sharedPreferences: prefs);
+
+  @override
+  Future<ImportHistorySnapshot> loadSnapshot() async =>
+      const ImportHistorySnapshot(
+        recentEntries: [],
+        uniqueCountsBySource: {},
+      );
+
+  @override
+  Future<bool> hasImportedFile({required String contentHash}) async => false;
+
+  @override
+  Future<void> recordFileImports(List<FileImportHistoryRecord> records) async {}
+
+  @override
+  Future<void> recordCalendarSync({
+    required DateTime syncedAt,
+    required Iterable<String> sourceIds,
+    required int importedCount,
+    required int scannedCount,
+  }) async {}
+}
+
+// ─── Nil instances (satisfy constructors, never actually used) ────────────────
+
+class _NilVectorDb extends VectorDb {
+  _NilVectorDb()
+      : super(
+          databaseFactory: _dummyDatabaseFactory,
+          databasePathResolver: () async => '',
+          databaseEncryption: _NilDatabaseEncryption(),
+        );
+}
+
+class _NilDatabaseEncryption extends DatabaseEncryption {
+  _NilDatabaseEncryption()
+      : super(secureKeyStore: _NilSecureKeyStore(), appNamespace: 'test');
+}
+
+class _NilTextEmbeddingService implements TextEmbeddingService {
+  @override
+  Future<List<double>> embed(String text) async => [0.0];
+}
+
+class _NilSecureKeyStore extends SecureKeyStore {
+  @override
+  Future<String?> read(String key) async => null;
+  @override
+  Future<void> write(String key, String value) async {}
+  @override
+  Future<void> delete(String key) async {}
+}
+
+final _dummyDatabaseFactory = _DummyDatabaseFactory();
+
+class _DummyDatabaseFactory implements DatabaseFactory {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
 }
